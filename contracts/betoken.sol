@@ -22,6 +22,10 @@ contract GroupFund {
     _;
   }
 
+  modifier onlyParticipant {
+    require(isParticipant[msg.sender]);
+  }
+
   //Number of decimals used for decimal numbers
   uint decimals;
 
@@ -49,11 +53,10 @@ contract GroupFund {
   uint timeOfChangeMaking;
 
   bool hasStarted;
-  bool hadEnded;
 
   Proposal[] proposals;
 
-  event StartedNewCycle(uint timestamp);
+  event CycleStarted(uint timestamp);
   event CycleEnded(uint timestamp);
 
   function GroupFund(
@@ -71,14 +74,13 @@ contract GroupFund {
   }
 
   function startNewCycle() {
-    require(!hasStarted && hasEnded);
+    require(!hasStarted);
     require(block.timestamp >= startTimeOfCycle + timeOfCycle);
 
     hasStarted = true;
-    hasEnded = false;
 
     startTimeOfCycle = block.timestamp;
-    StartedNewCycle(block.timestamp);
+    CycleStarted(block.timestamp);
   }
 
   function createProposal(
@@ -117,12 +119,11 @@ contract GroupFund {
   }
 
   function endChangeMakingTime() {
-    require(hasStarted && !hasEnded);
+    require(hasStarted);
     require(block.timestamp >= startTimeOfCycle + timeOfChangeMaking);
     require(block.timestamp < startTimeOfCycle + timeOfCycle);
 
     hasStarted = false;
-    hasEnded = true;
 
     CycleEnded(block.timestamp);
   }
