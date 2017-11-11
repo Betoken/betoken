@@ -12,6 +12,10 @@ contract GroupFund {
   // The proportion a person owns of the totalFunds
   mapping(address => uint) shares;
 
+  // Keep track of where our funds are, in which tokens, etc. at some point
+
   // The total amount of funds held by the group
   uint totalFunds;
 }
+
+// Make a ShareToken based on the ERC20 Boilerplate
