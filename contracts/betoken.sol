@@ -1,5 +1,6 @@
 pragma solidity ^0.4.18;
 
+// Grabbing zeppelin's premade templates
 import 'zeppelin-solidity/contracts/token/Mintable.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 
@@ -63,6 +64,7 @@ contract GroupFund {
 
   mapping(address => uint256) balanceOf;
 
+  // This is the total amount of control staked per proposal
   mapping(uint256 => uint256) stakedControlOfProposal;
 
   mapping(uint256 => mapping(address => uint256)) stakedControlOfUserOfProposal;
