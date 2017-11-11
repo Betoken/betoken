@@ -1,6 +1,6 @@
 pragma solidity ^0.4.18;
 
-import 'zeppelin-solidity/contracts/token/Mintable.sol';
+import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 
 // The main contract that keeps track of:
@@ -15,8 +15,6 @@ contract GroupFund {
     bool isBuy;
     address tokenAddress;
     uint256 amount;
-    //Proportion of control people who vote against a proposal have to stake
-    uint256 againstStakeProp;
     mapping(address => bool) userSupportsProposal;
   }
 
@@ -58,6 +56,13 @@ contract GroupFund {
   //Temporal length of change making period at start of each cycle, in seconds
   uint256 public timeOfChangeMaking;
 
+  //Proportion of control people who vote against a proposal have to stake
+  uint256 public againstStakeProportion;
+
+  uint256 public maxProposals;
+
+  uint256 public commissionRate;
+
   //Indicates whether the cycle has started and is not past ending time
   bool public cycleIsActive;
 
@@ -65,7 +70,7 @@ contract GroupFund {
 
   bool public isFirstCycle;
 
-  mapping(address => uint256) public balanceOf;
+  mapping(address => uint256) public balanceOfAtCycleStart;
 
   mapping(uint256 => uint256) public stakedControlOfProposal;
 
@@ -81,14 +86,20 @@ contract GroupFund {
   function GroupFund(
     uint256 _decimals,
     uint256 _timeOfCycle,
-    uint256 _timeOfChangeMaking
+    uint256 _timeOfChangeMaking,
+    uint256 _againstStakeProportion,
+    uint256 _maxProposals,
+    uint256 _commissionRate
   )
     public
   {
     decimals = _decimals;
-    startTimeOfCycle = 0;
     timeOfCycle = _timeOfCycle;
     timeOfChangeMaking = _timeOfChangeMaking;
+    againstStakeProportion = _againstStakeProportion;
+    maxProposals = _maxProposals;
+    commissionRate = _commissionRate;
+    startTimeOfCycle = 0;
     isFirstCycle = true;
 
     //Create control token contract
@@ -116,13 +127,18 @@ contract GroupFund {
     isChangeMakingTime
     onlyParticipant
   {
-    //require(_amount <= cToken.balanceOf(msg.sender));
-    proposals.push({
+    require(proposals.length < maxProposals);
+    require((isFirstCycle && _amount <= initialDeposit[msg.sender])
+      || (!isFirstCycle && _amount <= cToken.balanceOf(msg.sender).div(cToken.totalSupply()).mul(totalFundsAtStartOfCycleInWeis)));
+    require(_amount <= totalFundsInWeis);
+
+    proposals.push(Proposal({
       isBuy: _isBuy,
       tokenAddress: _tokenAddress,
-      amount: _amount,
-      againstStakeProp: calculateAgainstStakeProp()
-    });
+      amount: _amount
+    }));
+
+    //Make investment on etherdelta
   }
 
   function supportProposal(uint256 proposalId, uint256 controlStake)
@@ -130,6 +146,7 @@ contract GroupFund {
     isChangeMakingTime
     onlyParticipant
   {
+    require(proposalId < proposals.length);
     require(controlStake <= cToken.balanceOf(msg.sender));
 
     //Stake control tokens
@@ -137,7 +154,7 @@ contract GroupFund {
     stakedControlOfProposalOfUser[proposalId][msg.sender] = stakedControlOfProposalOfUser[proposalId][msg.sender].add(controlStake);
     cToken.ownerCollectFrom(msg.sender, controlStake);
 
-    //Make investment
+    //Make investment on etherdelta
   }
 
   function deposit()
@@ -153,7 +170,7 @@ contract GroupFund {
     //Register investment
     initialDeposit[msg.sender] = initialDeposit[msg.sender].add(msg.value);
     totalInitialDeposit = totalInitialDeposit.add(msg.value);
-    balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
+    balanceOfAtCycleStart[msg.sender] = balanceOfAtCycleStart[msg.sender].add(msg.value);
 
     if (isFirstCycle) {
       //Give control tokens proportional to investment
@@ -167,14 +184,17 @@ contract GroupFund {
     onlyParticipant
   {
     require(!isFirstCycle);
-    require(msg.sender.balance + amount >= msg.sender.balance);
 
-    balanceOf[msg.sender] = balanceOf[msg.sender].sub(amountInWeis);
+    uint256 reduceAmount = amountToReduceInitialDepositBy(msg.sender, amountInWeis);
+    initialDeposit[msg.sender] = initialDeposit[msg.sender].sub(reduceAmount);
+    totalInitialDeposit = totalInitialDeposit.sub(reduceAmount);
+    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
+    //Todo: check if everything checks out mathematically
 
-    msg.sender.transfer(amount);
+    msg.sender.transfer(amountInWeis);
   }
 
-  function endChangeMakingTime() {
+  function endChangeMakingTime() public {
     require(!changeMakingTimeHasEnded);
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
     require(now < startTimeOfCycle.add(timeOfCycle));
@@ -182,6 +202,17 @@ contract GroupFund {
     changeMakingTimeHasEnded = true;
 
     //Stake against votes
+    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
+      for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
+        address participant = participants[i];
+        bool isFor = proposals[j].userSupportsProposal[participant];
+        if (!isFor && cToken.balanceOf(participant) > 0) {
+          //Unfair to later proposals
+          uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(decimals);
+          cToken.ownerCollectFrom(participant, stakeAmount);
+        }
+      }
+    }
 
     ChangeMakingTimeEnded(now);
   }
@@ -190,19 +221,34 @@ contract GroupFund {
     require(cycleIsActive);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
+    if (isFirstCycle) {
+      cToken.finishMinting();
+    }
     cycleIsActive = false;
     isFirstCycle = false;
 
-    //Distribute staked control tokens
-
     //Sell all invested tokens
 
-    //totalFundsInWeis = this.balance;
-    //totalFundsAtStartOfCycleInWeis = this.balance;
+    totalFundsInWeis = this.balance;
+    totalFundsAtStartOfCycleInWeis = this.balance;
 
-    //Distribute ether balance
+    //Distribute staked control tokens
 
-    //Distribute commission
+    //Distribute funds
+    uint256 totalCommission = commissionRate.mul(totalFundsInWeis).div(10**decimals);
+
+    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
+      address participant = participants[i];
+      uint256 newBalance = totalFundsInWeis.sub(totalCommission).mul(initialDeposit[participant]).div(totalInitialDeposit);
+      //Add commission
+      newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
+      balanceOfAtCycleStart[participant] = newBalance;
+    }
+
+    //Reset data
+    delete proposals;
+
+    CycleEnded(now);
   }
 
   function addControlTokenReceipientAsParticipant(address receipient) public {
@@ -213,32 +259,8 @@ contract GroupFund {
     }
   }
 
-  function calculateAgainstStakeProp(uint256 proposalId)
-    public
-    view
-    returns(uint256 againstStakeProp)
-  {
-    uint256 numFor = 0;
-    uint256 numAgainst = 0;
-    uint256 forStakedControl = 0;
-    uint256 againstTotalControl = 0;
-
-    //Calculate numFor, numAgainst, againstTotalControl, forStakedControl
-    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
-      address participant = participants[i];
-      bool isFor = proposals[proposalId].userSupportsProposal[participant];
-      if (isFor) {
-        numFor = numFor.add(1);
-      } else {
-        if (cToken.balanceOf(participant) != 0) {
-          numAgainst = numAgainst.add(1);
-          againstTotalControl = againstTotalControl.add(cToken.balanceOf(participant));
-        }
-      }
-    }
-    forStakedControl = stakedControlOfProposal[proposalId];
-
-    return numFor.mul(forStakedControl).mul(10**decimals).div(numAgainst.mul(againstTotalControl));
+  function amountToReduceInitialDepositBy(address user, uint256 amount) public view returns(uint) {
+    return amount.mul(initialDeposit[user]).div(balanceOfAtCycleStart[user]);
   }
 
   function() public {
