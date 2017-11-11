@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
+import './etherdelta.sol';
 
 // The main contract that keeps track of:
 // - Who is in the fund
