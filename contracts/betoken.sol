@@ -83,6 +83,7 @@ contract GroupFund {
 
   }
 
+<<<<<<< HEAD
   function withdraw()
     isChangeMakingTime
   {
@@ -112,3 +113,11 @@ contract GroupFund {
     revert();
   }
 }
+=======
+  function() {
+    revert();
+  }
+}
+
+// Make a ShareToken based on the ERC20 Boilerplate
+>>>>>>> 91cc670eae8b318f8491494a18d30ac60a3d7122
