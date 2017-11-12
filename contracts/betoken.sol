@@ -157,8 +157,6 @@ contract GroupFund is usingOraclize {
     CycleStarted(now);
   }
 
-  //Change making time functions
-
   function deposit()
     public
     payable
@@ -308,7 +306,7 @@ contract GroupFund is usingOraclize {
     } else if (cyclePhase == CyclePhase.Ended) {
       //Sell
       prop.sellPriceinWeis = priceInWeis;
-      
+
       uint256 sellTokenAmount = investAmount.mul(prop.buyPriceInWeis);
       uint256 getWeiAmount = sellTokenAmount.div(prop.sellPriceinWeis);
       assert(etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, orderExpirationTime, proposalId));
