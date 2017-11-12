@@ -136,8 +136,6 @@ contract GroupFund is usingOraclize {
 
   //Change making time functions
 
-
-
   function deposit()
     public
     payable
@@ -158,8 +156,6 @@ contract GroupFund is usingOraclize {
     }
   }
 
-
-
   function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
@@ -172,8 +168,6 @@ contract GroupFund is usingOraclize {
 
     msg.sender.transfer(_amountInWeis);
   }
-
-
 
   function endChangeMakingTime() public {
     require(cyclePhase == CyclePhase.ChangeMaking);
@@ -253,8 +247,6 @@ contract GroupFund is usingOraclize {
     ProposalMakingTimeEnded(now);
   }
 
-
-
   function endCycle() public {
     require(cyclePhase == CyclePhase.Waiting);
     require(now >= startTimeOfCycle.add(timeOfCycle));
@@ -287,15 +279,11 @@ contract GroupFund is usingOraclize {
     CycleEnded(now);
   }
 
-
-
   function addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
     isParticipant[_receipient] = true;
     participants.push(_receipient);
   }
-
-
 
   function() public {
     revert();
@@ -307,8 +295,6 @@ contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
   event OwnerCollectFrom(address _from, uint256 _value);
-
-
 
   function transfer(address _to, uint256 _value) public returns(bool) {
     require(_to != address(0));
@@ -327,8 +313,6 @@ contract ControlToken is MintableToken {
     return true;
   }
 
-
-
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
     require(_value <= balances[_from]);
@@ -346,8 +330,6 @@ contract ControlToken is MintableToken {
     Transfer(_from, _to, _value);
     return true;
   }
-
-
 
   function ownerCollectFrom(address _from, uint256 _value) public onlyOwner returns(bool) {
     require(_from != address(0));
