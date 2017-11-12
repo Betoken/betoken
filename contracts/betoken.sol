@@ -101,6 +101,7 @@ contract GroupFund {
   )
     public
   {
+    require(_timeOfChangeMaking.add(_timeOfProposalMaking) <= _timeOfCycle);
     etherDeltaAddr = _etherDeltaAddr;
     decimals = _decimals;
     timeOfCycle = _timeOfCycle;
@@ -205,7 +206,6 @@ contract GroupFund {
   function endChangeMakingTime() public {
     require(cyclePhase == CyclePhase.ChangeMaking);
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
-    require(now < startTimeOfCycle.add(timeOfCycle));
 
     cyclePhase = CyclePhase.ProposalMaking;
 
@@ -214,6 +214,7 @@ contract GroupFund {
 
   function endProposalMakingTime() public {
     require(cyclePhase == CyclePhase.ProposalMaking);
+    require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
 
     cyclePhase = CyclePhase.Waiting;
 
