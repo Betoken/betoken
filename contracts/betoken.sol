@@ -81,6 +81,8 @@ contract GroupFund is usingOraclize {
 
   uint256 public commissionRate;
 
+  uint256 public orderExpirationTime;
+
   bool public isFirstCycle;
 
   // Mapping from Participant address to their balance
@@ -113,7 +115,8 @@ contract GroupFund is usingOraclize {
     uint256 _timeOfProposalMaking,
     uint256 _againstStakeProportion,
     uint256 _maxProposals,
-    uint256 _commissionRate
+    uint256 _commissionRate,
+    uint256 _orderExpirationTime
   )
     public
   {
@@ -126,6 +129,7 @@ contract GroupFund is usingOraclize {
     againstStakeProportion = _againstStakeProportion;
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
+    orderExpirationTime = _orderExpirationTime;
     startTimeOfCycle = 0;
     isFirstCycle = true;
 
@@ -260,9 +264,7 @@ contract GroupFund is usingOraclize {
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
       uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
-
       grabCurrentPriceFromOraclize(i);
-
       //Deposit ether
       assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
     }
@@ -287,18 +289,29 @@ contract GroupFund is usingOraclize {
   function __callback(bytes32 _myID, string _result) public {
     require(msg.sender == oraclize_cbAddress());
 
-    // Grab ETH price in Weis, update proposals
-    Proposal prop = proposals[proposalIdOfQuery[_myID]];
-    uint256 price = parseInt(_result, 18);
-    prop.sellPriceinWeis = price;
+    // Grab ETH price in Weis
+    uint256 priceInWeis = parseInt(_result, 18);
 
     //Reset data
     delete proposalIdOfQuery[_myID];
 
+    uint256 proposalId = proposalIdOfQuery[_myID];
+    Proposal prop = proposals[proposalId];
+
+    uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
     if (cyclePhase == CyclePhase.Waiting) {
-      //Sell
-    } else if (cyclePhase == CyclePhase.Ended) {
       //Buy
+      prop.buyPriceInWeis = priceInWeis;
+
+      uint256 buyTokenAmount = investAmount.mul(prop.buyPriceInWeis);
+      assert(etherDelta.order(prop.tokenAddress, investAmount.mul(priceInWeis), address(0), investAmount, orderExpirationTime, proposalId));
+    } else if (cyclePhase == CyclePhase.Ended) {
+      //Sell
+      prop.sellPriceinWeis = priceInWeis;
+      
+      uint256 sellTokenAmount = investAmount.mul(prop.buyPriceInWeis);
+      uint256 getWeiAmount = sellTokenAmount.div(prop.sellPriceinWeis);
+      assert(etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, orderExpirationTime, proposalId));
     }
   }
 
