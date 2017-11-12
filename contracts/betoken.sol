@@ -44,7 +44,7 @@ contract GroupFund is usingOraclize {
     _;
   }
 
-  //Number of decimals used for decimal numbers
+  //Number of decimals used for proportions
   uint256 public decimals;
 
   // A list of everyone who is participating in the GroupFund
@@ -86,6 +86,9 @@ contract GroupFund is usingOraclize {
 
   uint256 public orderExpirationTimeInBlocks;
 
+  //The proportion of contract balance reserved for Oraclize fees
+  uint256 public oraclizeFeeProportion;
+
   bool public isFirstCycle;
 
   // Mapping from Participant address to their balance
@@ -121,7 +124,8 @@ contract GroupFund is usingOraclize {
     uint256 _againstStakeProportion,
     uint256 _maxProposals,
     uint256 _commissionRate,
-    uint256 _orderExpirationTimeInBlocks
+    uint256 _orderExpirationTimeInBlocks,
+    uint256 _oraclizeFeeProportion
   )
     public
   {
@@ -135,6 +139,7 @@ contract GroupFund is usingOraclize {
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
     orderExpirationTimeInBlocks = _orderExpirationTimeInBlocks;
+    oraclizeFeeProportion = _oraclizeFeeProportion;
     startTimeOfCycle = 0;
     isFirstCycle = true;
 
@@ -175,8 +180,9 @@ contract GroupFund is usingOraclize {
     }
 
     //Register investment
-    balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
-    totalFundsInWeis = totalFundsInWeis.add(msg.value);
+    uint256 fees = msg.value.mul(oraclizeFeeProportion).div(10**decimals);
+    balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value).sub(fees);
+    totalFundsInWeis = totalFundsInWeis.add(msg.value).sub(fees);
 
     if (isFirstCycle) {
       //Give control tokens proportional to investment
@@ -347,13 +353,16 @@ contract GroupFund is usingOraclize {
         }
       }
     }
+    //Withdraw from etherdelta
+    assert(etherDelta.withdraw(etherDelta.tokens(address(0), this)));
 
     //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
+    uint256 feeReserve = oraclizeFeeProportion.mul(this.balance).div(10**decimals);
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
-      uint256 newBalance = this.balance.sub(totalCommission).mul(balanceOf[participant]).div(totalFundsInWeis);
+      uint256 newBalance = this.balance.sub(totalCommission).sub(feeReserve).mul(balanceOf[participant]).div(totalFundsInWeis);
       //Add commission
       newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
       balanceOf[participant] = newBalance;
@@ -392,16 +401,14 @@ contract GroupFund is usingOraclize {
     // Grab ETH price in Weis
     uint256 priceInWeis = parseInt(_result, 18);
 
-    //Reset data
-    delete proposalIdOfQuery[_myID];
-
     uint256 proposalId = proposalIdOfQuery[_myID];
     Proposal prop = proposals[proposalId];
 
+    //Reset data
+    delete proposalIdOfQuery[_myID];
 
     if (cyclePhase == CyclePhase.Waiting) {
       //Buy
-      totalFundsInWeis = this.balance;
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
       prop.buyPriceInWeis = priceInWeis;
       prop.buyOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
