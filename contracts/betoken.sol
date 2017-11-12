@@ -286,7 +286,7 @@ contract GroupFund is usingOraclize {
       //Deposit ether
       assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
-      grabCurrentPriceFromOraclize(i);
+      this.grabCurrentPriceFromOraclize(i);
     }
 
     ProposalMakingTimeEnded(now);
@@ -305,7 +305,7 @@ contract GroupFund is usingOraclize {
     //Sell all invested tokens
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
-      grabCurrentPriceFromOraclize(i);
+      this.grabCurrentPriceFromOraclize(i);
     }
 
     CycleEnded(now);
@@ -322,7 +322,7 @@ contract GroupFund is usingOraclize {
       uint256 sellTokenAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply()).div(prop.buyPriceInWeis);
       uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
 
-      uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, this, 0, 0, 0);
+      uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
       require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
 
       //Settle bets
@@ -355,7 +355,7 @@ contract GroupFund is usingOraclize {
       }
     }
     //Withdraw from etherdelta
-    etherDelta.withdraw(etherDelta.tokens(address(0), this));
+    etherDelta.withdraw(etherDelta.tokens(address(0), address(this)));
 
     distributeFundsAfterCycleEnd();
 
@@ -389,6 +389,7 @@ contract GroupFund is usingOraclize {
 
   // Query Oraclize for the current price
   function grabCurrentPriceFromOraclize(uint _proposalId) public payable {
+    require(msg.sender == address(this));
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
     string storage tokenSymbol = proposals[_proposalId].tokenSymbol;
     string memory etherSymbol = "ETH";
