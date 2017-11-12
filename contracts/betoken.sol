@@ -12,9 +12,8 @@ import './oraclizeAPI_0.4.sol';
 // - How much the fund has
 // - Each person's Share
 // - Each person's Control
-contract GroupFund {
+contract GroupFund is usingOraclize {
   using SafeMath for uint256;
-  is usingOraclize;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended }
 
