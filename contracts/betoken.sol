@@ -43,6 +43,8 @@ contract GroupFund {
   //Address of the control token
   address public controlTokenAddr;
 
+  address public etherDeltaAddr;
+
   // The total amount of funds held by the group
   uint256 public totalFundsInWeis;
 
@@ -78,13 +80,15 @@ contract GroupFund {
   mapping(uint256 => mapping(address => uint256)) public stakedControlOfProposalOfUser;
 
   Proposal[] public proposals;
-  ControlToken public cToken;
+  ControlToken internal cToken;
+  EtherDelta internal etherDelta;
 
   event CycleStarted(uint256 timestamp);
   event ChangeMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
 
   function GroupFund(
+    address _etherDeltaAddr,
     uint256 _decimals,
     uint256 _timeOfCycle,
     uint256 _timeOfChangeMaking,
@@ -94,6 +98,7 @@ contract GroupFund {
   )
     public
   {
+    etherDeltaAddr = _etherDeltaAddr;
     decimals = _decimals;
     timeOfCycle = _timeOfCycle;
     timeOfChangeMaking = _timeOfChangeMaking;
@@ -106,6 +111,9 @@ contract GroupFund {
     //Create control token contract
     cToken = new ControlToken();
     controlTokenAddr = cToken;
+
+    //Initialize etherDelta contract
+    etherDelta = EtherDelta(etherDeltaAddr);
   }
 
   function startNewCycle() public {
@@ -292,6 +300,25 @@ contract ControlToken is MintableToken {
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
+    return true;
+  }
+
+  function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+    require(_to != address(0));
+    require(_value <= balances[_from]);
+    require(_value <= allowed[_from][msg.sender]);
+
+    //Add receipient as a participant if not already a participant
+    if (!hasOwnedTokens[_to]) {
+      hasOwnedTokens[_to] = true;
+      GroupFund g = GroupFund(owner);
+      g.addControlTokenReceipientAsParticipant(_to);
+    }
+
+    balances[_from] = balances[_from].sub(_value);
+    balances[_to] = balances[_to].add(_value);
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+    Transfer(_from, _to, _value);
     return true;
   }
 
