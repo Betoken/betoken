@@ -21,6 +21,7 @@ contract GroupFund is usingOraclize {
     address tokenAddress;
     string tokenSymbol;
     uint256 buyPriceInWeis;
+    uint256 sellPriceinWeis;
     mapping(address => bool) userSupportsProposal;
   }
 
@@ -276,6 +277,13 @@ contract GroupFund is usingOraclize {
 
     // Call Oraclize to grab the most recent price information via JSON
     oraclize_query(url, urlToQuery);
+  }
+
+  // Callback function from Oraclize query:
+  function __callback(bytes32 _myID, string _result) {
+    require(msg.sender == oraclize_cbAddress());
+
+    // Grab ETH price in Weis, update proposals
   }
 
   function endCycle() public {
