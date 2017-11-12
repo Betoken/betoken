@@ -1,6 +1,5 @@
 pragma solidity ^0.4.18;
 
-// Importing stuff
 import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
@@ -13,34 +12,26 @@ import './etherdelta.sol';
 contract GroupFund {
   using SafeMath for uint256;
 
-  // The 4 different phases the GroupFund could be in
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended }
 
-  // The Proposal structure
   struct Proposal {
     bool isBuy;
     address tokenAddress;
     uint256 tokenPriceInWeis;
-
-    // Maps participant addresses to whether or not they support the proposal
     mapping(address => bool) userSupportsProposal;
   }
 
-  // Requires time elapsed to be greater than timeOfChangeMaking
   modifier isChangeMakingTime {
     require(now < startTimeOfCycle.add(timeOfChangeMaking));
     _;
   }
 
-  // Requires time elapsed to be between timeOfChangeMaking and the end of
-  // timeOfProposalMaking
   modifier isProposalMakingTime {
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
     require(now < startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
     _;
   }
 
-  // Checks if the message sender is participant
   modifier onlyParticipant {
     require(isParticipant[msg.sender]);
     _;
@@ -52,15 +43,6 @@ contract GroupFund {
   // A list of everyone who is participating in the GroupFund
   address[] public participants;
   mapping(address => bool) public isParticipant;
-
-  // Maps user address to their initial deposit
-  // However, this value will later be modified as the user
-  // deposits or withdraws funds, as it is used as our proportionality
-  // tracker
-  mapping(address => uint256) public initialDeposit;
-
-  // This value will also often be modified with each Cycle
-  uint256 public totalInitialDeposit;
 
   //Address of the control token
   address public controlTokenAddr;
@@ -79,10 +61,10 @@ contract GroupFund {
   //Temporal length of change making period at start of each cycle, in seconds
   uint256 public timeOfChangeMaking;
 
-  //Temporal length of Proposal making period at start of each cycle, in seconds
+  //Temporal length of proposal making period at start of each cycle, in seconds
   uint256 public timeOfProposalMaking;
 
-  //Proportion of control people who vote against a Proposal have to stake
+  //Proportion of control people who vote against a proposal have to stake
   uint256 public againstStakeProportion;
 
   uint256 public maxProposals;
@@ -91,33 +73,22 @@ contract GroupFund {
 
   bool public isFirstCycle;
 
-  // The current max amount a participant can withdraw
   mapping(address => uint256) public balanceOf;
 
-  // Takes in a Proposal ID and outputs the amount of ControlTokens being
-  // staked
   mapping(uint256 => uint256) public stakedControlOfProposal;
 
-  // Takes in a Proposal ID and outputs a mapping that takes in a participant
-  // ID and outsputs the amount of ControlTokens they specifically are staking
   mapping(uint256 => mapping(address => uint256)) public stakedControlOfProposalOfUser;
 
-  // Array of all current Proposals
   Proposal[] public proposals;
-
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
   CyclePhase public cyclePhase;
 
-  // Events for interfacing with other programs
   event CycleStarted(uint256 timestamp);
   event ChangeMakingTimeEnded(uint256 timestamp);
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
 
-
-
-  // GroupFund constructor
   function GroupFund(
     address _etherDeltaAddr,
     uint256 _decimals,
@@ -149,23 +120,16 @@ contract GroupFund {
     etherDelta = EtherDelta(etherDeltaAddr);
   }
 
-
-
-  // Starts a new investment Cycle
   function startNewCycle() public {
     require(cyclePhase == Ended);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
-    // Update the Cycle
     cyclePhase = ChangeMaking;
 
     startTimeOfCycle = now;
     CycleStarted(now);
   }
 
-
-
-  // Creates a purchase Proposal
   function createProposal(
     bool _isBuy,
     address _tokenAddress,
@@ -179,7 +143,6 @@ contract GroupFund {
     require(proposals.length < maxProposals);
     require(_amountInWeis <= totalFundsInWeis);
 
-    // Push the new Proposal onto the array
     proposals.push(Proposal({
       isBuy: _isBuy,
       tokenAddress: _tokenAddress,
@@ -191,92 +154,55 @@ contract GroupFund {
     supportProposal(proposalId, _amountInWeis);
   }
 
-
-
-  function supportProposal(uint256 proposalId, uint256 _amountInWeis)
+  function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
     public
     isProposalMakingTime
     onlyParticipant
   {
-    require(proposalId < proposals.length);
+    require(_proposalId < proposals.length);
     require(_amountInWeis <= totalFundsInWeis);
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
-
-    //Collect staked control tokens into GroupFund
+    //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
-
-    //Update stake data for individual, as well as the total
-    stakedControlOfProposal[proposalId] = stakedControlOfProposal[proposalId].add(controlStake);
-    stakedControlOfProposalOfUser[proposalId][msg.sender] = stakedControlOfProposalOfUser[proposalId][msg.sender].add(controlStake);
+    //Update stake data
+    stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
+    stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
 
-
-
-  // Deposit Ether into the GroupFund
   function deposit()
     public
     payable
     isChangeMakingTime
   {
-    // Add the msg.sender if they are not yet a Participant
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
       isParticipant[msg.sender] = true;
     }
 
-    // Register investment:
-
-    // Update the initialDeposit value (which will be later updated to keep
-    // track of proportionality)
-    initialDeposit[msg.sender] = initialDeposit[msg.sender].add(msg.value);
-
-    // Update the totalInitialDeposit value (which will later be updated to
-    // keep track of proportionality)
-    totalInitialDeposit = totalInitialDeposit.add(msg.value);
-
-    // Keeps track of the maximum amount the Participant can withdraw
+    //Register investment
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
-
-    // Update the total amount in GroupFund account
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
-    // On first Cycle:
     if (isFirstCycle) {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
     }
   }
 
-
-
-  // Withdraw funds from GroupFund account
-  function withdraw(uint256 amountInWeis)
+  function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
     onlyParticipant
   {
     require(!isFirstCycle);
 
-    // Calculate the amount to reduce initialDeposit by to maintain
-    // proportionality
-    uint256 reduceAmount = amountToReduceInitialDepositBy(msg.sender, amountInWeis);
+    totalFundsInWeis = totalFundsInWeis.sub(_amountInWeis);
+    balanceOf[msg.sender] = balanceOf[msg.sender].sub(_amountInWeis);
 
-    // Reduce initialDeposit as well as totalInitialDeposit
-    initialDeposit[msg.sender] = initialDeposit[msg.sender].sub(reduceAmount);
-    totalInitialDeposit = totalInitialDeposit.sub(reduceAmount);
-
-    // Update the GroupFund account and the balanceOf corrresponding to the
-    // Participant's withdrawal
-    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
-    balanceOf[msg.sender] = balanceOf[msg.sender].sub(amountInWeis);
-
-    // Update the Participant's account
-    msg.sender.transfer(amountInWeis);
+    msg.sender.transfer(_amountInWeis);
   }
-
-
 
   function endChangeMakingTime() public {
     require(cyclePhase == ChangeMaking);
@@ -287,8 +213,6 @@ contract GroupFund {
 
     ChangeMakingTimeEnded(now);
   }
-
-
 
   function endProposalMakingTime() public {
     require(cyclePhase == ProposalMaking);
@@ -302,7 +226,7 @@ contract GroupFund {
         bool isFor = proposals[j].userSupportsProposal[participant];
         if (!isFor && cToken.balanceOf(participant) > 0) {
           //Unfair to later proposals
-          uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(decimals);
+          uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(10**decimals);
           cToken.ownerCollectFrom(participant, stakeAmount);
         }
       }
@@ -318,8 +242,6 @@ contract GroupFund {
     ProposalMakingTimeEnded(now);
   }
 
-
-
   function endCycle() public {
     require(cyclePhase == Waiting);
     require(now >= startTimeOfCycle.add(timeOfCycle));
@@ -332,51 +254,38 @@ contract GroupFund {
 
     //Sell all invested tokens
 
-    totalFundsInWeis = this.balance;
-
     //Distribute staked control tokens
 
     //Distribute funds
-    uint256 totalCommission = commissionRate.mul(totalFundsInWeis).div(10**decimals);
+    uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
-      uint256 newBalance = totalFundsInWeis.sub(totalCommission).mul(initialDeposit[participant]).div(totalInitialDeposit);
+      uint256 newBalance = this.balance.sub(totalCommission).mul(balanceOf[participant]).div(totalFundsInWeis);
       //Add commission
       newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
       balanceOf[participant] = newBalance;
     }
 
     //Reset data
+    totalFundsInWeis = this.balance;
     delete proposals;
 
     CycleEnded(now);
   }
 
-
-
-  function addControlTokenReceipientAsParticipant(address receipient) public {
+  function addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
-    if (!isParticipant[receipient]) {
-      isParticipant[receipient] = true;
-      participants.push(receipient);
+    if (!isParticipant[_receipient]) {
+      isParticipant[_receipient] = true;
+      participants.push(_receipient);
     }
   }
-
-
-
-  function amountToReduceInitialDepositBy(address user, uint256 amount) public view returns(uint) {
-    return amount.mul(initialDeposit[user]).div(balanceOf[user]);
-  }
-
-
 
   function() public {
     revert();
   }
 }
-
-
 
 //Proportional to Wei
 contract ControlToken is MintableToken {
@@ -384,9 +293,7 @@ contract ControlToken is MintableToken {
 
   mapping(address => bool) hasOwnedTokens;
 
-  event OwnerCollectFrom(address _from, uint256 value);
-
-
+  event OwnerCollectFrom(address _from, uint256 _value);
 
   function transfer(address _to, uint256 _value) public returns(bool) {
     require(_to != address(0));
@@ -406,8 +313,6 @@ contract ControlToken is MintableToken {
     return true;
   }
 
-
-
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
     require(_value <= balances[_from]);
@@ -426,8 +331,6 @@ contract ControlToken is MintableToken {
     Transfer(_from, _to, _value);
     return true;
   }
-
-
 
   function ownerCollectFrom(address _from, uint256 _value) public onlyOwner returns(bool) {
     require(_from != address(0));

@@ -7,6 +7,7 @@ module.exports = function(deployer) {
     18, //decimals
     30 * 24 * 3600, //timeOfCycle
     2 * 24 * 3600, //timeOfChangeMaking
+    2 * 24 * 3600, //timeOfProposalMaking
     0.01 * Math.pow(10, 18), //againstStakeProportion
     20, //maxProposals
     0.01 * Math.pow(10, 18) //commissionRate
