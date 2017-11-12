@@ -15,7 +15,6 @@ contract GroupFund {
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended }
 
   struct Proposal {
-    bool isBuy;
     address tokenAddress;
     uint256 tokenPriceInWeis;
     mapping(address => bool) userSupportsProposal;
@@ -101,6 +100,7 @@ contract GroupFund {
   )
     public
   {
+    require(_timeOfChangeMaking.add(_timeOfProposalMaking) <= _timeOfCycle);
     etherDeltaAddr = _etherDeltaAddr;
     decimals = _decimals;
     timeOfCycle = _timeOfCycle;
@@ -121,17 +121,16 @@ contract GroupFund {
   }
 
   function startNewCycle() public {
-    require(cyclePhase == Ended);
+    require(cyclePhase == CyclePhase.Ended);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
-    cyclePhase = ChangeMaking;
+    cyclePhase = CyclePhase.ChangeMaking;
 
     startTimeOfCycle = now;
     CycleStarted(now);
   }
 
   function createProposal(
-    bool _isBuy,
     address _tokenAddress,
     uint256 _tokenPriceInWeis,
     uint256 _amountInWeis
@@ -141,10 +140,8 @@ contract GroupFund {
     onlyParticipant
   {
     require(proposals.length < maxProposals);
-    require(_amountInWeis <= totalFundsInWeis);
 
     proposals.push(Proposal({
-      isBuy: _isBuy,
       tokenAddress: _tokenAddress,
       tokenPriceInWeis: _tokenPriceInWeis
     }));
@@ -160,12 +157,10 @@ contract GroupFund {
     onlyParticipant
   {
     require(_proposalId < proposals.length);
-    require(_amountInWeis <= totalFundsInWeis);
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
-
-    //Collect staked control tokens into GroupFund
+    //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
     //Update stake data
     stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
@@ -177,7 +172,6 @@ contract GroupFund {
     payable
     isChangeMakingTime
   {
-    // Add the msg.sender if they are not yet a Participant
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
       isParticipant[msg.sender] = true;
@@ -185,11 +179,8 @@ contract GroupFund {
 
     //Register investment
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
-
-    // Update the total amount in GroupFund account
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
-    // On first Cycle:
     if (isFirstCycle) {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
@@ -210,27 +201,27 @@ contract GroupFund {
   }
 
   function endChangeMakingTime() public {
-    require(cyclePhase == ChangeMaking);
+    require(cyclePhase == CyclePhase.ChangeMaking);
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
-    require(now < startTimeOfCycle.add(timeOfCycle));
 
-    cyclePhase = ProposalMaking;
+    cyclePhase = CyclePhase.ProposalMaking;
 
     ChangeMakingTimeEnded(now);
   }
 
   function endProposalMakingTime() public {
-    require(cyclePhase == ProposalMaking);
+    require(cyclePhase == CyclePhase.ProposalMaking);
+    require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
 
-    cyclePhase = Waiting;
+    cyclePhase = CyclePhase.Waiting;
 
     //Stake against votes
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
         address participant = participants[i];
         bool isFor = proposals[j].userSupportsProposal[participant];
-        if (!isFor && cToken.balanceOf(participant) > 0) {
-          //Unfair to later proposals, known issue for now
+        if (!isFor) {
+          //Unfair to later proposals
           uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(10**decimals);
           cToken.ownerCollectFrom(participant, stakeAmount);
         }
@@ -240,7 +231,7 @@ contract GroupFund {
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
       uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
-      assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))); //Deposit ether
+      assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()")))); //Deposit ether
 
     }
 
@@ -248,13 +239,13 @@ contract GroupFund {
   }
 
   function endCycle() public {
-    require(cyclePhase == Waiting);
+    require(cyclePhase == CyclePhase.Waiting);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
     if (isFirstCycle) {
       cToken.finishMinting();
     }
-    cyclePhase = Ended;
+    cyclePhase = CyclePhase.Ended;
     isFirstCycle = false;
 
     //Sell all invested tokens
@@ -281,10 +272,8 @@ contract GroupFund {
 
   function addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
-    if (!isParticipant[_receipient]) {
-      isParticipant[_receipient] = true;
-      participants.push(_receipient);
-    }
+    isParticipant[_receipient] = true;
+    participants.push(_receipient);
   }
 
   function() public {
@@ -296,8 +285,6 @@ contract GroupFund {
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
-  mapping(address => bool) hasOwnedTokens;
-
   event OwnerCollectFrom(address _from, uint256 _value);
 
   function transfer(address _to, uint256 _value) public returns(bool) {
@@ -305,9 +292,8 @@ contract ControlToken is MintableToken {
     require(_value <= balances[msg.sender]);
 
     //Add receipient as a participant if not already a participant
-    if (!hasOwnedTokens[_to]) {
-      hasOwnedTokens[_to] = true;
-      GroupFund g = GroupFund(owner);
+    GroupFund g = GroupFund(owner);
+    if (!g.isParticipant(_to)) {
       g.addControlTokenReceipientAsParticipant(_to);
     }
 
@@ -324,9 +310,8 @@ contract ControlToken is MintableToken {
     require(_value <= allowed[_from][msg.sender]);
 
     //Add receipient as a participant if not already a participant
-    if (!hasOwnedTokens[_to]) {
-      hasOwnedTokens[_to] = true;
-      GroupFund g = GroupFund(owner);
+    GroupFund g = GroupFund(owner);
+    if (!g.isParticipant(_to)) {
       g.addControlTokenReceipientAsParticipant(_to);
     }
 
