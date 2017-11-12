@@ -185,9 +185,6 @@ contract GroupFund {
     ChangeMakingTimeEnded(now);
   }
 
-<<<<<<< HEAD
-
-=======
   //Proposal making time functions
 
   function createProposal(
@@ -227,7 +224,6 @@ contract GroupFund {
     stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
     stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
->>>>>>> 7ef11c7f05107d1bc62b5ebe274f343ce24fbbed
 
   function endProposalMakingTime() public {
     require(cyclePhase == CyclePhase.ProposalMaking);
@@ -307,13 +303,7 @@ contract GroupFund {
   }
 }
 
-<<<<<<< HEAD
-
-
-//Proportional to Wei
-=======
 //Proportional to Wei when minted
->>>>>>> 7ef11c7f05107d1bc62b5ebe274f343ce24fbbed
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
