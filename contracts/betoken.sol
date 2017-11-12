@@ -203,31 +203,46 @@ contract GroupFund {
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
-    //Collect staked control tokens
+
+    //Collect staked control tokens into GroupFund
     cToken.ownerCollectFrom(msg.sender, controlStake);
-    //Update stake data
+
+    //Update stake data for individual, as well as the total
     stakedControlOfProposal[proposalId] = stakedControlOfProposal[proposalId].add(controlStake);
     stakedControlOfProposalOfUser[proposalId][msg.sender] = stakedControlOfProposalOfUser[proposalId][msg.sender].add(controlStake);
   }
 
 
 
+  // Deposit Ether into the GroupFund
   function deposit()
     public
     payable
     isChangeMakingTime
   {
+    // Add the msg.sender if they are not yet a Participant
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
       isParticipant[msg.sender] = true;
     }
 
-    //Register investment
+    // Register investment:
+
+    // Update the initialDeposit value (which will be later updated to keep
+    // track of proportionality)
     initialDeposit[msg.sender] = initialDeposit[msg.sender].add(msg.value);
+
+    // Update the totalInitialDeposit value (which will later be updated to
+    // keep track of proportionality)
     totalInitialDeposit = totalInitialDeposit.add(msg.value);
+
+    // Keeps track of the maximum amount the Participant can withdraw
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
+
+    // Update the total amount in GroupFund account
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
+    // On first Cycle:
     if (isFirstCycle) {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
@@ -236,6 +251,7 @@ contract GroupFund {
 
 
 
+  // Withdraw funds from GroupFund account
   function withdraw(uint256 amountInWeis)
     public
     isChangeMakingTime
@@ -243,12 +259,20 @@ contract GroupFund {
   {
     require(!isFirstCycle);
 
+    // Calculate the amount to reduce initialDeposit by to maintain
+    // proportionality
     uint256 reduceAmount = amountToReduceInitialDepositBy(msg.sender, amountInWeis);
+
+    // Reduce initialDeposit as well as totalInitialDeposit
     initialDeposit[msg.sender] = initialDeposit[msg.sender].sub(reduceAmount);
     totalInitialDeposit = totalInitialDeposit.sub(reduceAmount);
+
+    // Update the GroupFund account and the balanceOf corrresponding to the
+    // Participant's withdrawal
     totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
     balanceOf[msg.sender] = balanceOf[msg.sender].sub(amountInWeis);
 
+    // Update the Participant's account
     msg.sender.transfer(amountInWeis);
   }
 
