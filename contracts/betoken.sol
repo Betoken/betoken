@@ -52,6 +52,10 @@ contract GroupFund is usingOraclize {
 
   address public etherDeltaAddr;
 
+  // URL for querying prices, default is set to cryptocompare
+  string public priceCheckURL1;
+  string public priceCheckURL2;
+
   // The total amount of funds held by the group
   uint256 public totalFundsInWeis;
 
@@ -76,10 +80,13 @@ contract GroupFund is usingOraclize {
 
   bool public isFirstCycle;
 
+  // Mapping from Participant address to their balance
   mapping(address => uint256) public balanceOf;
 
+  // Mapping from Proposal to total amount of Control Tokens being staked
   mapping(uint256 => uint256) public stakedControlOfProposal;
 
+  // Mapping from Proposal to Participant to number of Control Tokens being staked
   mapping(uint256 => mapping(address => uint256)) public stakedControlOfProposalOfUser;
 
   Proposal[] public proposals;
@@ -92,6 +99,7 @@ contract GroupFund is usingOraclize {
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
 
+  // GroupFund constructor
   function GroupFund(
     address _etherDeltaAddr,
     uint256 _decimals,
@@ -116,6 +124,10 @@ contract GroupFund is usingOraclize {
     startTimeOfCycle = 0;
     isFirstCycle = true;
 
+    // Initialize cryptocompare URLs:
+    priceCheckURL1 = "https://min-api.cryptocompare.com/data/price?fsym=";
+    priceCheckURL2 = "&tsyms=";
+
     //Create control token contract
     cToken = new ControlToken();
     controlTokenAddr = cToken;
@@ -135,9 +147,6 @@ contract GroupFund is usingOraclize {
   }
 
   //Change making time functions
-
-
-
   function deposit()
     public
     payable
@@ -158,8 +167,6 @@ contract GroupFund is usingOraclize {
     }
   }
 
-
-
   function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
@@ -173,8 +180,6 @@ contract GroupFund is usingOraclize {
     msg.sender.transfer(_amountInWeis);
   }
 
-
-
   function endChangeMakingTime() public {
     require(cyclePhase == CyclePhase.ChangeMaking);
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
@@ -185,7 +190,6 @@ contract GroupFund is usingOraclize {
   }
 
   //Proposal making time functions
-
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
@@ -253,8 +257,6 @@ contract GroupFund is usingOraclize {
     ProposalMakingTimeEnded(now);
   }
 
-
-
   function endCycle() public {
     require(cyclePhase == CyclePhase.Waiting);
     require(now >= startTimeOfCycle.add(timeOfCycle));
@@ -287,15 +289,11 @@ contract GroupFund is usingOraclize {
     CycleEnded(now);
   }
 
-
-
   function addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
     isParticipant[_receipient] = true;
     participants.push(_receipient);
   }
-
-
 
   function() public {
     revert();
@@ -307,8 +305,6 @@ contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
   event OwnerCollectFrom(address _from, uint256 _value);
-
-
 
   function transfer(address _to, uint256 _value) public returns(bool) {
     require(_to != address(0));
@@ -327,8 +323,6 @@ contract ControlToken is MintableToken {
     return true;
   }
 
-
-
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
     require(_value <= balances[_from]);
@@ -346,8 +340,6 @@ contract ControlToken is MintableToken {
     Transfer(_from, _to, _value);
     return true;
   }
-
-
 
   function ownerCollectFrom(address _from, uint256 _value) public onlyOwner returns(bool) {
     require(_from != address(0));
