@@ -164,7 +164,8 @@ contract GroupFund {
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
-    //Collect staked control tokens
+
+    //Collect staked control tokens into GroupFund
     cToken.ownerCollectFrom(msg.sender, controlStake);
     //Update stake data
     stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
@@ -176,6 +177,7 @@ contract GroupFund {
     payable
     isChangeMakingTime
   {
+    // Add the msg.sender if they are not yet a Participant
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
       isParticipant[msg.sender] = true;
@@ -183,8 +185,11 @@ contract GroupFund {
 
     //Register investment
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
+
+    // Update the total amount in GroupFund account
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
+    // On first Cycle:
     if (isFirstCycle) {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
