@@ -16,7 +16,8 @@ contract GroupFund {
 
   struct Proposal {
     address tokenAddress;
-    uint256 tokenPriceInWeis;
+    string tokenSymbol;
+    uint256 buyPriceInWeis;
     mapping(address => bool) userSupportsProposal;
   }
 
@@ -130,42 +131,7 @@ contract GroupFund {
     CycleStarted(now);
   }
 
-  function createProposal(
-    address _tokenAddress,
-    uint256 _tokenPriceInWeis,
-    uint256 _amountInWeis
-  )
-    public
-    isProposalMakingTime
-    onlyParticipant
-  {
-    require(proposals.length < maxProposals);
-
-    proposals.push(Proposal({
-      tokenAddress: _tokenAddress,
-      tokenPriceInWeis: _tokenPriceInWeis
-    }));
-
-    //Stake control tokens
-    uint256 proposalId = proposals.length - 1;
-    supportProposal(proposalId, _amountInWeis);
-  }
-
-  function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
-    public
-    isProposalMakingTime
-    onlyParticipant
-  {
-    require(_proposalId < proposals.length);
-
-    //Stake control tokens
-    uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
-    //Collect staked control tokens
-    cToken.ownerCollectFrom(msg.sender, controlStake);
-    //Update stake data
-    stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
-    stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
-  }
+  //Change making time functions
 
   function deposit()
     public
@@ -207,6 +173,46 @@ contract GroupFund {
     cyclePhase = CyclePhase.ProposalMaking;
 
     ChangeMakingTimeEnded(now);
+  }
+
+  //Proposal making time functions
+
+  function createProposal(
+    address _tokenAddress,
+    string _tokenSymbol,
+    uint256 _amountInWeis
+  )
+    public
+    isProposalMakingTime
+    onlyParticipant
+  {
+    require(proposals.length < maxProposals);
+
+    proposals.push(Proposal({
+      tokenAddress: _tokenAddress,
+      tokenSymbol: _tokenSymbol,
+      buyPriceInWeis: 0
+    }));
+
+    //Stake control tokens
+    uint256 proposalId = proposals.length - 1;
+    supportProposal(proposalId, _amountInWeis);
+  }
+
+  function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
+    public
+    isProposalMakingTime
+    onlyParticipant
+  {
+    require(_proposalId < proposals.length);
+
+    //Stake control tokens
+    uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
+    //Collect staked control tokens
+    cToken.ownerCollectFrom(msg.sender, controlStake);
+    //Update stake data
+    stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
+    stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
 
   function endProposalMakingTime() public {
@@ -281,7 +287,7 @@ contract GroupFund {
   }
 }
 
-//Proportional to Wei
+//Proportional to Wei when minted
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
