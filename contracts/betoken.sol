@@ -158,12 +158,12 @@ contract GroupFund {
     supportProposal(proposalId, _amountInWeis);
   }
 
-  function supportProposal(uint256 proposalId, uint256 _amountInWeis)
+  function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
     public
     isProposalMakingTime
     onlyParticipant
   {
-    require(proposalId < proposals.length);
+    require(_proposalId < proposals.length);
     require(_amountInWeis <= totalFundsInWeis);
 
     //Stake control tokens
@@ -171,8 +171,8 @@ contract GroupFund {
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
     //Update stake data
-    stakedControlOfProposal[proposalId] = stakedControlOfProposal[proposalId].add(controlStake);
-    stakedControlOfProposalOfUser[proposalId][msg.sender] = stakedControlOfProposalOfUser[proposalId][msg.sender].add(controlStake);
+    stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
+    stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
 
   function deposit()
@@ -197,20 +197,20 @@ contract GroupFund {
     }
   }
 
-  function withdraw(uint256 amountInWeis)
+  function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
     onlyParticipant
   {
     require(!isFirstCycle);
 
-    uint256 reduceAmount = amountToReduceInitialDepositBy(msg.sender, amountInWeis);
+    uint256 reduceAmount = amountToReduceInitialDepositBy(msg.sender, _amountInWeis);
     initialDeposit[msg.sender] = initialDeposit[msg.sender].sub(reduceAmount);
     totalInitialDeposit = totalInitialDeposit.sub(reduceAmount);
-    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
-    balanceOf[msg.sender] = balanceOf[msg.sender].sub(amountInWeis);
+    totalFundsInWeis = totalFundsInWeis.sub(_amountInWeis);
+    balanceOf[msg.sender] = balanceOf[msg.sender].sub(_amountInWeis);
 
-    msg.sender.transfer(amountInWeis);
+    msg.sender.transfer(_amountInWeis);
   }
 
   function endChangeMakingTime() public {
@@ -284,16 +284,16 @@ contract GroupFund {
     CycleEnded(now);
   }
 
-  function addControlTokenReceipientAsParticipant(address receipient) public {
+  function addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
-    if (!isParticipant[receipient]) {
-      isParticipant[receipient] = true;
-      participants.push(receipient);
+    if (!isParticipant[_receipient]) {
+      isParticipant[_receipient] = true;
+      participants.push(_receipient);
     }
   }
 
-  function amountToReduceInitialDepositBy(address user, uint256 amount) public view returns(uint) {
-    return amount.mul(initialDeposit[user]).div(balanceOf[user]);
+  function amountToReduceInitialDepositBy(address _user, uint256 _withdrawAmount) public view returns(uint) {
+    return _withdrawAmount.mul(initialDeposit[_user]).div(balanceOf[_user]);
   }?
 
   function() public {
@@ -307,7 +307,7 @@ contract ControlToken is MintableToken {
 
   mapping(address => bool) hasOwnedTokens;
 
-  event OwnerCollectFrom(address _from, uint256 value);
+  event OwnerCollectFrom(address _from, uint256 _value);
 
   function transfer(address _to, uint256 _value) public returns(bool) {
     require(_to != address(0));
