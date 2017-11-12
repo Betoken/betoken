@@ -167,8 +167,6 @@ contract GroupFund is usingOraclize {
     CycleStarted(now);
   }
 
-  //Change making time functions
-
   function deposit()
     public
     payable
@@ -419,7 +417,30 @@ contract GroupFund is usingOraclize {
       //Sell
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
       prop.sellPriceinWeis = priceInWeis;
+<<<<<<< HEAD
+
+      uint256 sellTokenAmount = investAmount.mul(prop.buyPriceInWeis);
+      uint256 getWeiAmount = sellTokenAmount.div(prop.sellPriceinWeis);
+      assert(etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, orderExpirationTime, proposalId));
+    }
+  }
+
+  function endCycle() public {
+    require(cyclePhase == CyclePhase.Waiting);
+    require(now >= startTimeOfCycle.add(timeOfCycle));
+
+    if (isFirstCycle) {
+      cToken.finishMinting();
+    }
+    cyclePhase = CyclePhase.Ended;
+    isFirstCycle = false;
+
+    //Sell all invested tokens
+
+    //Distribute staked control tokens
+=======
       prop.sellOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
+>>>>>>> da45a268ef6f7fc8bcf943395fb73291457c490e
 
       uint256 sellTokenAmount = investAmount.div(prop.buyPriceInWeis);
       uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
