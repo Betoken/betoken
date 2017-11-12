@@ -3,7 +3,7 @@ pragma solidity ^0.4.18;
 import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
-import './oraclizeAPI_0.4.sol';
+import 'github.com/oraclize/ethereum-api/oraclizeAPI.sol';
 
 
 
@@ -213,7 +213,8 @@ contract GroupFund is usingOraclize {
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
       tokenSymbol: _tokenSymbol,
-      buyPriceInWeis: 0
+      buyPriceInWeis: 0,
+      sellPriceinWeis: 0
     }));
 
     //Stake control tokens
@@ -273,10 +274,10 @@ contract GroupFund is usingOraclize {
   function grabCurrentPriceFromOraclize(uint _proposalId) payable {
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
     string tokenSymbol = proposals[_proposalId].tokenSymbol;
-    string etherSymbol = "ETH";
-    string urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
+    string memory etherSymbol = "ETH";
+    string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
 
-    string url = "URL";
+    string memory url = "URL";
 
     // Call Oraclize to grab the most recent price information via JSON
     proposalIdOfQuery[oraclize_query(url, urlToQuery)] = _proposalId;
