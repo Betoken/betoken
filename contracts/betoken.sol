@@ -22,7 +22,10 @@ contract GroupFund is usingOraclize {
     string tokenSymbol;
     uint256 buyPriceInWeis;
     uint256 sellPriceinWeis;
-    mapping(address => bool) userSupportsProposal;
+    uint256 buyOrderExpirationBlockNum;
+    uint256 sellOrderExpirationBlockNum;
+    uint256 numFor;
+    uint256 numAgainst;
   }
 
   modifier isChangeMakingTime {
@@ -81,18 +84,20 @@ contract GroupFund is usingOraclize {
 
   uint256 public commissionRate;
 
-  uint256 public orderExpirationTime;
+  uint256 public orderExpirationTimeInBlocks;
 
   bool public isFirstCycle;
 
   // Mapping from Participant address to their balance
   mapping(address => uint256) public balanceOf;
 
-  // Mapping from Proposal to total amount of Control Tokens being staked
-  mapping(uint256 => uint256) public stakedControlOfProposal;
+  // Mapping from Proposal to total amount of Control Tokens being staked by supporters
+  mapping(uint256 => uint256) public forStakedControlOfProposal;
 
   // Mapping from Proposal to Participant to number of Control Tokens being staked
-  mapping(uint256 => mapping(address => uint256)) public stakedControlOfProposalOfUser;
+  mapping(uint256 => mapping(address => uint256)) public forStakedControlOfProposalOfUser;
+
+  mapping(uint256 => mapping(address => uint256)) public againstStakedControlOfProposalOfUser;
 
   mapping(bytes32 => uint256) internal proposalIdOfQuery;
 
@@ -116,7 +121,7 @@ contract GroupFund is usingOraclize {
     uint256 _againstStakeProportion,
     uint256 _maxProposals,
     uint256 _commissionRate,
-    uint256 _orderExpirationTime
+    uint256 _orderExpirationTimeInBlocks
   )
     public
   {
@@ -129,7 +134,7 @@ contract GroupFund is usingOraclize {
     againstStakeProportion = _againstStakeProportion;
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
-    orderExpirationTime = _orderExpirationTime;
+    orderExpirationTimeInBlocks = _orderExpirationTimeInBlocks;
     startTimeOfCycle = 0;
     isFirstCycle = true;
 
@@ -218,7 +223,11 @@ contract GroupFund is usingOraclize {
       tokenAddress: _tokenAddress,
       tokenSymbol: _tokenSymbol,
       buyPriceInWeis: 0,
-      sellPriceinWeis: 0
+      sellPriceinWeis: 0,
+      numFor: 1,
+      numAgainst: 0,
+      buyOrderExpirationBlockNum: 0,
+      sellOrderExpirationBlockNum: 0
     }));
 
     //Stake control tokens
@@ -238,8 +247,9 @@ contract GroupFund is usingOraclize {
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
     //Update stake data
-    stakedControlOfProposal[_proposalId] = stakedControlOfProposal[_proposalId].add(controlStake);
-    stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
+    proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+    forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(controlStake);
+    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
 
   function endProposalMakingTime() public {
@@ -250,20 +260,23 @@ contract GroupFund is usingOraclize {
 
     //Stake against votes
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
-      for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
-        address participant = participants[i];
-        bool isFor = proposals[j].userSupportsProposal[participant];
-        if (!isFor) {
-          //Unfair to later proposals
-          uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(10**decimals);
-          cToken.ownerCollectFrom(participant, stakeAmount);
+      address participant = participants[i];
+      uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(10**decimals);
+      if (stakeAmount != 0) {
+        for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
+          bool isFor = forStakedControlOfProposalOfUser[j][participant] != 0;
+          if (!isFor) {
+            cToken.ownerCollectFrom(participant, stakeAmount);
+            proposals[j].numAgainst = proposals[j].numAgainst.add(1);
+            againstStakedControlOfProposalOfUser[j][participant] = againstStakedControlOfProposalOfUser[j][participant].add(stakeAmount);
+          }
         }
       }
     }
 
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
-      uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
+      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
       grabCurrentPriceFromOraclize(i);
       //Deposit ether
       assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
@@ -271,6 +284,93 @@ contract GroupFund is usingOraclize {
 
     ProposalMakingTimeEnded(now);
   }
+
+  function endCycle() public {
+    require(cyclePhase == CyclePhase.Waiting);
+    require(now >= startTimeOfCycle.add(timeOfCycle));
+
+    if (isFirstCycle) {
+      cToken.finishMinting();
+    }
+    cyclePhase = CyclePhase.Ended;
+    isFirstCycle = false;
+
+    //Sell all invested tokens
+    for (i = 0; i < proposals.length; i = i.add(1)) {
+      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
+      grabCurrentPriceFromOraclize(i);
+    }
+
+    CycleEnded(now);
+  }
+
+  function finalizeEndCycle() public {
+    //Ensure all the sell orders are inactive
+    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
+      uint256 proposalId = i;
+      Proposal prop = proposals[proposalId];
+      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
+      uint256 sellTokenAmount = investAmount.div(prop.buyPriceInWeis);
+      uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
+
+      uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, this, 0, 0, 0);
+      require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
+
+      //Settle bets
+      if (prop.sellPriceinWeis >= prop.buyPriceInWeis) {
+        //For wins
+        uint256 tokenReward = cToken.totalSupply().sub(forStakedControlOfProposal[proposalId]).mul(againstStakeProportion).div(10**decimals.mul(prop.numFor));
+        for (uint256 j = 0; j < participants.length; j = j.add(1)) {
+          address participant = participants[j];
+          uint256 stake = forStakedControlOfProposalOfUser[proposalId][participant];
+          if (stake != 0) {
+            //Give control tokens
+            uint256 tokenAmount = 0;
+            tokenAmount = tokenAmount.add(stake);
+            tokenAmount = tokenAmount.add(tokenReward);
+            cToken.transfer(participant, tokenAmount);
+          }
+        }
+      } else {
+        //Against wins
+        uint256 tokenReward = forStakedControlOfProposal[proposalId].div(prop.numAgainst);
+        for (uint256 j = 0; j < participants.length; j = j.add(1)) {
+          address participant = participants[j];
+          uint256 stake = againstStakedControlOfProposalOfUser[proposalId][participant];
+          if (stake != 0) {
+            //Give control tokens
+            uint256 tokenAmount = 0;
+            tokenAmount = tokenAmount.add(stake);
+            tokenAmount = tokenAmount.add(tokenReward);
+            cToken.transfer(participant, tokenAmount);
+          }
+        }
+      }
+    }
+
+    //Distribute funds
+    uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
+
+    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
+      address participant = participants[i];
+      uint256 newBalance = this.balance.sub(totalCommission).mul(balanceOf[participant]).div(totalFundsInWeis);
+      //Add commission
+      newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
+      balanceOf[participant] = newBalance;
+    }
+
+    //Reset data
+    totalFundsInWeis = this.balance;
+    delete proposals;
+  }
+
+  function addControlTokenReceipientAsParticipant(address _receipient) public {
+    require(msg.sender == controlTokenAddr);
+    isParticipant[_receipient] = true;
+    participants.push(_receipient);
+  }
+
+  //Oraclize functions
 
   // Query Oraclize for the current price
   function grabCurrentPriceFromOraclize(uint _proposalId) payable {
@@ -298,59 +398,26 @@ contract GroupFund is usingOraclize {
     uint256 proposalId = proposalIdOfQuery[_myID];
     Proposal prop = proposals[proposalId];
 
-    uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
+
     if (cyclePhase == CyclePhase.Waiting) {
       //Buy
+      totalFundsInWeis = this.balance;
+      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
       prop.buyPriceInWeis = priceInWeis;
+      prop.buyOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
 
-      uint256 buyTokenAmount = investAmount.mul(prop.buyPriceInWeis);
-      assert(etherDelta.order(prop.tokenAddress, investAmount.mul(priceInWeis), address(0), investAmount, orderExpirationTime, proposalId));
+      uint256 buyTokenAmount = investAmount.div(prop.buyPriceInWeis);
+      assert(etherDelta.order(prop.tokenAddress, buyTokenAmount, address(0), investAmount, prop.buyOrderExpirationBlockNum, proposalId));
     } else if (cyclePhase == CyclePhase.Ended) {
       //Sell
+      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
       prop.sellPriceinWeis = priceInWeis;
-      
-      uint256 sellTokenAmount = investAmount.mul(prop.buyPriceInWeis);
-      uint256 getWeiAmount = sellTokenAmount.div(prop.sellPriceinWeis);
-      assert(etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, orderExpirationTime, proposalId));
+      prop.sellOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
+
+      uint256 sellTokenAmount = investAmount.div(prop.buyPriceInWeis);
+      uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
+      assert(etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId));
     }
-  }
-
-  function endCycle() public {
-    require(cyclePhase == CyclePhase.Waiting);
-    require(now >= startTimeOfCycle.add(timeOfCycle));
-
-    if (isFirstCycle) {
-      cToken.finishMinting();
-    }
-    cyclePhase = CyclePhase.Ended;
-    isFirstCycle = false;
-
-    //Sell all invested tokens
-
-    //Distribute staked control tokens
-
-    //Distribute funds
-    uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
-
-    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
-      address participant = participants[i];
-      uint256 newBalance = this.balance.sub(totalCommission).mul(balanceOf[participant]).div(totalFundsInWeis);
-      //Add commission
-      newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
-      balanceOf[participant] = newBalance;
-    }
-
-    //Reset data
-    totalFundsInWeis = this.balance;
-    delete proposals;
-
-    CycleEnded(now);
-  }
-
-  function addControlTokenReceipientAsParticipant(address _receipient) public {
-    require(msg.sender == controlTokenAddr);
-    isParticipant[_receipient] = true;
-    participants.push(_receipient);
   }
 
   function() public {
