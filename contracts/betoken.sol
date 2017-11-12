@@ -256,7 +256,7 @@ contract GroupFund is usingOraclize {
 
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
-    
+
     //Update stake data
     proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(controlStake);
@@ -269,7 +269,7 @@ contract GroupFund is usingOraclize {
 
     cyclePhase = CyclePhase.Waiting;
 
-    //Stake against votes
+    // Calculate the amount staked by Against voters
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
       uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(10**decimals);
