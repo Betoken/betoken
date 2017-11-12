@@ -3,7 +3,7 @@ pragma solidity ^0.4.18;
 import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
-import './oraclizeAPI_0.4.sol'
+import './oraclizeAPI_0.4.sol';
 
 
 
