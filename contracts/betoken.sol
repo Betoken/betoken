@@ -92,6 +92,8 @@ contract GroupFund is usingOraclize {
   // Mapping from Proposal to Participant to number of Control Tokens being staked
   mapping(uint256 => mapping(address => uint256)) public stakedControlOfProposalOfUser;
 
+  mapping(bytes32 => uint256) internal proposalIdOfQuery;
+
   Proposal[] public proposals;
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
@@ -152,10 +154,7 @@ contract GroupFund is usingOraclize {
   }
 
   //Change making time functions
-<<<<<<< HEAD
 
-=======
->>>>>>> 5ae176faa749dc430aaf444e651c062d090b8ed6
   function deposit()
     public
     payable
@@ -176,10 +175,7 @@ contract GroupFund is usingOraclize {
     }
   }
 
-<<<<<<< HEAD
-=======
   // Withdraw from GroupFund
->>>>>>> 5ae176faa749dc430aaf444e651c062d090b8ed6
   function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
@@ -264,7 +260,7 @@ contract GroupFund is usingOraclize {
     for (i = 0; i < proposals.length; i = i.add(1)) {
       uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
 
-      grabCurrentPriceFromOraclize(proposals[i].tokenSymbol);
+      grabCurrentPriceFromOraclize(i);
 
       //Deposit ether
       assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
@@ -273,29 +269,38 @@ contract GroupFund is usingOraclize {
     ProposalMakingTimeEnded(now);
   }
 
-<<<<<<< HEAD
-=======
   // Query Oraclize for the current price
-  function grabCurrentPriceFromOraclize(string _tokenSymbol) payable {
+  function grabCurrentPriceFromOraclize(uint _proposalId) payable {
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
-    string tokenSymbol = _tokenSymbol;
+    string tokenSymbol = proposals[_proposalId].tokenSymbol;
     string etherSymbol = "ETH";
     string urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
 
     string url = "URL";
 
     // Call Oraclize to grab the most recent price information via JSON
-    oraclize_query(url, urlToQuery);
+    proposalIdOfQuery[oraclize_query(url, urlToQuery)] = _proposalId;
   }
 
   // Callback function from Oraclize query:
-  function __callback(bytes32 _myID, string _result) {
+  function __callback(bytes32 _myID, string _result) public {
     require(msg.sender == oraclize_cbAddress());
 
     // Grab ETH price in Weis, update proposals
+    Proposal prop = proposals[proposalIdOfQuery[_myID]];
+    uint256 price = parseInt(_result, 18);
+    prop.sellPriceinWeis = price;
+
+    //Reset data
+    delete proposalIdOfQuery[_myID];
+
+    if (cyclePhase == CyclePhase.Waiting) {
+      //Sell
+    } else if (cyclePhase == CyclePhase.Ended) {
+      //Buy
+    }
   }
 
->>>>>>> 5ae176faa749dc430aaf444e651c062d090b8ed6
   function endCycle() public {
     require(cyclePhase == CyclePhase.Waiting);
     require(now >= startTimeOfCycle.add(timeOfCycle));
