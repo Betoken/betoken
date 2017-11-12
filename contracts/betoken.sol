@@ -3,6 +3,9 @@ pragma solidity ^0.4.18;
 import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
+import './oraclizeAPI_0.4.sol'
+
+
 
 // The main contract that keeps track of:
 // - Who is in the fund
@@ -11,6 +14,7 @@ import './etherdelta.sol';
 // - Each person's Control
 contract GroupFund {
   using SafeMath for uint256;
+  is usingOraclize;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended }
 
@@ -167,6 +171,8 @@ contract GroupFund {
     stakedControlOfProposalOfUser[_proposalId][msg.sender] = stakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
 
+
+
   function deposit()
     public
     payable
@@ -187,6 +193,8 @@ contract GroupFund {
     }
   }
 
+
+
   function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
@@ -200,6 +208,8 @@ contract GroupFund {
     msg.sender.transfer(_amountInWeis);
   }
 
+
+
   function endChangeMakingTime() public {
     require(cyclePhase == CyclePhase.ChangeMaking);
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
@@ -208,6 +218,8 @@ contract GroupFund {
 
     ChangeMakingTimeEnded(now);
   }
+
+
 
   function endProposalMakingTime() public {
     require(cyclePhase == CyclePhase.ProposalMaking);
@@ -237,6 +249,8 @@ contract GroupFund {
 
     ProposalMakingTimeEnded(now);
   }
+
+
 
   function endCycle() public {
     require(cyclePhase == CyclePhase.Waiting);
@@ -270,22 +284,30 @@ contract GroupFund {
     CycleEnded(now);
   }
 
+
+
   function addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
     isParticipant[_receipient] = true;
     participants.push(_receipient);
   }
 
+
+
   function() public {
     revert();
   }
 }
+
+
 
 //Proportional to Wei
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
   event OwnerCollectFrom(address _from, uint256 _value);
+
+
 
   function transfer(address _to, uint256 _value) public returns(bool) {
     require(_to != address(0));
@@ -304,6 +326,8 @@ contract ControlToken is MintableToken {
     return true;
   }
 
+
+
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
     require(_value <= balances[_from]);
@@ -321,6 +345,8 @@ contract ControlToken is MintableToken {
     Transfer(_from, _to, _value);
     return true;
   }
+
+
 
   function ownerCollectFrom(address _from, uint256 _value) public onlyOwner returns(bool) {
     require(_from != address(0));
