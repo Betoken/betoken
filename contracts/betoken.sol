@@ -1,5 +1,6 @@
 pragma solidity ^0.4.18;
 
+// Importing stuff
 import 'zeppelin-solidity/contracts/token/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
@@ -12,26 +13,34 @@ import './etherdelta.sol';
 contract GroupFund {
   using SafeMath for uint256;
 
+  // The 4 different phases the GroupFund could be in
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended }
 
+  // The Proposal structure
   struct Proposal {
     bool isBuy;
     address tokenAddress;
     uint256 tokenPriceInWeis;
+
+    // Maps participant addresses to whether or not they support the proposal
     mapping(address => bool) userSupportsProposal;
   }
 
+  // Requires time elapsed to be greater than timeOfChangeMaking
   modifier isChangeMakingTime {
     require(now < startTimeOfCycle.add(timeOfChangeMaking));
     _;
   }
 
+  // Requires time elapsed to be between timeOfChangeMaking and the end of
+  // timeOfProposalMaking
   modifier isProposalMakingTime {
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
     require(now < startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
     _;
   }
 
+  // Checks if the message sender is participant
   modifier onlyParticipant {
     require(isParticipant[msg.sender]);
     _;
@@ -46,6 +55,7 @@ contract GroupFund {
 
   // Maps user address to their initial deposit
   mapping(address => uint256) public initialDeposit;
+
   uint256 public totalInitialDeposit;
 
   //Address of the control token
