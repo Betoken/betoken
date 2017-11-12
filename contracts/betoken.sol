@@ -21,6 +21,7 @@ contract GroupFund is usingOraclize {
     address tokenAddress;
     string tokenSymbol;
     uint256 buyPriceInWeis;
+    uint256 sellPriceinWeis;
     mapping(address => bool) userSupportsProposal;
   }
 
@@ -52,6 +53,12 @@ contract GroupFund is usingOraclize {
 
   address public etherDeltaAddr;
 
+  // URL for querying prices, default is set to cryptocompare
+  // Later on, modify this to be more flexible for additional queries, etc.
+  string public priceCheckURL1;
+  string public priceCheckURL2;
+  string public priceCheckURL3;
+
   // The total amount of funds held by the group
   uint256 public totalFundsInWeis;
 
@@ -76,10 +83,13 @@ contract GroupFund is usingOraclize {
 
   bool public isFirstCycle;
 
+  // Mapping from Participant address to their balance
   mapping(address => uint256) public balanceOf;
 
+  // Mapping from Proposal to total amount of Control Tokens being staked
   mapping(uint256 => uint256) public stakedControlOfProposal;
 
+  // Mapping from Proposal to Participant to number of Control Tokens being staked
   mapping(uint256 => mapping(address => uint256)) public stakedControlOfProposalOfUser;
 
   Proposal[] public proposals;
@@ -92,6 +102,7 @@ contract GroupFund is usingOraclize {
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
 
+  // GroupFund constructor
   function GroupFund(
     address _etherDeltaAddr,
     uint256 _decimals,
@@ -116,6 +127,11 @@ contract GroupFund is usingOraclize {
     startTimeOfCycle = 0;
     isFirstCycle = true;
 
+    // Initialize cryptocompare URLs:
+    priceCheckURL1 = "json(https://min-api.cryptocompare.com/data/price?fsym=";
+    priceCheckURL2 = "&tsyms=";
+    priceCheckURL3 = ").ETH";
+
     //Create control token contract
     cToken = new ControlToken();
     controlTokenAddr = cToken;
@@ -124,6 +140,7 @@ contract GroupFund is usingOraclize {
     etherDelta = EtherDelta(etherDeltaAddr);
   }
 
+  // Creates a new Cycle
   function startNewCycle() public {
     require(cyclePhase == CyclePhase.Ended);
     require(now >= startTimeOfCycle.add(timeOfCycle));
@@ -135,7 +152,10 @@ contract GroupFund is usingOraclize {
   }
 
   //Change making time functions
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5ae176faa749dc430aaf444e651c062d090b8ed6
   function deposit()
     public
     payable
@@ -156,6 +176,10 @@ contract GroupFund is usingOraclize {
     }
   }
 
+<<<<<<< HEAD
+=======
+  // Withdraw from GroupFund
+>>>>>>> 5ae176faa749dc430aaf444e651c062d090b8ed6
   function withdraw(uint256 _amountInWeis)
     public
     isChangeMakingTime
@@ -179,7 +203,6 @@ contract GroupFund is usingOraclize {
   }
 
   //Proposal making time functions
-
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
@@ -240,13 +263,39 @@ contract GroupFund is usingOraclize {
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
       uint256 investAmount = totalFundsInWeis.mul(stakedControlOfProposal[i]).div(cToken.totalSupply());
-      assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()")))); //Deposit ether
 
+      grabCurrentPriceFromOraclize(proposals[i].tokenSymbol);
+
+      //Deposit ether
+      assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
     }
 
     ProposalMakingTimeEnded(now);
   }
 
+<<<<<<< HEAD
+=======
+  // Query Oraclize for the current price
+  function grabCurrentPriceFromOraclize(string _tokenSymbol) payable {
+    // Grab the cryptocompare URL that is the price in ETH of the token to purchase
+    string tokenSymbol = _tokenSymbol;
+    string etherSymbol = "ETH";
+    string urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
+
+    string url = "URL";
+
+    // Call Oraclize to grab the most recent price information via JSON
+    oraclize_query(url, urlToQuery);
+  }
+
+  // Callback function from Oraclize query:
+  function __callback(bytes32 _myID, string _result) {
+    require(msg.sender == oraclize_cbAddress());
+
+    // Grab ETH price in Weis, update proposals
+  }
+
+>>>>>>> 5ae176faa749dc430aaf444e651c062d090b8ed6
   function endCycle() public {
     require(cyclePhase == CyclePhase.Waiting);
     require(now >= startTimeOfCycle.add(timeOfCycle));
