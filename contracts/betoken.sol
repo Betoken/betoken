@@ -186,6 +186,8 @@ contract GroupFund is usingOraclize {
 
     if (isFirstCycle) {
       //Give control tokens proportional to investment
+      // # Of Tokens will be slightly more than the amount in their balance,
+      // but that's okay because we're going proportionally
       cToken.mint(msg.sender, msg.value);
     }
   }
@@ -204,6 +206,7 @@ contract GroupFund is usingOraclize {
     msg.sender.transfer(_amountInWeis);
   }
 
+  // Move on to Proposal Making time
   function endChangeMakingTime() public {
     require(cyclePhase == CyclePhase.ChangeMaking);
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
@@ -213,7 +216,7 @@ contract GroupFund is usingOraclize {
     ChangeMakingTimeEnded(now);
   }
 
-  //Proposal making time functions
+  //Proposal Making time functions
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
@@ -250,8 +253,10 @@ contract GroupFund is usingOraclize {
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.balanceOf(msg.sender)).div(totalFundsInWeis);
+
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
+    
     //Update stake data
     proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(controlStake);
