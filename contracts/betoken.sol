@@ -316,20 +316,35 @@ contract GroupFund is usingOraclize {
     require(startTimeOfCycle != 0);
 
     //Ensure all the sell orders are inactive
-    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      uint256 proposalId = i;
+    for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
       Proposal storage prop = proposals[proposalId];
-      uint256 sellTokenAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply()).div(prop.buyPriceInWeis);
+      uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
       uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
 
       uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
       require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
 
-      //Settle bets
-      uint256 tokenReward;
-      uint256 stake;
-      uint256 j;
-      address participant;
+      settleBets(proposalId, prop);
+    }
+    //Withdraw from etherdelta
+    etherDelta.withdraw(etherDelta.tokens(address(0), address(this)));
+
+    distributeFundsAfterCycleEnd();
+
+    //Reset data
+    totalFundsInWeis = this.balance;
+    delete proposals;
+  }
+  
+  //Seperated from finalizeEndCycle() to avoid StackTooDeep error
+  function settleBets(uint256 proposalId, Proposal prop) internal {
+    //Settle bets
+    uint256 tokenReward;
+    uint256 stake;
+    uint256 j;
+    address participant;
+    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
+    if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceinWeis >= prop.buyPriceInWeis) {
         //For wins
         tokenReward = cToken.totalSupply().sub(forStakedControlOfProposal[proposalId]).mul(againstStakeProportion).div(10**decimals.mul(prop.numFor));
@@ -353,15 +368,16 @@ contract GroupFund is usingOraclize {
           }
         }
       }
+    } else {
+      //Buy order failed completely. Give back stakes.
+      for (j = 0; j < participants.length; j = j.add(1)) {
+        participant = participants[j];
+        stake = forStakedControlOfProposalOfUser[proposalId][participant].add(againstStakedControlOfProposalOfUser[proposalId][participant]);
+        if (stake != 0) {
+          cToken.transfer(participant, stake);
+        }
+      }
     }
-    //Withdraw from etherdelta
-    etherDelta.withdraw(etherDelta.tokens(address(0), address(this)));
-
-    distributeFundsAfterCycleEnd();
-
-    //Reset data
-    totalFundsInWeis = this.balance;
-    delete proposals;
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
@@ -428,7 +444,7 @@ contract GroupFund is usingOraclize {
       prop.sellPriceinWeis = priceInWeis;
       prop.sellOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
 
-      uint256 sellTokenAmount = investAmount.div(prop.buyPriceInWeis);
+      uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
       uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
       etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId);
     }
