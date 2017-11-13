@@ -5,7 +5,6 @@ import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
 import './oraclizeAPI_0.4.sol';
 
-
 // The main contract that keeps track of:
 // - Who is in the fund
 // - How much the fund has
@@ -158,7 +157,6 @@ contract GroupFund {
     cyclePhase = CyclePhase.ChangeMaking;
 
     if (isFirstCycle) {
-      //Create control token contract
       cToken = new ControlToken();
       controlTokenAddr = address(cToken);
       oraclize = new OraclizeHandler(controlTokenAddr, etherDeltaAddr);
@@ -453,7 +451,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
   string[] public tokenSymbolOfProposal;
 
-  function OraclizeHandler(address _controlTokenAddr, address _etherDeltaAddr) {
+  function OraclizeHandler(address _controlTokenAddr, address _etherDeltaAddr) public {
     groupFund = GroupFund(msg.sender);
     cToken = ControlToken(_controlTokenAddr);
     etherDelta = EtherDelta(_etherDeltaAddr);
@@ -493,9 +491,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     uint256 priceInWeis = parseInt(_result, 18);
 
     uint256 proposalId = groupFund.proposalIdOfQuery(_myID);
-    var (
-      tokenAddress,
-    ) = groupFund.proposals(proposalId);
+    var (tokenAddress,) = groupFund.proposals(proposalId);
 
     //Reset data
     groupFund.__deleteProposalIdOfQuery(_myID);
@@ -530,10 +526,7 @@ contract ControlToken is MintableToken {
     require(_value <= balances[msg.sender]);
 
     //Add receipient as a participant if not already a participant
-    GroupFund g = GroupFund(owner);
-    if (!g.isParticipant(_to)) {
-      g.addControlTokenReceipientAsParticipant(_to);
-    }
+    addParticipant(_to);
 
     // SafeMath.sub will throw if there is not enough balance.
     balances[msg.sender] = balances[msg.sender].sub(_value);
@@ -548,10 +541,7 @@ contract ControlToken is MintableToken {
     require(_value <= allowed[_from][msg.sender]);
 
     //Add receipient as a participant if not already a participant
-    GroupFund g = GroupFund(owner);
-    if (!g.isParticipant(_to)) {
-      g.addControlTokenReceipientAsParticipant(_to);
-    }
+    addParticipant(_to);
 
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
@@ -569,5 +559,12 @@ contract ControlToken is MintableToken {
     balances[msg.sender] = balances[msg.sender].add(_value);
     OwnerCollectFrom(_from, _value);
     return true;
+  }
+
+  function addParticipant(address _to) internal {
+    GroupFund groupFund = GroupFund(owner);
+    if (!groupFund.isParticipant(_to)) {
+      groupFund.addControlTokenReceipientAsParticipant(_to);
+    }
   }
 }
