@@ -6,22 +6,21 @@ import './etherdelta.sol';
 import './oraclizeAPI_0.4.sol';
 
 
-
 // The main contract that keeps track of:
 // - Who is in the fund
 // - How much the fund has
 // - Each person's Share
 // - Each person's Control
-contract GroupFund is usingOraclize {
+contract GroupFund {
   using SafeMath for uint256;
 
-  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended }
+  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
 
   struct Proposal {
     address tokenAddress;
     string tokenSymbol;
     uint256 buyPriceInWeis;
-    uint256 sellPriceinWeis;
+    uint256 sellPriceInWeis;
     uint256 buyOrderExpirationBlockNum;
     uint256 sellOrderExpirationBlockNum;
     uint256 numFor;
@@ -44,6 +43,11 @@ contract GroupFund is usingOraclize {
     _;
   }
 
+  modifier onlyOraclize {
+    require(msg.sender == oraclizeAddr);
+    _;
+  }
+
   //Number of decimals used for proportions
   uint256 public decimals;
 
@@ -55,12 +59,6 @@ contract GroupFund is usingOraclize {
   address public controlTokenAddr;
 
   address public etherDeltaAddr;
-
-  // URL for querying prices, default is set to cryptocompare
-  // Later on, modify this to be more flexible for additional queries, etc.
-  string public priceCheckURL1;
-  string public priceCheckURL2;
-  string public priceCheckURL3;
 
   // The total amount of funds held by the group
   uint256 public totalFundsInWeis;
@@ -102,17 +100,21 @@ contract GroupFund is usingOraclize {
 
   mapping(uint256 => mapping(address => uint256)) public againstStakedControlOfProposalOfUser;
 
-  mapping(bytes32 => uint256) internal proposalIdOfQuery;
+  mapping(bytes32 => uint256) public proposalIdOfQuery;
+
+  address public oraclizeAddr;
 
   Proposal[] public proposals;
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
+  OraclizeHandler internal oraclize;
   CyclePhase public cyclePhase;
 
   event CycleStarted(uint256 timestamp);
   event ChangeMakingTimeEnded(uint256 timestamp);
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
+  event CycleFinalized(uint256 timestamp);
 
   // GroupFund constructor
   function GroupFund(
@@ -142,12 +144,7 @@ contract GroupFund is usingOraclize {
     oraclizeFeeProportion = _oraclizeFeeProportion;
     startTimeOfCycle = 0;
     isFirstCycle = true;
-    cyclePhase = CyclePhase.Ended;
-
-    // Initialize cryptocompare URLs:
-    priceCheckURL1 = "json(https://min-api.cryptocompare.com/data/price?fsym=";
-    priceCheckURL2 = "&tsyms=";
-    priceCheckURL3 = ").ETH";
+    cyclePhase = CyclePhase.Finalized;
 
     //Initialize etherDelta contract
     etherDelta = EtherDelta(etherDeltaAddr);
@@ -155,7 +152,7 @@ contract GroupFund is usingOraclize {
 
   // Creates a new Cycle
   function startNewCycle() public {
-    require(cyclePhase == CyclePhase.Ended);
+    require(cyclePhase == CyclePhase.Finalized);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
     cyclePhase = CyclePhase.ChangeMaking;
@@ -163,7 +160,9 @@ contract GroupFund is usingOraclize {
     if (isFirstCycle) {
       //Create control token contract
       cToken = new ControlToken();
-      controlTokenAddr = cToken;
+      controlTokenAddr = address(cToken);
+      oraclize = new OraclizeHandler(controlTokenAddr, etherDeltaAddr);
+      oraclizeAddr = address(oraclize);
     }
 
     startTimeOfCycle = now;
@@ -232,12 +231,14 @@ contract GroupFund is usingOraclize {
       tokenAddress: _tokenAddress,
       tokenSymbol: _tokenSymbol,
       buyPriceInWeis: 0,
-      sellPriceinWeis: 0,
+      sellPriceInWeis: 0,
       numFor: 1,
       numAgainst: 0,
       buyOrderExpirationBlockNum: 0,
       sellOrderExpirationBlockNum: 0
     }));
+
+    oraclize.__pushTokenSymbolOfProposal(_tokenSymbol);
 
     //Stake control tokens
     uint256 proposalId = proposals.length - 1;
@@ -288,7 +289,7 @@ contract GroupFund is usingOraclize {
       //Deposit ether
       assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
-      this.grabCurrentPriceFromOraclize(i);
+      oraclize.__grabCurrentPriceFromOraclize(i);
     }
 
     ProposalMakingTimeEnded(now);
@@ -307,7 +308,7 @@ contract GroupFund is usingOraclize {
     //Sell all invested tokens
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
-      this.grabCurrentPriceFromOraclize(i);
+      oraclize.__grabCurrentPriceFromOraclize(i);
     }
 
     CycleEnded(now);
@@ -317,11 +318,13 @@ contract GroupFund is usingOraclize {
     require(cyclePhase == CyclePhase.Ended);
     require(startTimeOfCycle != 0);
 
+    cyclePhase = CyclePhase.Finalized;
+
     //Ensure all the sell orders are inactive
     for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
       Proposal storage prop = proposals[proposalId];
       uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-      uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
+      uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
 
       uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
       require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
@@ -335,7 +338,10 @@ contract GroupFund is usingOraclize {
 
     //Reset data
     totalFundsInWeis = this.balance;
+    oraclize.__deleteTokenSymbolOfProposal();
     delete proposals;
+
+    CycleFinalized(now);
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
@@ -347,7 +353,7 @@ contract GroupFund is usingOraclize {
     address participant;
     uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0) != 0) {
-      if (prop.sellPriceinWeis >= prop.buyPriceInWeis) {
+      if (prop.sellPriceInWeis >= prop.buyPriceInWeis) {
         //For wins
         tokenReward = cToken.totalSupply().sub(forStakedControlOfProposal[proposalId]).mul(againstStakeProportion).div(10**decimals.mul(prop.numFor));
         for (j = 0; j < participants.length; j = j.add(1)) {
@@ -403,20 +409,80 @@ contract GroupFund is usingOraclize {
     participants.push(_receipient);
   }
 
+  function __setProposalIdOfQuery(bytes32 _queryId, uint256 _proposalId) public onlyOraclize {
+    proposalIdOfQuery[_queryId] = _proposalId;
+  }
+
+  function __deleteProposalIdOfQuery(bytes32 _queryId) public onlyOraclize {
+    delete proposalIdOfQuery[_queryId];
+  }
+
+  function __makeOrder(address _tokenGet, uint _amountGet, address _tokenGive, uint _amountGive, uint _expires, uint _nonce) public onlyOraclize {
+    etherDelta.order(_tokenGet, _amountGet, _tokenGive, _amountGive, _expires, _nonce);
+  }
+
+  function __setBuyPriceAndExpirationBlock(uint256 _proposalId, uint256 _buyPrice, uint256 _expires) public onlyOraclize {
+    proposals[_proposalId].buyPriceInWeis = _buyPrice;
+    proposals[_proposalId].buyOrderExpirationBlockNum = _expires;
+  }
+
+  function __setSellPriceAndExpirationBlock(uint256 _proposalId, uint256 _sellPrice, uint256 _expires) public onlyOraclize {
+    proposals[_proposalId].sellPriceInWeis = _sellPrice;
+    proposals[_proposalId].sellOrderExpirationBlockNum = _expires;
+  }
+
+  function() public {
+    revert();
+  }
+}
+
+contract OraclizeHandler is usingOraclize, Ownable {
+  using SafeMath for uint256;
+
+  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
+
+  // URL for querying prices, default is set to cryptocompare
+  // Later on, modify this to be more flexible for additional queries, etc.
+  string public priceCheckURL1;
+  string public priceCheckURL2;
+  string public priceCheckURL3;
+
+  GroupFund internal groupFund;
+  ControlToken internal cToken;
+  EtherDelta internal etherDelta;
+
+  string[] public tokenSymbolOfProposal;
+
+  function OraclizeHandler(address _controlTokenAddr, address _etherDeltaAddr) {
+    groupFund = GroupFund(msg.sender);
+    cToken = ControlToken(_controlTokenAddr);
+    etherDelta = EtherDelta(_etherDeltaAddr);
+    // Initialize cryptocompare URLs:
+    priceCheckURL1 = "json(https://min-api.cryptocompare.com/data/price?fsym=";
+    priceCheckURL2 = "&tsyms=";
+    priceCheckURL3 = ").ETH";
+  }
+
+  function __pushTokenSymbolOfProposal(string _tokenSymbol) public onlyOwner {
+    tokenSymbolOfProposal.push(_tokenSymbol);
+  }
+
+  function __deleteTokenSymbolOfProposal() public onlyOwner {
+    delete tokenSymbolOfProposal;
+  }
   //Oraclize functions
 
   // Query Oraclize for the current price
-  function grabCurrentPriceFromOraclize(uint _proposalId) public payable {
-    require(msg.sender == address(this));
+  function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
+    string tokenSymbol = tokenSymbolOfProposal[_proposalId];
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
-    string storage tokenSymbol = proposals[_proposalId].tokenSymbol;
     string memory etherSymbol = "ETH";
     string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
 
     string memory url = "URL";
 
     // Call Oraclize to grab the most recent price information via JSON
-    proposalIdOfQuery[oraclize_query(url, urlToQuery)] = _proposalId;
+    groupFund.__setProposalIdOfQuery(oraclize_query(url, urlToQuery), _proposalId);
   }
 
   // Callback function from Oraclize query:
@@ -426,34 +492,30 @@ contract GroupFund is usingOraclize {
     // Grab ETH price in Weis
     uint256 priceInWeis = parseInt(_result, 18);
 
-    uint256 proposalId = proposalIdOfQuery[_myID];
-    Proposal storage prop = proposals[proposalId];
+    uint256 proposalId = groupFund.proposalIdOfQuery(_myID);
+    var (
+      tokenAddress,
+    ) = groupFund.proposals(proposalId);
 
     //Reset data
-    delete proposalIdOfQuery[_myID];
+    groupFund.__deleteProposalIdOfQuery(_myID);
 
-    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
-
-    if (cyclePhase == CyclePhase.Waiting) {
+    uint256 investAmount = groupFund.totalFundsInWeis().mul(groupFund.forStakedControlOfProposal(proposalId)).div(cToken.totalSupply());
+    uint256 expires = block.number.add(groupFund.orderExpirationTimeInBlocks());
+    if (uint(groupFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
       //Buy
-      prop.buyPriceInWeis = priceInWeis;
-      prop.buyOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
+      groupFund.__setBuyPriceAndExpirationBlock(proposalId, priceInWeis, expires);
 
-      uint256 buyTokenAmount = investAmount.div(prop.buyPriceInWeis);
-      etherDelta.order(prop.tokenAddress, buyTokenAmount, address(0), investAmount, prop.buyOrderExpirationBlockNum, proposalId);
-    } else if (cyclePhase == CyclePhase.Ended) {
+      uint256 buyTokenAmount = investAmount.div(priceInWeis);
+      groupFund.__makeOrder(tokenAddress, buyTokenAmount, address(0), investAmount, expires, proposalId);
+    } else if (uint(groupFund.cyclePhase()) == uint(CyclePhase.Ended)) {
       //Sell
-      prop.sellPriceinWeis = priceInWeis;
-      prop.sellOrderExpirationBlockNum = block.number.add(orderExpirationTimeInBlocks);
+      groupFund.__setSellPriceAndExpirationBlock(proposalId, priceInWeis, expires);
 
-      uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-      uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceinWeis);
-      etherDelta.order(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId);
+      uint256 sellTokenAmount = etherDelta.tokens(tokenAddress, owner);
+      uint256 getWeiAmount = sellTokenAmount.mul(priceInWeis);
+      groupFund.__makeOrder(address(0), getWeiAmount, tokenAddress, sellTokenAmount, expires, proposalId);
     }
-  }
-
-  function() public {
-    revert();
   }
 }
 
