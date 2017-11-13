@@ -3,7 +3,7 @@ var GroupFund = artifacts.require("GroupFund");
 module.exports = function(deployer) {
   deployer.deploy(
     GroupFund,
-    "0x8d12A197cB00D4747a1fe03395095ce2A5CC6819", //Ethdelta address
+    "0x228344536a03c0910fb8be9c2755c1a0ba6f89e1", //Ethdelta address
     18, //decimals
     30 * 24 * 3600, //timeOfCycle
     2 * 24 * 3600, //timeOfChangeMaking

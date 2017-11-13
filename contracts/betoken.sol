@@ -149,10 +149,6 @@ contract GroupFund is usingOraclize {
     priceCheckURL2 = "&tsyms=";
     priceCheckURL3 = ").ETH";
 
-    //Create control token contract
-    cToken = new ControlToken();
-    controlTokenAddr = cToken;
-
     //Initialize etherDelta contract
     etherDelta = EtherDelta(etherDeltaAddr);
   }
@@ -163,6 +159,12 @@ contract GroupFund is usingOraclize {
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
     cyclePhase = CyclePhase.ChangeMaking;
+
+    if (isFirstCycle) {
+      //Create control token contract
+      cToken = new ControlToken();
+      controlTokenAddr = cToken;
+    }
 
     startTimeOfCycle = now;
     CycleStarted(now);
@@ -335,7 +337,7 @@ contract GroupFund is usingOraclize {
     totalFundsInWeis = this.balance;
     delete proposals;
   }
-  
+
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
   function settleBets(uint256 proposalId, Proposal prop) internal {
     //Settle bets
