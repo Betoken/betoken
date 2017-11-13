@@ -160,7 +160,7 @@ contract GroupFund {
       cToken = new ControlToken();
       controlTokenAddr = address(cToken);
       oraclize = new OraclizeHandler(controlTokenAddr, etherDeltaAddr);
-      oraclizeAddr = address(oraclize);
+      //oraclizeAddr = address(oraclize);
     }
 
     startTimeOfCycle = now;
