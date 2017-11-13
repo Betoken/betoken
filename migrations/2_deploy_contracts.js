@@ -1,9 +1,12 @@
 var GroupFund = artifacts.require("GroupFund");
+var ControlToken = artifacts.require("ControlToken");
+var OraclizeHandler = artifacts.require("OraclizeHandler");
 
 module.exports = function(deployer) {
-  deployer.deploy(
+  var etherDeltaAddress = "0x228344536a03c0910fb8be9c2755c1a0ba6f89e1"
+  deployer.deploy([[
     GroupFund,
-    "0x228344536a03c0910fb8be9c2755c1a0ba6f89e1", //Ethdelta address
+    etherDeltaAddress, //Ethdelta address
     18, //decimals
     30 * 24 * 3600, //timeOfCycle
     2 * 24 * 3600, //timeOfChangeMaking
@@ -13,5 +16,25 @@ module.exports = function(deployer) {
     0.01 * Math.pow(10, 18), //commissionRate
     3600 / 20, //orderExpirationTimeInBlocks
     0.01 * Math.pow(10, 18) //oraclizeFeeProportion
+  ], [ControlToken]]).then(
+    () => {
+      return deployer.deploy(OraclizeHandler, ControlToken.address, etherDeltaAddress);
+    }
+  ).then(
+    () => {
+      return ControlToken.deployed().then(
+        (instance) => {
+          instance.transferOwnership(GroupFund.address);
+        }
+      );
+    }
+  ).then(
+    () => {
+      return OraclizeHandler.deployed().then(
+        (instance) => {
+          instance.transferOwnership(GroupFund.address);
+        }
+      );
+    }
   );
 };

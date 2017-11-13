@@ -103,6 +103,9 @@ contract GroupFund {
 
   address public oraclizeAddr;
 
+  bool public initialized;
+  address public creator;
+
   Proposal[] public proposals;
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
@@ -144,24 +147,32 @@ contract GroupFund {
     startTimeOfCycle = 0;
     isFirstCycle = true;
     cyclePhase = CyclePhase.Finalized;
+    creator = msg.sender;
 
     //Initialize etherDelta contract
     etherDelta = EtherDelta(etherDeltaAddr);
   }
 
+  function initializeSubcontracts(address _cTokenAddr, address _oraclizeAddr) public {
+    require(msg.sender == creator);
+    require(!initialized);
+
+    initialized = true;
+
+    controlTokenAddr = _cTokenAddr;
+    oraclizeAddr = _oraclizeAddr;
+
+    cToken = ControlToken(controlTokenAddr);
+    oraclize = OraclizeHandler(oraclizeAddr);
+  }
+
   // Creates a new Cycle
   function startNewCycle() public {
+    require(initialized);
     require(cyclePhase == CyclePhase.Finalized);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
     cyclePhase = CyclePhase.ChangeMaking;
-
-    if (isFirstCycle) {
-      cToken = new ControlToken();
-      controlTokenAddr = address(cToken);
-      oraclize = new OraclizeHandler(controlTokenAddr, etherDeltaAddr);
-      //oraclizeAddr = address(oraclize);
-    }
 
     startTimeOfCycle = now;
     CycleStarted(now);
@@ -452,7 +463,6 @@ contract OraclizeHandler is usingOraclize, Ownable {
   string[] public tokenSymbolOfProposal;
 
   function OraclizeHandler(address _controlTokenAddr, address _etherDeltaAddr) public {
-    groupFund = GroupFund(msg.sender);
     cToken = ControlToken(_controlTokenAddr);
     etherDelta = EtherDelta(_etherDeltaAddr);
     // Initialize cryptocompare URLs:
@@ -472,6 +482,8 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
   // Query Oraclize for the current price
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
+    groupFund = GroupFund(owner);
+
     string tokenSymbol = tokenSymbolOfProposal[_proposalId];
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
     string memory etherSymbol = "ETH";
@@ -486,6 +498,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
   // Callback function from Oraclize query:
   function __callback(bytes32 _myID, string _result) public {
     require(msg.sender == oraclize_cbAddress());
+    groupFund = GroupFund(owner);
 
     // Grab ETH price in Weis
     uint256 priceInWeis = parseInt(_result, 18);
