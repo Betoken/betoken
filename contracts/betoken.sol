@@ -412,7 +412,7 @@ contract GroupFund {
     }
   }
 
-  function addControlTokenReceipientAsParticipant(address _receipient) public {
+  function __addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
     isParticipant[_receipient] = true;
     participants.push(_receipient);
@@ -577,7 +577,7 @@ contract ControlToken is MintableToken {
   function addParticipant(address _to) internal {
     GroupFund groupFund = GroupFund(owner);
     if (!groupFund.isParticipant(_to)) {
-      groupFund.addControlTokenReceipientAsParticipant(_to);
+      groupFund.__addControlTokenReceipientAsParticipant(_to);
     }
   }
 }
