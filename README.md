@@ -25,7 +25,7 @@ Betoken consists of roughly 4 parts:
 <hr>
 
 ## Using Betoken:
-Anyone can call the Betoken smart contract to create a new group fund. Each group fund goes through investment cycles, which are split into 5 stages: <b>ChangeMaking</b>, <b>ProposalMaking</b>, <b>Waiting</b>, and <b>Ended</b>.
+Anyone can call the Betoken smart contract to create a new group fund. Each group fund goes through investment cycles, which are split into 5 stages: <b>ChangeMaking</b>, <b>ProposalMaking</b>, <b>Waiting</b>, <b>Ended</b>, and <b>Finalized</b>.
 
 <b>ChangeMaking</b> is when new participants can be added, and it is also when new withdrawals and deposits can be made.
 
