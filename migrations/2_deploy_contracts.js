@@ -36,5 +36,13 @@ module.exports = function(deployer) {
         }
       );
     }
+  ).then(
+    () => {
+      return GroupFund.deployed().then(
+        (instance) => {
+          instance.initializeSubcontracts(ControlToken.address, OraclizeHandler.address);
+        }
+      );
+    }
   );
 };
