@@ -2,10 +2,11 @@ module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
   networks: {
-    ropsten: {
+    rinkeby: {
       host: "localhost",
       port: 8545,
-      gas: 5100000,
+      gas: 5500000,
+      gasPrice: Math.pow(10, 8),
       network_id: "*" // match any network
     }
   }

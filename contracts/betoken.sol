@@ -10,7 +10,7 @@ import './oraclizeAPI_0.4.sol';
 // - How much the fund has
 // - Each person's Share
 // - Each person's Control
-contract GroupFund {
+contract GroupFund is Ownable {
   using SafeMath for uint256;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
@@ -164,6 +164,12 @@ contract GroupFund {
 
     cToken = ControlToken(controlTokenAddr);
     oraclize = OraclizeHandler(oraclizeAddr);
+  }
+
+  function changeEtherDeltaAddress(address _newAddr) public onlyOwner {
+    etherDeltaAddr = _newAddr;
+    etherDelta = EtherDelta(_newAddr);
+    oraclize.__changeEtherDeltaAddress(_newAddr);
   }
 
   // Creates a new Cycle
@@ -338,12 +344,12 @@ contract GroupFund {
       uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
       require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
 
-      settleBets(proposalId, prop);
+      __settleBets(proposalId, prop);
     }
     //Withdraw from etherdelta
     etherDelta.withdraw(etherDelta.tokens(address(0), address(this)));
 
-    distributeFundsAfterCycleEnd();
+    __distributeFundsAfterCycleEnd();
 
     //Reset data
     totalFundsInWeis = this.balance;
@@ -354,7 +360,7 @@ contract GroupFund {
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
-  function settleBets(uint256 proposalId, Proposal prop) internal {
+  function __settleBets(uint256 proposalId, Proposal prop) internal {
     //Settle bets
     uint256 tokenReward;
     uint256 stake;
@@ -398,7 +404,7 @@ contract GroupFund {
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
-  function distributeFundsAfterCycleEnd() internal {
+  function __distributeFundsAfterCycleEnd() internal {
     //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
     uint256 feeReserve = oraclizeFeeProportion.mul(this.balance).div(10**decimals);
@@ -456,6 +462,9 @@ contract OraclizeHandler is usingOraclize, Ownable {
   string public priceCheckURL2;
   string public priceCheckURL3;
 
+  address public controlTokenAddr;
+  address public etherDeltaAddr;
+
   GroupFund internal groupFund;
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
@@ -463,12 +472,19 @@ contract OraclizeHandler is usingOraclize, Ownable {
   string[] public tokenSymbolOfProposal;
 
   function OraclizeHandler(address _controlTokenAddr, address _etherDeltaAddr) public {
+    controlTokenAddr = _controlTokenAddr;
+    etherDeltaAddr = _etherDeltaAddr;
     cToken = ControlToken(_controlTokenAddr);
     etherDelta = EtherDelta(_etherDeltaAddr);
     // Initialize cryptocompare URLs:
     priceCheckURL1 = "json(https://min-api.cryptocompare.com/data/price?fsym=";
     priceCheckURL2 = "&tsyms=";
     priceCheckURL3 = ").ETH";
+  }
+
+  function __changeEtherDeltaAddress(address _newAddr) public onlyOwner {
+    etherDeltaAddr = _newAddr;
+    etherDelta = EtherDelta(_newAddr);
   }
 
   function __pushTokenSymbolOfProposal(string _tokenSymbol) public onlyOwner {
@@ -484,7 +500,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
     groupFund = GroupFund(owner);
 
-    string tokenSymbol = tokenSymbolOfProposal[_proposalId];
+    string storage tokenSymbol = tokenSymbolOfProposal[_proposalId];
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
     string memory etherSymbol = "ETH";
     string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);

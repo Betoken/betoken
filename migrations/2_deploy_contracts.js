@@ -3,18 +3,18 @@ var ControlToken = artifacts.require("ControlToken");
 var OraclizeHandler = artifacts.require("OraclizeHandler");
 
 module.exports = function(deployer) {
-  var etherDeltaAddress = "0x228344536a03c0910fb8be9c2755c1a0ba6f89e1"
+  var etherDeltaAddress = "0x228344536a03c0910fb8be9c2755c1a0ba6f89e1";
   deployer.deploy([[
     GroupFund,
     etherDeltaAddress, //Ethdelta address
     18, //decimals
-    30 * 24 * 3600, //timeOfCycle
-    2 * 24 * 3600, //timeOfChangeMaking
-    2 * 24 * 3600, //timeOfProposalMaking
+    1800,//30 * 24 * 3600, //timeOfCycle
+    600,//2 * 24 * 3600, //timeOfChangeMaking
+    600,//2 * 24 * 3600, //timeOfProposalMaking
     0.01 * Math.pow(10, 18), //againstStakeProportion
     20, //maxProposals
     0.01 * Math.pow(10, 18), //commissionRate
-    3600 / 20, //orderExpirationTimeInBlocks
+    30,//3600 / 20, //orderExpirationTimeInBlocks
     0.01 * Math.pow(10, 18) //oraclizeFeeProportion
   ], [ControlToken]]).then(
     () => {
