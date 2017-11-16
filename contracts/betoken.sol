@@ -26,14 +26,8 @@ contract GroupFund is Ownable {
     uint256 numAgainst;
   }
 
-  modifier isChangeMakingTime {
-    require(now < startTimeOfCycle.add(timeOfChangeMaking));
-    _;
-  }
-
-  modifier isProposalMakingTime {
-    require(now >= startTimeOfCycle.add(timeOfChangeMaking));
-    require(now < startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
+  modifier during(CyclePhase phase) {
+    require(cyclePhase == phase);
     _;
   }
 
@@ -172,10 +166,13 @@ contract GroupFund is Ownable {
     oraclize.__changeEtherDeltaAddress(_newAddr);
   }
 
+  function topupOraclizeFees() public payable onlyOwner {
+    oraclizeAddr.transfer(msg.value);
+  }
+
   // Creates a new Cycle
-  function startNewCycle() public {
+  function startNewCycle() public during(CyclePhase.Finalized) {
     require(initialized);
-    require(cyclePhase == CyclePhase.Finalized);
     require(now >= startTimeOfCycle.add(timeOfCycle));
 
     cyclePhase = CyclePhase.ChangeMaking;
@@ -189,7 +186,7 @@ contract GroupFund is Ownable {
   function deposit()
     public
     payable
-    isChangeMakingTime
+    during(CyclePhase.ChangeMaking)
   {
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
@@ -200,6 +197,7 @@ contract GroupFund is Ownable {
     uint256 fees = msg.value.mul(oraclizeFeeProportion).div(10**decimals);
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value).sub(fees);
     totalFundsInWeis = totalFundsInWeis.add(msg.value).sub(fees);
+    oraclizeAddr.transfer(fees);
 
     if (isFirstCycle) {
       //Give control tokens proportional to investment
@@ -210,7 +208,7 @@ contract GroupFund is Ownable {
   // Withdraw from GroupFund
   function withdraw(uint256 _amountInWeis)
     public
-    isChangeMakingTime
+    during(CyclePhase.ChangeMaking)
     onlyParticipant
   {
     require(!isFirstCycle);
@@ -221,9 +219,8 @@ contract GroupFund is Ownable {
     msg.sender.transfer(_amountInWeis);
   }
 
-  function endChangeMakingTime() public {
-    require(cyclePhase == CyclePhase.ChangeMaking);
-    require(now >= startTimeOfCycle.add(timeOfChangeMaking));
+  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) {
+    //require(now >= startTimeOfCycle.add(timeOfChangeMaking));
 
     cyclePhase = CyclePhase.ProposalMaking;
 
@@ -237,7 +234,7 @@ contract GroupFund is Ownable {
     uint256 _amountInWeis
   )
     public
-    isProposalMakingTime
+    during(CyclePhase.ProposalMaking)
     onlyParticipant
   {
     require(proposals.length < maxProposals);
@@ -247,7 +244,7 @@ contract GroupFund is Ownable {
       tokenSymbol: _tokenSymbol,
       buyPriceInWeis: 0,
       sellPriceInWeis: 0,
-      numFor: 1,
+      numFor: 0,
       numAgainst: 0,
       buyOrderExpirationBlockNum: 0,
       sellOrderExpirationBlockNum: 0
@@ -262,7 +259,7 @@ contract GroupFund is Ownable {
 
   function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
     public
-    isProposalMakingTime
+    during(CyclePhase.ProposalMaking)
     onlyParticipant
   {
     require(_proposalId < proposals.length);
@@ -277,9 +274,11 @@ contract GroupFund is Ownable {
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
   }
 
-  function endProposalMakingTime() public {
-    require(cyclePhase == CyclePhase.ProposalMaking);
-    require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
+  function endProposalMakingTime()
+    public
+    during(CyclePhase.ProposalMaking)
+  {
+    //require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
 
     cyclePhase = CyclePhase.Waiting;
 
@@ -302,17 +301,16 @@ contract GroupFund is Ownable {
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
       //Deposit ether
-      assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
+      assert(etherDelta.call.value(investAmount)(bytes4(keccak256("deposit()"))));
       oraclize.__grabCurrentPriceFromOraclize(i);
     }
 
     ProposalMakingTimeEnded(now);
   }
 
-  function endCycle() public {
-    require(cyclePhase == CyclePhase.Waiting);
-    require(now >= startTimeOfCycle.add(timeOfCycle));
+  function endCycle() public during(CyclePhase.Waiting) {
+    //require(now >= startTimeOfCycle.add(timeOfCycle));
 
     if (isFirstCycle) {
       cToken.finishMinting();
@@ -322,17 +320,13 @@ contract GroupFund is Ownable {
 
     //Sell all invested tokens
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
       oraclize.__grabCurrentPriceFromOraclize(i);
     }
 
     CycleEnded(now);
   }
 
-  function finalizeEndCycle() public {
-    require(cyclePhase == CyclePhase.Ended);
-    require(startTimeOfCycle != 0);
-
+  function finalizeEndCycle() public during(CyclePhase.Ended) {
     cyclePhase = CyclePhase.Finalized;
 
     //Ensure all the sell orders are inactive
@@ -347,7 +341,8 @@ contract GroupFund is Ownable {
       __settleBets(proposalId, prop);
     }
     //Withdraw from etherdelta
-    etherDelta.withdraw(etherDelta.tokens(address(0), address(this)));
+    uint256 balance = etherDelta.tokens(address(0), address(this));
+    etherDelta.withdraw(balance);
 
     __distributeFundsAfterCycleEnd();
 
@@ -407,7 +402,7 @@ contract GroupFund is Ownable {
   function __distributeFundsAfterCycleEnd() internal {
     //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
-    uint256 feeReserve = oraclizeFeeProportion.mul(this.balance).div(10**decimals);
+    uint256 feeReserve = 0;//oraclizeFeeProportion.mul(this.balance).div(10**decimals);
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
@@ -446,8 +441,10 @@ contract GroupFund is Ownable {
     proposals[_proposalId].sellOrderExpirationBlockNum = _expires;
   }
 
-  function() public {
-    revert();
+  function() public payable {
+    if (msg.sender != etherDeltaAddr) {
+      revert();
+    }
   }
 }
 
@@ -498,6 +495,8 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
   // Query Oraclize for the current price
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
+    require(oraclize_getPrice("URL") > this.balance);
+    
     groupFund = GroupFund(owner);
 
     string storage tokenSymbol = tokenSymbolOfProposal[_proposalId];
@@ -540,6 +539,12 @@ contract OraclizeHandler is usingOraclize, Ownable {
       uint256 sellTokenAmount = etherDelta.tokens(tokenAddress, owner);
       uint256 getWeiAmount = sellTokenAmount.mul(priceInWeis);
       groupFund.__makeOrder(address(0), getWeiAmount, tokenAddress, sellTokenAmount, expires, proposalId);
+    }
+  }
+
+  function() public payable {
+    if (msg.sender != owner) {
+      revert();
     }
   }
 }
@@ -595,5 +600,9 @@ contract ControlToken is MintableToken {
     if (!groupFund.isParticipant(_to)) {
       groupFund.__addControlTokenReceipientAsParticipant(_to);
     }
+  }
+
+  function() public {
+    revert();
   }
 }

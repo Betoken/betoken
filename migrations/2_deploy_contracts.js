@@ -3,7 +3,7 @@ var ControlToken = artifacts.require("ControlToken");
 var OraclizeHandler = artifacts.require("OraclizeHandler");
 
 module.exports = function(deployer) {
-  var etherDeltaAddress = "0x228344536a03c0910fb8be9c2755c1a0ba6f89e1";
+  var etherDeltaAddress = "0x4e10d1807608994489355d873edb6dc09b151776";
   deployer.deploy([[
     GroupFund,
     etherDeltaAddress, //Ethdelta address
