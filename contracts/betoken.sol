@@ -223,7 +223,7 @@ contract GroupFund is Ownable {
   }
 
   function endChangeMakingTime() public during(CyclePhase.ChangeMaking) {
-    //require(now >= startTimeOfCycle.add(timeOfChangeMaking));
+    require(now >= startTimeOfCycle.add(timeOfChangeMaking));
 
     cyclePhase = CyclePhase.ProposalMaking;
 
@@ -285,7 +285,7 @@ contract GroupFund is Ownable {
     public
     during(CyclePhase.ProposalMaking)
   {
-    //require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
+    require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
 
     cyclePhase = CyclePhase.Waiting;
 
@@ -319,7 +319,7 @@ contract GroupFund is Ownable {
   }
 
   function endCycle() public during(CyclePhase.Waiting) {
-    //require(now >= startTimeOfCycle.add(timeOfCycle));
+    require(now >= startTimeOfCycle.add(timeOfCycle));
 
     if (isFirstCycle) {
       cToken.finishMinting();
