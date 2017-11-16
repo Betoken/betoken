@@ -176,7 +176,6 @@ contract GroupFund is Ownable {
   // Creates a new Cycle
   function startNewCycle() public during(CyclePhase.Finalized) {
     require(initialized);
-    require(now >= startTimeOfCycle.add(timeOfCycle));
 
     cyclePhase = CyclePhase.ChangeMaking;
 
