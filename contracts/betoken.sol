@@ -95,6 +95,9 @@ contract GroupFund is Ownable {
 
   mapping(bytes32 => uint256) public proposalIdOfQuery;
 
+  // Mapping to check if a proposal for a token has already been made
+  mapping(address => boolean) public isTokenAlreadyProposed;
+
   address public oraclizeAddr;
 
   bool public initialized;
@@ -238,6 +241,7 @@ contract GroupFund is Ownable {
     onlyParticipant
   {
     require(proposals.length < maxProposals);
+    require (! isTokenAlreadyProposed[_tokenAddress]);
 
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
@@ -249,6 +253,9 @@ contract GroupFund is Ownable {
       buyOrderExpirationBlockNum: 0,
       sellOrderExpirationBlockNum: 0
     }));
+
+    // Map token onto true
+    isTokenAlreadyProposed[tokenAddress] = true;
 
     oraclize.__pushTokenSymbolOfProposal(_tokenSymbol);
 
@@ -281,6 +288,8 @@ contract GroupFund is Ownable {
     //require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
 
     cyclePhase = CyclePhase.Waiting;
+
+    // Clear the boolean mapping for addresses
 
     //Stake against votes
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
@@ -334,6 +343,9 @@ contract GroupFund is Ownable {
       Proposal storage prop = proposals[proposalId];
       uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
       uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
+
+      // Remove the mapping of the address of token associated w/ proposal from mapping:
+      delete(isTokenAlreadyProposed[prop.tokenAddress]);
 
       uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
       require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
@@ -496,7 +508,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
   // Query Oraclize for the current price
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
     require(oraclize_getPrice("URL") > this.balance);
-    
+
     groupFund = GroupFund(owner);
 
     string storage tokenSymbol = tokenSymbolOfProposal[_proposalId];
