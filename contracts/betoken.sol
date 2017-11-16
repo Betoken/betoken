@@ -342,14 +342,12 @@ contract GroupFund is Ownable {
       Proposal storage prop = proposals[proposalId];
       uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
       uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
-
-      // Remove the mapping of the address of token associated w/ proposal from mapping:
-      delete(isTokenAlreadyProposed[prop.tokenAddress]);
-
       uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
       require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
 
       __settleBets(proposalId, prop);
+      // Remove the mapping of the address of token associated w/ proposal from mapping:
+      delete isTokenAlreadyProposed[prop.tokenAddress];
     }
     //Withdraw from etherdelta
     uint256 balance = etherDelta.tokens(address(0), address(this));
