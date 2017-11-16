@@ -1,7 +1,7 @@
 ## BETOKEN:
 ### THE DECENTRALIZED TOKEN HEDGE FUND
 
-Betoken is a smart contract that allows participants to join in a group fund to invest in ERC20 tokens on the Ethereum blockchain.
+Betoken is a decentralized hedge fund that uses its own internal prediction market to invest in ERC20 tokens.
 
  <hr>
 
