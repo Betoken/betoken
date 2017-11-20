@@ -110,7 +110,11 @@ contract GroupFund is Ownable {
   CyclePhase public cyclePhase;
 
   event CycleStarted(uint256 timestamp);
+  event Deposit(address _sender, uint256 _amountInWeis);
+  event Withdraw(address _sender, uint256 _amountInWeis);
   event ChangeMakingTimeEnded(uint256 timestamp);
+  event NewProposal();
+  event SupportedProposal();
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
   event CycleFinalized(uint256 timestamp);
@@ -561,6 +565,10 @@ contract OraclizeHandler is usingOraclize, Ownable {
 //Proportional to Wei when minted
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
+
+  string public constant name = "Control Token";
+  string public constant symbol = "CTRL";
+  uint8 public constant decimals = 18;
 
   event OwnerCollectFrom(address _from, uint256 _value);
 
