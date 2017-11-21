@@ -41,17 +41,17 @@ contract GroupFund is Ownable {
     _;
   }
 
-  //Number of decimals used for proportions
-  uint256 public decimals;
-
-  // A list of everyone who is participating in the GroupFund
-  address[] public participants;
-  mapping(address => bool) public isParticipant;
-
   //Address of the control token
   address public controlTokenAddr;
 
   address public etherDeltaAddr;
+
+  address public oraclizeAddr;
+
+  address public creator;
+
+  //Number of decimals used for proportions
+  uint256 public decimals;
 
   // The total amount of funds held by the group
   uint256 public totalFundsInWeis;
@@ -82,6 +82,10 @@ contract GroupFund is Ownable {
 
   bool public isFirstCycle;
 
+  bool public initialized;
+
+  mapping(address => bool) public isParticipant;
+
   // Mapping from Participant address to their balance
   mapping(address => uint256) public balanceOf;
 
@@ -98,11 +102,7 @@ contract GroupFund is Ownable {
   // Mapping to check if a proposal for a token has already been made
   mapping(address => bool) public isTokenAlreadyProposed;
 
-  address public oraclizeAddr;
-
-  bool public initialized;
-  address public creator;
-
+  address[] public participants; // A list of everyone who is participating in the GroupFund
   Proposal[] public proposals;
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
@@ -118,7 +118,7 @@ contract GroupFund is Ownable {
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
   event CycleFinalized(uint256 timestamp);
-  event ROI(uint256 _beforeTotalFunds, uint256 _afterTotalFunds)
+  event ROI(uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
 
   // GroupFund constructor
   function GroupFund(
@@ -286,7 +286,7 @@ contract GroupFund is Ownable {
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(controlStake);
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
 
-    SupportedProposal(_proposalId, _amountInWeis)
+    SupportedProposal(_proposalId, _amountInWeis);
   }
 
   function endProposalMakingTime()
@@ -319,7 +319,7 @@ contract GroupFund is Ownable {
     for (i = 0; i < proposals.length; i = i.add(1)) {
       //Deposit ether
       uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
-      assert(etherDelta.deposit.value(investAmount)());
+      etherDelta.deposit.value(investAmount)();
       oraclize.__grabCurrentPriceFromOraclize(i);
     }
 
@@ -373,6 +373,14 @@ contract GroupFund is Ownable {
     delete proposals;
 
     CycleFinalized(now);
+  }
+
+  function participantsCount() public view returns(uint256 _count) {
+    return participants.length;
+  }
+
+  function proposalsCount() public view returns(uint256 _count) {
+    return proposals.length;
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error

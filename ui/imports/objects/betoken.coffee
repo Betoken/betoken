@@ -43,7 +43,7 @@ export Betoken = (_address) ->
    * @param  {Any} _input       the input
    * @return {Promise}              .then((_value)->)
   ###
-  self.getMappingOrArray = (_name, _input) ->
+  self.getMappingOrArrayItem = (_name, _input) ->
     return self.contracts.groupFund.methods[_name](_input).call()
 
   ###*
@@ -63,6 +63,37 @@ export Betoken = (_address) ->
   ###
   self.getKairoBalance = (_address) ->
     return self.contracts.contracts.controlToken.methods.balanceOf(_address).call()
+
+  ###*
+   * Gets an entire array
+   * @param  {String} _name name of the array
+   * @return {Promise}       .then((_array)->)
+  ###
+  self.getArray = (_name) ->
+    array = []
+    return self.contracts.groupFund.methods["#{_name}Count"]().call().then(
+      (_count) ->
+        count = +_count
+        if count == 0
+          return []
+        getItem = (id) ->
+          return self.contracts.groupFund.methods[_name](id).call().then(
+            (_item) ->
+              return new Promise((fullfill, reject) ->
+                if typeof _item != null
+                  array.push(_item)
+                  fullfill()
+                else
+                  reject()
+                return
+              )
+          )
+        getAllItems = (getItem(id) for id in [1..count - 1])
+        return Promise.all(getAllItems)
+    ).then(
+      () ->
+        return array
+    )
 
   ###
     Phase handlers

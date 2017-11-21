@@ -50,7 +50,7 @@ export var Betoken = function(_address) {
    * @param  {Any} _input       the input
    * @return {Promise}              .then((_value)->)
    */
-  self.getMappingOrArray = function(_name, _input) {
+  self.getMappingOrArrayItem = function(_name, _input) {
     return self.contracts.groupFund.methods[_name](_input).call();
   };
   /**
@@ -70,6 +70,45 @@ export var Betoken = function(_address) {
    */
   self.getKairoBalance = function(_address) {
     return self.contracts.contracts.controlToken.methods.balanceOf(_address).call();
+  };
+  /**
+   * Gets an entire array
+   * @param  {String} _name name of the array
+   * @return {Promise}       .then((_array)->)
+   */
+  self.getArray = function(_name) {
+    var array;
+    array = [];
+    return self.contracts.groupFund.methods[`${_name}Count`]().call().then(function(_count) {
+      var count, getAllItems, getItem, id;
+      count = +_count;
+      if (count === 0) {
+        return [];
+      }
+      getItem = function(id) {
+        return self.contracts.groupFund.methods[_name](id).call().then(function(_item) {
+          return new Promise(function(fullfill, reject) {
+            if (typeof _item !== null) {
+              array.push(_item);
+              fullfill();
+            } else {
+              reject();
+            }
+          });
+        });
+      };
+      getAllItems = (function() {
+        var i, ref, results;
+        results = [];
+        for (id = i = 1, ref = count - 1; 1 <= ref ? i <= ref : i >= ref; id = 1 <= ref ? ++i : --i) {
+          results.push(getItem(id));
+        }
+        return results;
+      })();
+      return Promise.all(getAllItems);
+    }).then(function() {
+      return array;
+    });
   };
   /*
   Phase handlers
