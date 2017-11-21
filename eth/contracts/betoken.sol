@@ -118,6 +118,7 @@ contract GroupFund is Ownable {
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
   event CycleFinalized(uint256 timestamp);
+  event ROI(uint256 _beforeTotalFunds, uint256 _afterTotalFunds)
 
   // GroupFund constructor
   function GroupFund(
@@ -363,8 +364,11 @@ contract GroupFund is Ownable {
 
     __distributeFundsAfterCycleEnd();
 
+    uint256 newTotalFunds = this.balance;
+    ROI(totalFundsInWeis, newTotalFunds);
+    totalFundsInWeis = newTotalFunds;
+
     //Reset data
-    totalFundsInWeis = this.balance;
     oraclize.__deleteTokenSymbolOfProposal();
     delete proposals;
 
@@ -420,10 +424,11 @@ contract GroupFund is Ownable {
     //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
     uint256 feeReserve = 0;//oraclizeFeeProportion.mul(this.balance).div(10**decimals);
+    uint256 newTotalFunds = this.balance.sub(totalCommission).sub(feeReserve);
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
-      uint256 newBalance = this.balance.sub(totalCommission).sub(feeReserve).mul(balanceOf[participant]).div(totalFundsInWeis);
+      uint256 newBalance = newTotalFunds.mul(balanceOf[participant]).div(totalFundsInWeis);
       //Add commission
       newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
       balanceOf[participant] = newBalance;
