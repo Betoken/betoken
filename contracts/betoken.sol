@@ -96,7 +96,7 @@ contract GroupFund is Ownable {
   mapping(bytes32 => uint256) public proposalIdOfQuery;
 
   // Mapping to check if a proposal for a token has already been made
-  mapping(address => boolean) public isTokenAlreadyProposed;
+  mapping(address => bool) public isTokenAlreadyProposed;
 
   address public oraclizeAddr;
 
@@ -258,7 +258,7 @@ contract GroupFund is Ownable {
     }));
 
     // Map token onto true
-    isTokenAlreadyProposed[tokenAddress] = true;
+    isTokenAlreadyProposed[_tokenAddress] = true;
 
     oraclize.__pushTokenSymbolOfProposal(_tokenSymbol);
 
