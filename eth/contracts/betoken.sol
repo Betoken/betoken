@@ -119,6 +119,7 @@ contract GroupFund is Ownable {
   event CycleEnded(uint256 timestamp);
   event CycleFinalized(uint256 timestamp);
   event ROI(uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
+  event PredictionResult(address _member, bool _success);
 
   // GroupFund constructor
   function GroupFund(
@@ -403,6 +404,13 @@ contract GroupFund is Ownable {
           if (stake != 0) {
             //Give control tokens
             cToken.transfer(participant, stake.add(tokenReward));
+            //Won bet
+            PredictionResult(participant, true);
+          } else {
+            if (againstStakedControlOfProposalOfUser[proposalId][participant] != 0) {
+              //Lost bet
+              PredictionResult(participant, false);
+            }
           }
         }
       } else {
@@ -414,6 +422,13 @@ contract GroupFund is Ownable {
           if (stake != 0) {
             //Give control tokens
             cToken.transfer(participant, stake.add(tokenReward));
+            //Won bet
+            PredictionResult(participant, true);
+          } else {
+            if (forStakedControlOfProposalOfUser[proposalId][participant] != 0) {
+              //Lost bet
+              PredictionResult(participant, false);
+            }
           }
         }
       }
