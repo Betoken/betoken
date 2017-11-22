@@ -583,8 +583,8 @@ contract OraclizeHandler is usingOraclize, Ownable {
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
-  string public constant name = "Control Token";
-  string public constant symbol = "CTRL";
+  string public constant name = "Kairo";
+  string public constant symbol = "KRO";
   uint8 public constant decimals = 18;
 
   event OwnerCollectFrom(address _from, uint256 _value);
