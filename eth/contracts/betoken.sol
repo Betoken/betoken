@@ -69,7 +69,7 @@ contract GroupFund is Ownable {
   uint256 public timeOfProposalMaking;
 
   //Proportion of control people who vote against a proposal have to stake
-  uint256 public againstStakeProportion;
+  uint256 public minStakeProportion;
 
   uint256 public maxProposals;
 
@@ -127,7 +127,7 @@ contract GroupFund is Ownable {
     uint256 _timeOfCycle,
     uint256 _timeOfChangeMaking,
     uint256 _timeOfProposalMaking,
-    uint256 _againstStakeProportion,
+    uint256 _minStakeProportion,
     uint256 _maxProposals,
     uint256 _commissionRate,
     uint256 _orderExpirationTimeInBlocks,
@@ -141,7 +141,7 @@ contract GroupFund is Ownable {
     timeOfCycle = _timeOfCycle;
     timeOfChangeMaking = _timeOfChangeMaking;
     timeOfProposalMaking = _timeOfProposalMaking;
-    againstStakeProportion = _againstStakeProportion;
+    minStakeProportion = _minStakeProportion;
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
     orderExpirationTimeInBlocks = _orderExpirationTimeInBlocks;
@@ -279,6 +279,8 @@ contract GroupFund is Ownable {
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.totalSupply()).div(totalFundsInWeis);
+    //Ensure stake is larger than the minimum proportion of personal balance
+    require(controlStake.mul(10**decimals).div(cToken.balanceOf(msg.sender)) >= minStakeProportion);
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
     //Update stake data
@@ -302,7 +304,7 @@ contract GroupFund is Ownable {
     //Stake against votes
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
-      uint256 stakeAmount = cToken.balanceOf(participant).mul(againstStakeProportion).div(10**decimals);
+      uint256 stakeAmount = cToken.balanceOf(participant).mul(minStakeProportion).div(10**decimals);
       if (stakeAmount != 0) {
         for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
           bool isFor = forStakedControlOfProposalOfUser[j][participant] != 0;
@@ -394,7 +396,7 @@ contract GroupFund is Ownable {
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceInWeis >= prop.buyPriceInWeis) {
         //For wins
-        tokenReward = cToken.totalSupply().sub(forStakedControlOfProposal[proposalId]).mul(againstStakeProportion).div(10**decimals.mul(prop.numFor));
+        tokenReward = cToken.totalSupply().sub(forStakedControlOfProposal[proposalId]).mul(minStakeProportion).div(10**decimals.mul(prop.numFor));
         for (j = 0; j < participants.length; j = j.add(1)) {
           participant = participants[j];
           stake = forStakedControlOfProposalOfUser[proposalId][participant];
