@@ -280,7 +280,7 @@ contract GroupFund is Ownable {
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.totalSupply()).div(totalFundsInWeis);
-    //Ensure stake is larger than the minimum proportion of personal balance
+    //Ensure stake is larger than the minimum proportion of Kairo balance
     require(controlStake.mul(10**decimals).div(cToken.balanceOf(msg.sender)) >= minStakeProportion);
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, controlStake);
@@ -292,6 +292,22 @@ contract GroupFund is Ownable {
     SupportedProposal(_proposalId, _amountInWeis);
   }
 
+  function cancelProposalSupport(uint256 _proposalId)
+    public
+    during(CyclePhase.ProposalMaking)
+    onlyParticipant
+  {
+    require(_proposalId < proposals.length);
+
+    //Remove stake
+    uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = 0;
+    forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
+
+    //Return stake
+    cToken.transfer(msg.sender, stake);
+  }
+
   function endProposalMakingTime()
     public
     during(CyclePhase.ProposalMaking)
@@ -299,8 +315,6 @@ contract GroupFund is Ownable {
     require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
 
     cyclePhase = CyclePhase.Waiting;
-
-    // Clear the boolean mapping for addresses
 
     //Stake against votes
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
@@ -378,6 +392,8 @@ contract GroupFund is Ownable {
     CycleFinalized(now);
   }
 
+  //Getters
+
   function participantsCount() public view returns(uint256 _count) {
     return participants.length;
   }
@@ -385,6 +401,8 @@ contract GroupFund is Ownable {
   function proposalsCount() public view returns(uint256 _count) {
     return proposals.length;
   }
+
+  //Internal use functions
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
   function __settleBets(uint256 proposalId, Proposal prop) internal {
