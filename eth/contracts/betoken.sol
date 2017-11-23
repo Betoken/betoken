@@ -83,6 +83,8 @@ contract GroupFund is Ownable {
   //The max number of proposals a member can create
   uint256 public maxProposalsPerMember;
 
+  uint256 public numProposals;
+
   bool public isFirstCycle;
 
   bool public initialized;
@@ -157,6 +159,7 @@ contract GroupFund is Ownable {
     isFirstCycle = true;
     cyclePhase = CyclePhase.Finalized;
     creator = msg.sender;
+    numProposals = 0;
 
     //Initialize etherDelta contract
     etherDelta = EtherDelta(etherDeltaAddr);
@@ -185,14 +188,39 @@ contract GroupFund is Ownable {
     oraclizeAddr.transfer(msg.value);
   }
 
-  // Creates a new Cycle
+  // Starts a new Cycle
   function startNewCycle() public during(CyclePhase.Finalized) {
     require(initialized);
 
     cyclePhase = CyclePhase.ChangeMaking;
 
     startTimeOfCycle = now;
+
+    //Reset data
+    oraclize.__deleteTokenSymbolOfProposal();
+    delete proposals;
+    delete numProposals;
+    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
+      __resetMemberData(participants[i]);
+    }
+    for (i = 0; i < proposals.length; i = i.add(1)) {
+      __resetProposalData(i);
+    }
+
     CycleStarted(now);
+  }
+
+  function __resetMemberData(address _addr) internal {
+    delete createdProposalCount[_addr];
+    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
+      delete forStakedControlOfProposalOfUser[i][_addr];
+      delete againstStakedControlOfProposalOfUser[i][_addr];
+    }
+  }
+
+  function __resetProposalData(uint256 _proposalId) internal {
+    delete isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
+    delete forStakedControlOfProposal[_proposalId];
   }
 
   //Change making time functions
@@ -251,7 +279,7 @@ contract GroupFund is Ownable {
     during(CyclePhase.ProposalMaking)
     onlyParticipant
   {
-    require(proposals.length < maxProposals);
+    require(numProposals < maxProposals);
     require(!isTokenAlreadyProposed[_tokenAddress]);
     require(createdProposalCount[msg.sender] < maxProposalsPerMember);
 
@@ -266,10 +294,10 @@ contract GroupFund is Ownable {
       sellOrderExpirationBlockNum: 0
     }));
 
-    // Map token onto true
     isTokenAlreadyProposed[_tokenAddress] = true;
     oraclize.__pushTokenSymbolOfProposal(_tokenSymbol);
     createdProposalCount[msg.sender] = createdProposalCount[msg.sender].add(1);
+    numProposals = numProposals.add(1);
 
     //Stake control tokens
     uint256 proposalId = proposals.length - 1;
@@ -284,6 +312,7 @@ contract GroupFund is Ownable {
     onlyParticipant
   {
     require(_proposalId < proposals.length);
+    require(proposals[_proposalId].numFor > 0); //Non-empty proposal
 
     //Stake control tokens
     uint256 controlStake = _amountInWeis.mul(cToken.totalSupply()).div(totalFundsInWeis);
@@ -305,14 +334,25 @@ contract GroupFund is Ownable {
     onlyParticipant
   {
     require(_proposalId < proposals.length);
+    require(proposals[_proposalId].numFor > 0); //Non-empty proposal
 
     //Remove stake
     uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
 
+    //Remove support
+    proposals[_proposalId].numFor = proposals[_proposalId].numFor.sub(1);
+
     //Return stake
     cToken.transfer(msg.sender, stake);
+
+    //Delete proposal if necessary
+    if (forStakedControlOfProposal[_proposalId] == 0) {
+      __resetProposalData(_proposalId);
+      numProposals = numProposals.sub(1);
+      delete proposals[_proposalId];
+    }
   }
 
   function endProposalMakingTime()
@@ -329,11 +369,13 @@ contract GroupFund is Ownable {
       uint256 stakeAmount = cToken.balanceOf(participant).mul(minStakeProportion).div(10**decimals);
       if (stakeAmount != 0) {
         for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
-          bool isFor = forStakedControlOfProposalOfUser[j][participant] != 0;
-          if (!isFor) {
-            cToken.ownerCollectFrom(participant, stakeAmount);
-            proposals[j].numAgainst = proposals[j].numAgainst.add(1);
-            againstStakedControlOfProposalOfUser[j][participant] = againstStakedControlOfProposalOfUser[j][participant].add(stakeAmount);
+          if (proposals[j].numFor > 0) { //Ensure proposal isn't a deleted one
+            bool isFor = forStakedControlOfProposalOfUser[j][participant] != 0;
+            if (!isFor) {
+              cToken.ownerCollectFrom(participant, stakeAmount);
+              proposals[j].numAgainst = proposals[j].numAgainst.add(1);
+              againstStakedControlOfProposalOfUser[j][participant] = againstStakedControlOfProposalOfUser[j][participant].add(stakeAmount);
+            }
           }
         }
       }
@@ -341,10 +383,12 @@ contract GroupFund is Ownable {
 
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
-      //Deposit ether
-      uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
-      etherDelta.deposit.value(investAmount)();
-      oraclize.__grabCurrentPriceFromOraclize(i);
+      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
+        //Deposit ether
+        uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
+        etherDelta.deposit.value(investAmount)();
+        oraclize.__grabCurrentPriceFromOraclize(i);
+      }
     }
 
     ProposalMakingTimeEnded(now);
@@ -361,7 +405,9 @@ contract GroupFund is Ownable {
 
     //Sell all invested tokens
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      oraclize.__grabCurrentPriceFromOraclize(i);
+      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
+        oraclize.__grabCurrentPriceFromOraclize(i);
+      }
     }
 
     CycleEnded(now);
@@ -372,15 +418,15 @@ contract GroupFund is Ownable {
 
     //Ensure all the sell orders are inactive
     for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
-      Proposal storage prop = proposals[proposalId];
-      uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-      uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
-      uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
-      require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
+      if (proposals[proposalId].numFor > 0) { //Ensure proposal isn't a deleted one
+        Proposal storage prop = proposals[proposalId];
+        uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
+        uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
+        uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
+        require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
 
-      __settleBets(proposalId, prop);
-      // Remove the mapping of the address of token associated w/ proposal from mapping:
-      delete isTokenAlreadyProposed[prop.tokenAddress];
+        __settleBets(proposalId, prop);
+      }
     }
     //Withdraw from etherdelta
     uint256 balance = etherDelta.tokens(address(0), address(this));
@@ -388,13 +434,11 @@ contract GroupFund is Ownable {
 
     __distributeFundsAfterCycleEnd();
 
+    //Reset data
+
     uint256 newTotalFunds = this.balance;
     ROI(totalFundsInWeis, newTotalFunds);
     totalFundsInWeis = newTotalFunds;
-
-    //Reset data
-    oraclize.__deleteTokenSymbolOfProposal();
-    delete proposals;
 
     CycleFinalized(now);
   }
@@ -483,8 +527,6 @@ contract GroupFund is Ownable {
       newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
       //Update balance
       balanceOf[participant] = newBalance;
-      //Reset data
-      delete createdProposalCount[participant];
     }
   }
 
