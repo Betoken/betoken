@@ -15,7 +15,8 @@ module.exports = function(deployer) {
     20, //maxProposals
     0.01 * Math.pow(10, 18), //commissionRate
     30,//3600 / 20, //orderExpirationTimeInBlocks
-    0.01 * Math.pow(10, 18) //oraclizeFeeProportion
+    0.01 * Math.pow(10, 18), //oraclizeFeeProportion
+    2 //maxProposalsPerMember
   ], [ControlToken]]).then(
     () => {
       return deployer.deploy(OraclizeHandler, ControlToken.address, etherDeltaAddress);

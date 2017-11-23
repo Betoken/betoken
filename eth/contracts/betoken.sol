@@ -80,6 +80,9 @@ contract GroupFund is Ownable {
   //The proportion of contract balance reserved for Oraclize fees
   uint256 public oraclizeFeeProportion;
 
+  //The max number of proposals a member can create
+  uint256 public maxProposalsPerMember;
+
   bool public isFirstCycle;
 
   bool public initialized;
@@ -91,6 +94,9 @@ contract GroupFund is Ownable {
 
   // Mapping from Proposal to total amount of Control Tokens being staked by supporters
   mapping(uint256 => uint256) public forStakedControlOfProposal;
+
+  //Records the number of proposals a user has made in the current cycle
+  mapping(address => uint256) public createdProposalCount;
 
   // Mapping from Proposal to Participant to number of Control Tokens being staked
   mapping(uint256 => mapping(address => uint256)) public forStakedControlOfProposalOfUser;
@@ -130,7 +136,8 @@ contract GroupFund is Ownable {
     uint256 _maxProposals,
     uint256 _commissionRate,
     uint256 _orderExpirationTimeInBlocks,
-    uint256 _oraclizeFeeProportion
+    uint256 _oraclizeFeeProportion,
+    uint256 _maxProposalsPerMember
   )
     public
   {
@@ -145,6 +152,7 @@ contract GroupFund is Ownable {
     commissionRate = _commissionRate;
     orderExpirationTimeInBlocks = _orderExpirationTimeInBlocks;
     oraclizeFeeProportion = _oraclizeFeeProportion;
+    maxProposalsPerMember = _maxProposalsPerMember;
     startTimeOfCycle = 0;
     isFirstCycle = true;
     cyclePhase = CyclePhase.Finalized;
@@ -244,7 +252,8 @@ contract GroupFund is Ownable {
     onlyParticipant
   {
     require(proposals.length < maxProposals);
-    require (! isTokenAlreadyProposed[_tokenAddress]);
+    require(!isTokenAlreadyProposed[_tokenAddress]);
+    require(createdProposalCount[msg.sender] < maxProposalsPerMember);
 
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
@@ -259,8 +268,8 @@ contract GroupFund is Ownable {
 
     // Map token onto true
     isTokenAlreadyProposed[_tokenAddress] = true;
-
     oraclize.__pushTokenSymbolOfProposal(_tokenSymbol);
+    createdProposalCount[msg.sender] = createdProposalCount[msg.sender].add(1);
 
     //Stake control tokens
     uint256 proposalId = proposals.length - 1;
@@ -299,7 +308,7 @@ contract GroupFund is Ownable {
 
     //Remove stake
     uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = 0;
+    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
 
     //Return stake
@@ -472,7 +481,10 @@ contract GroupFund is Ownable {
       uint256 newBalance = newTotalFunds.mul(balanceOf[participant]).div(totalFundsInWeis);
       //Add commission
       newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
+      //Update balance
       balanceOf[participant] = newBalance;
+      //Reset data
+      delete createdProposalCount[participant];
     }
   }
 
