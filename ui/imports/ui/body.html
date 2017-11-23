@@ -1,0 +1,284 @@
+<head>
+  <!-- JQuery CDN -->
+  <script
+  src="https://code.jquery.com/jquery-3.1.1.min.js"
+  integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+  crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <!-- Header -->
+  <div class="ui top three item menu">
+    {{> top_bar}}
+  </div>
+
+  <div class="ui container grid">
+    <div class="ui container ten wide column">
+      <!-- Tab buttons -->
+      <div class="ui top attached tabular menu">
+        <a class="item active" data-tab="t1">Statistics</a>
+        <a class="item" data-tab="t2">Proposals</a>
+        <a class="item" data-tab="t3">Members</a>
+      </div>
+
+      <!-- Actual Tab Content -->
+      <div class="ui bottom attached tab segment active" data-tab="t1">
+        {{> stats_tab}}
+      </div>
+
+      <div class="ui bottom attached tab segment" data-tab="t2">
+        {{> proposals_tab}}
+      </div>
+
+      <div class="ui bottom attached tab segment" data-tab="t3">
+        {{> members_tab}}
+      </div>
+    </div>
+
+    <!-- Grid class for the right half -->
+    <div class="ui six wide column grid">
+      {{> sidebar}}
+    </div>
+  </div>
+</body>
+
+<template name="top_bar">
+  <div class="item">
+    Betoken
+  </div>
+
+  <div class="item">
+    <h3>Time Till Next Phase:&nbsp;&nbsp;</h3>
+    <div class="ui mini statistics">
+      <div class="ui statistic">
+        <div class="value">
+          22
+        </div>
+        <div class="label">
+          Days
+        </div>
+      </div>
+      <div class="ui statistic">
+        <div class="value">
+          15
+        </div>
+        <div class="label">
+          Hours
+        </div>
+      </div>
+      <div class="ui statistic">
+        <div class="value">
+          53
+        </div>
+        <div class="label">
+          Minutes
+        </div>
+      </div>
+      <div class="ui statistic">
+        <div class="value">
+          36
+        </div>
+        <div class="label">
+          Seconds
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="item">
+    Contract: &nbsp;
+    <select class="ui dropdown">
+      <option value="0">0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE</option>
+      <option value="1">0xdd974D5C2e2928deA5F71b9825b8b646686BD200</option>
+    </select>
+  </div>
+</template>
+
+<template name="sidebar">
+  <div class="row account-label-container">
+    <h2 class="account-label-header" style="text-align: center">My Account</h2>
+  </div>
+
+  <!-- Account Sidebar -->
+  <div class="row">
+    <div class="ui menu vertical fluid">
+      <div class="ui item">
+        <div class="ui horizontal divider">Address</div>
+        <p></p>
+        <div style="text-align: center">
+          0xd6Cd31F283d24cfb442cBA1Bcf42290c07C15792
+        </div>
+      </div>
+
+      <div class="ui item">
+        <div class="ui horizontal divider">Ether Balance</div>
+        <div class="ui mini horizontal statistic">
+          <div class="value">
+            2,204
+          </div>
+          <div class="label">
+            ETH
+          </div>
+        </div>
+        <!--<img class="ui icon-img image spaced" src="../../assets/images/ether-black-logo.svg">-->
+      </div>
+
+      <div class="ui item">
+        <div class="ui horizontal divider">Kairo Balance</div>
+
+        <div class="ui mini horizontal statistic">
+          <div class="value">
+            1,234
+          </div>
+          <div class="label">
+            KRO
+          </div>
+        </div>
+
+        <div class="ui slider checkbox" style="float: right; margin-top: 4%;">
+          <input type="checkbox">
+          <label>KRO/%</label>
+        </div>
+        <!--<img class="ui icon-img image spaced kairos-icon" src="../../assets/images/kairos-logo-v1.svg">-->
+      </div>
+
+      <div class="ui item">
+        <div class="ui horizontal divider">Expected Commission</div>
+        <div class="ui mini horizontal statistic">
+          <div class="value">
+            0.23
+          </div>
+          <div class="label">
+            ETH
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Holds the block related to the Tabbed right sidebar -->
+  <div class="row">
+    <!-- Tab buttons -->
+    <div class="ui top attached tabular menu">
+      <a class="item active header" data-tab="first">Deposit</a>
+      <a class="item header" data-tab="second">Withdraw</a>
+      <a class="item header" data-tab="third">History</a>
+    </div>
+
+    <!-- Actual Tab Content -->
+    <div class="ui bottom attached tab segment active" data-tab="first">
+      <!--Amount Input-->
+      <div class="ui right labeled input fluid">
+        <input placeholder="Deposit Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
+        <div class="ui label">
+          ETH
+        </div>
+      </div>
+
+      <div class="ui horizontal divider"></div>
+
+      <button class="ui primary button fluid">Deposit</button>
+    </div>
+
+    <div class="ui bottom attached tab segment" data-tab="second">
+      <!--Amount Input-->
+      <div class="ui right labeled input fluid">
+        <input placeholder="Withdraw Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
+        <div class="ui label">
+          ETH
+        </div>
+      </div>
+
+      <div class="ui horizontal divider"></div>
+
+      <button class="ui primary button fluid">Withdraw</button>
+    </div>
+
+    <div class="ui bottom attached tab segment" data-tab="third">
+      Placeholder
+    </div>
+  </div>
+</template>
+
+<template name="stats_tab">
+  Stats
+</template>
+
+<template name="proposals_tab">
+  <table class="ui table celled sortable">
+
+    <!-- Table header -->
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>Symbol</th>
+      <th>Monthly Prices</th>
+      <th>Current Investment/ETH</th>
+      <th>Supporters</th>
+      <th>Action</th>
+    </tr>
+    </thead>
+
+    <!-- Actual table rows go here -->
+    <tbody>
+    <tr>
+      <td>1</td>
+      <td>DNT</td>
+      <td></td>
+      <td>12345.6</td>
+      <td>23</td>
+      <td>
+        <button class="ui icon button">
+          <i class="thumbs outline up icon" style="text-align: center;"></i>
+        </button>
+      </td>
+    </tr>
+
+    <tr>
+      <td>2</td>
+      <td>BAT</td>
+      <td></td>
+      <td>382.45</td>
+      <td>10</td>
+      <td>
+        <button class="ui icon button">
+          <i class="thumbs outline up icon" style="text-align: center;"></i>
+        </button>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+</template>
+
+<template name="members_tab">
+  <!-- Table for the Participants goes here -->
+  <table class="ui table celled sortable">
+
+    <!-- Table header -->
+    <thead>
+    <tr>
+      <th>Address</th>
+      <th>Ether Balance</th>
+      <th>Kairo Balance</th>
+      <th>Accuracy</th>
+    </tr>
+    </thead>
+
+    <!-- Actual table rows go here -->
+    <tbody>
+    <tr>
+      <td>0x0000</td>
+      <td>3 ETH</td>
+      <td>103 KRO</td>
+      <td>94%</td>
+    </tr>
+
+    <tr>
+      <td>0x0100</td>
+      <td>300 ETH</td>
+      <td>13 KRO</td>
+      <td>75%</td>
+    </tr>
+    </tbody>
+  </table>
+</template>

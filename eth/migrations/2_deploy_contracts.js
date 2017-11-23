@@ -1,9 +1,9 @@
-var GroupFund = artifacts.require("GroupFund");
-var ControlToken = artifacts.require("ControlToken");
-var OraclizeHandler = artifacts.require("OraclizeHandler");
+let GroupFund = artifacts.require("GroupFund");
+let ControlToken = artifacts.require("ControlToken");
+let OraclizeHandler = artifacts.require("OraclizeHandler");
 
 module.exports = function(deployer) {
-  var etherDeltaAddress = "0x4e10d1807608994489355d873edb6dc09b151776";
+  let etherDeltaAddress = "0x4e10d1807608994489355d873edb6dc09b151776";
   deployer.deploy([[
     GroupFund,
     etherDeltaAddress, //Ethdelta address

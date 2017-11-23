@@ -5,7 +5,7 @@ module.exports = {
     rinkeby: {
       host: "localhost",
       port: 8545,
-      gas: 5500000,
+      gas: 6700000,
       gasPrice: Math.pow(10, 8),
       network_id: "*" // match any network
     }
