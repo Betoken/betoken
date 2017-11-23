@@ -50,6 +50,8 @@ contract GroupFund is Ownable {
 
   address public creator;
 
+  address public developerFeeAccount;
+
   //Number of decimals used for proportions
   uint256 public decimals;
 
@@ -79,6 +81,8 @@ contract GroupFund is Ownable {
 
   //The proportion of contract balance reserved for Oraclize fees
   uint256 public oraclizeFeeProportion;
+
+  uint256 public developerFeeProportion;
 
   //The max number of proposals a member can create
   uint256 public maxProposalsPerMember;
@@ -130,6 +134,7 @@ contract GroupFund is Ownable {
   // GroupFund constructor
   function GroupFund(
     address _etherDeltaAddr,
+    address _developerFeeAccount,
     uint256 _decimals,
     uint256 _timeOfCycle,
     uint256 _timeOfChangeMaking,
@@ -139,12 +144,15 @@ contract GroupFund is Ownable {
     uint256 _commissionRate,
     uint256 _orderExpirationTimeInBlocks,
     uint256 _oraclizeFeeProportion,
+    uint256 _developerFeeProportion,
     uint256 _maxProposalsPerMember
   )
     public
   {
     require(_timeOfChangeMaking.add(_timeOfProposalMaking) <= _timeOfCycle);
+
     etherDeltaAddr = _etherDeltaAddr;
+    developerFeeAccount = _developerFeeAccount;
     decimals = _decimals;
     timeOfCycle = _timeOfCycle;
     timeOfChangeMaking = _timeOfChangeMaking;
@@ -154,6 +162,7 @@ contract GroupFund is Ownable {
     commissionRate = _commissionRate;
     orderExpirationTimeInBlocks = _orderExpirationTimeInBlocks;
     oraclizeFeeProportion = _oraclizeFeeProportion;
+    developerFeeProportion = _developerFeeProportion;
     maxProposalsPerMember = _maxProposalsPerMember;
     startTimeOfCycle = 0;
     isFirstCycle = true;
@@ -184,11 +193,31 @@ contract GroupFund is Ownable {
     oraclize.__changeEtherDeltaAddress(_newAddr);
   }
 
+  function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
+    developerFeeAccount = _newAddr;
+  }
+
+  //Fee Proportion setters
+
+  function changeOraclizeFeeProportion(uint256 _newProp) public onlyOwner {
+    require(_newProp < oraclizeFeeProportion);
+    oraclizeFeeProportion = _newProp;
+  }
+
+  function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
+    require(_newProp < developerFeeProportion);
+    developerFeeProportion = _newProp;
+  }
+
+  function changeCommissionRate(uint256 _newProp) public onlyOwner {
+    commissionRate = _newProp;
+  }
+
   function topupOraclizeFees() public payable onlyOwner {
     oraclizeAddr.transfer(msg.value);
   }
 
-  // Starts a new Cycle
+  //Starts a new cycle
   function startNewCycle() public during(CyclePhase.Finalized) {
     require(initialized);
 
@@ -434,12 +463,6 @@ contract GroupFund is Ownable {
 
     __distributeFundsAfterCycleEnd();
 
-    //Reset data
-
-    uint256 newTotalFunds = this.balance;
-    ROI(totalFundsInWeis, newTotalFunds);
-    totalFundsInWeis = newTotalFunds;
-
     CycleFinalized(now);
   }
 
@@ -517,17 +540,23 @@ contract GroupFund is Ownable {
   function __distributeFundsAfterCycleEnd() internal {
     //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(10**decimals);
-    uint256 feeReserve = 0;//oraclizeFeeProportion.mul(this.balance).div(10**decimals);
-    uint256 newTotalFunds = this.balance.sub(totalCommission).sub(feeReserve);
+    uint256 devFee = developerFeeProportion.mul(this.balance).div(10**decimals);
+    uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee);
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
-      uint256 newBalance = newTotalFunds.mul(balanceOf[participant]).div(totalFundsInWeis);
+      uint256 newBalance = newTotalRegularFunds.mul(balanceOf[participant]).div(totalFundsInWeis);
       //Add commission
       newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
       //Update balance
       balanceOf[participant] = newBalance;
     }
+
+    uint256 newTotalFunds = newTotalRegularFunds.add(totalCommission);
+    ROI(totalFundsInWeis, newTotalFunds);
+    totalFundsInWeis = newTotalFunds;
+
+    developerFeeAccount.transfer(devFee);
   }
 
   function __addControlTokenReceipientAsParticipant(address _receipient) public {
