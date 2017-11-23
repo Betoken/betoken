@@ -97,8 +97,6 @@ contract GroupFund is Ownable {
 
   mapping(uint256 => mapping(address => uint256)) public againstStakedControlOfProposalOfUser;
 
-  mapping(bytes32 => uint256) public proposalIdOfQuery;
-
   // Mapping to check if a proposal for a token has already been made
   mapping(address => bool) public isTokenAlreadyProposed;
 
@@ -484,14 +482,6 @@ contract GroupFund is Ownable {
     participants.push(_receipient);
   }
 
-  function __setProposalIdOfQuery(bytes32 _queryId, uint256 _proposalId) public onlyOraclize {
-    proposalIdOfQuery[_queryId] = _proposalId;
-  }
-
-  function __deleteProposalIdOfQuery(bytes32 _queryId) public onlyOraclize {
-    delete proposalIdOfQuery[_queryId];
-  }
-
   function __makeOrder(address _tokenGet, uint _amountGet, address _tokenGive, uint _amountGive, uint _expires, uint _nonce) public onlyOraclize {
     etherDelta.order(_tokenGet, _amountGet, _tokenGive, _amountGive, _expires, _nonce);
   }
@@ -526,6 +516,8 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
   address public controlTokenAddr;
   address public etherDeltaAddr;
+
+  mapping(bytes32 => uint256) public proposalIdOfQuery;
 
   GroupFund internal groupFund;
   ControlToken internal cToken;
@@ -572,7 +564,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     string memory url = "URL";
 
     // Call Oraclize to grab the most recent price information via JSON
-    groupFund.__setProposalIdOfQuery(oraclize_query(url, urlToQuery), _proposalId);
+    proposalIdOfQuery[oraclize_query(url, urlToQuery)] = _proposalId;
   }
 
   // Callback function from Oraclize query:
@@ -583,11 +575,11 @@ contract OraclizeHandler is usingOraclize, Ownable {
     // Grab ETH price in Weis
     uint256 priceInWeis = parseInt(_result, 18);
 
-    uint256 proposalId = groupFund.proposalIdOfQuery(_myID);
+    uint256 proposalId = proposalIdOfQuery[_myID];
     var (tokenAddress,) = groupFund.proposals(proposalId);
 
     //Reset data
-    groupFund.__deleteProposalIdOfQuery(_myID);
+    delete proposalIdOfQuery[_myID];
 
     uint256 investAmount = groupFund.totalFundsInWeis().mul(groupFund.forStakedControlOfProposal(proposalId)).div(cToken.totalSupply());
     uint256 expires = block.number.add(groupFund.orderExpirationTimeInBlocks());
