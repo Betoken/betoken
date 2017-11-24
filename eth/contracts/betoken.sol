@@ -204,6 +204,16 @@ contract GroupFund is Ownable {
     developerFeeAccount = _newAddr;
   }
 
+  //Getters
+
+  function participantsCount() public view returns(uint256 _count) {
+    return participants.length;
+  }
+
+  function proposalsCount() public view returns(uint256 _count) {
+    return proposals.length;
+  }
+
   //Fee Proportion setters
 
   function changeOraclizeFeeProportion(uint256 _newProp) public onlyOwner {
@@ -462,39 +472,37 @@ contract GroupFund is Ownable {
     //Ensure all the sell orders are inactive
     for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
       if (proposals[proposalId].numFor > 0) { //Ensure proposal isn't a deleted one
-        Proposal storage prop = proposals[proposalId];
-        uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-        uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
-        uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
-        require(amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum);
-
-        __settleBets(proposalId, prop);
+        require(__sellOrderFinished(proposalId));
+        __settleBets(proposalId);
       }
     }
     //Withdraw from etherdelta
     uint256 balance = etherDelta.tokens(address(0), address(this));
     etherDelta.withdraw(balance);
 
+    //Get all remaining funds from OraclizeHandler
+    oraclize.__returnAllFunds();
+
     __distributeFundsAfterCycleEnd();
 
     CycleFinalized(now);
   }
 
-  //Getters
-
-  function participantsCount() public view returns(uint256 _count) {
-    return participants.length;
-  }
-
-  function proposalsCount() public view returns(uint256 _count) {
-    return proposals.length;
-  }
-
   //Internal use functions
 
+  function __sellOrderFinished(uint256 _proposalId) internal returns(bool) {
+    Proposal storage prop = proposals[proposalId];
+    uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
+    uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
+    uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
+
+    return amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum;
+  }
+
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
-  function __settleBets(uint256 proposalId, Proposal prop) internal {
+  function __settleBets(uint256 proposalId) internal {
     //Settle bets
+    Proposal prop = proposals[proposalId];
     uint256 tokenReward;
     uint256 stake;
     uint256 j;
@@ -645,6 +653,11 @@ contract OraclizeHandler is usingOraclize, Ownable {
   function __deleteTokenSymbolOfProposal() public onlyOwner {
     delete tokenSymbolOfProposal;
   }
+
+  function __returnAllFunds() public onlyOwner {
+    owner.transfer(this.balance);
+  }
+
   //Oraclize functions
 
   // Query Oraclize for the current price
