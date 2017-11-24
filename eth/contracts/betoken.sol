@@ -392,6 +392,13 @@ contract GroupFund is Ownable {
 
     cyclePhase = CyclePhase.Waiting;
 
+    __stakeAgainstVotes();
+    __makeInvestments();
+
+    ProposalMakingTimeEnded(now);
+  }
+
+  function __stakeAgainstVotes() internal {
     //Stake against votes
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
@@ -409,7 +416,9 @@ contract GroupFund is Ownable {
         }
       }
     }
+  }
 
+  function __makeInvestments() internal {
     //Invest in tokens using etherdelta
     for (i = 0; i < proposals.length; i = i.add(1)) {
       if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
@@ -419,8 +428,6 @@ contract GroupFund is Ownable {
         oraclize.__grabCurrentPriceFromOraclize(i);
       }
     }
-
-    ProposalMakingTimeEnded(now);
   }
 
   function endCycle() public during(CyclePhase.Waiting) {
