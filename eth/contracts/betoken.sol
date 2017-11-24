@@ -427,7 +427,7 @@ contract GroupFund is Ownable {
 
   function __makeInvestments() internal {
     //Invest in tokens using etherdelta
-    for (i = 0; i < proposals.length; i = i.add(1)) {
+    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
         //Deposit ether
         uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
