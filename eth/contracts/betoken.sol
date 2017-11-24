@@ -10,6 +10,7 @@ import './oraclizeAPI_0.4.sol';
 // - How much the fund has
 // - Each person's Share
 // - Each person's Control
+// - The current list of Proposals
 contract GroupFund is Ownable {
   using SafeMath for uint256;
 
@@ -41,15 +42,19 @@ contract GroupFund is Ownable {
     _;
   }
 
-  //Address of the control token
+  // Address of the control token
   address public controlTokenAddr;
 
+  // Address of the etherDelta decentralized exchange's address
   address public etherDeltaAddr;
 
+  // Address of the helper contract that calls Oraclize
   address public oraclizeAddr;
 
+  // The creator of the GroupFund
   address public creator;
 
+  // Address of the developers ^_^
   address public developerFeeAccount;
 
   //Number of decimals used for proportions
@@ -73,6 +78,7 @@ contract GroupFund is Ownable {
   //Proportion of control people who vote against a proposal have to stake
   uint256 public minStakeProportion;
 
+  // The maximum number of proposals a participant can make
   uint256 public maxProposals;
 
   uint256 public commissionRate;
@@ -114,6 +120,7 @@ contract GroupFund is Ownable {
 
   address[] public participants; // A list of everyone who is participating in the GroupFund
   Proposal[] public proposals;
+
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
   OraclizeHandler internal oraclize;
