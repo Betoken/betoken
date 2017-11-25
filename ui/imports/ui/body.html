@@ -1,18 +1,11 @@
-<head>
-  <!-- JQuery CDN -->
-  <script
-  src="https://code.jquery.com/jquery-3.1.1.min.js"
-  integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
-  crossorigin="anonymous"></script>
-</head>
-
 <body>
-  <!-- Header -->
-  <div class="ui top three item menu">
+  <div class="ui grid" style="margin-top: 0.02%;">
+    <!-- Top Bar -->
     {{> top_bar}}
-  </div>
 
-  <div class="ui container grid">
+    {{> phase_indicator}}
+
+    <!--Left Tabs-->
     <div class="ui container ten wide column">
       <!-- Tab buttons -->
       <div class="ui top attached tabular menu">
@@ -36,78 +29,110 @@
     </div>
 
     <!-- Grid class for the right half -->
-    <div class="ui six wide column grid">
+    <div class="ui six wide column container">
       {{> sidebar}}
     </div>
   </div>
 </body>
 
 <template name="top_bar">
-  <div class="item">
-    Betoken
-  </div>
+  <div class="ui top three item menu">
+    <div class="item">
+      Betoken
+    </div>
 
-  <div class="item">
-    <h3>Time Till Next Phase:&nbsp;&nbsp;</h3>
-    <div class="ui mini statistics">
-      <div class="ui statistic">
-        <div class="value">
-          22
+    <div class="item">
+      <h3>Phase Change In&nbsp;&nbsp;&nbsp;&nbsp;</h3>
+      <div class="ui mini statistics">
+        <div class="ui statistic">
+          <div class="value">
+            22
+          </div>
+          <div class="label">
+            Days
+          </div>
         </div>
-        <div class="label">
-          Days
+        <div class="ui statistic">
+          <div class="value">
+            15
+          </div>
+          <div class="label">
+            Hours
+          </div>
         </div>
-      </div>
-      <div class="ui statistic">
-        <div class="value">
-          15
+        <div class="ui statistic">
+          <div class="value">
+            53
+          </div>
+          <div class="label">
+            Minutes
+          </div>
         </div>
-        <div class="label">
-          Hours
-        </div>
-      </div>
-      <div class="ui statistic">
-        <div class="value">
-          53
-        </div>
-        <div class="label">
-          Minutes
-        </div>
-      </div>
-      <div class="ui statistic">
-        <div class="value">
-          36
-        </div>
-        <div class="label">
-          Seconds
+        <div class="ui statistic">
+          <div class="value">
+            36
+          </div>
+          <div class="label">
+            Seconds
+          </div>
         </div>
       </div>
     </div>
+
+    <div class="item">
+      Contract: &nbsp;
+      <select class="ui dropdown">
+        <option value="0">0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE</option>
+        <option value="1">0xdd974D5C2e2928deA5F71b9825b8b646686BD200</option>
+      </select>
+    </div>
   </div>
 
-  <div class="item">
-    Contract: &nbsp;
-    <select class="ui dropdown">
-      <option value="0">0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE</option>
-      <option value="1">0xdd974D5C2e2928deA5F71b9825b8b646686BD200</option>
-    </select>
+</template>
+
+<template name="phase_indicator">
+  <!--Phase Indicator-->
+  <div class="ui steps">
+    <div class="step">
+      <div class="content">
+        <div class="title">Deposit&Withdraw</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="content">
+        <div class="title">Invest</div>
+        <div class="description">Make or support investment proposals</div>
+      </div>
+    </div>
+    <div class="active step">
+      <div class="content">
+        <div class="title">Wait</div>
+        <div class="description">Wait for end of investment cycle</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="content">
+        <div class="title">Cycle Ended</div>
+        <div class="description">Cycle ended, waiting for tokens to be sold</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="content">
+        <div class="title">Cycle Finalized</div>
+        <div class="description">Tokens have been sold, bets have been settled, and funds have been redistributed</div>
+      </div>
+    </div>
   </div>
 </template>
 
 <template name="sidebar">
-  <div class="row account-label-container">
-    <h2 class="account-label-header" style="text-align: center">My Account</h2>
-  </div>
-
   <!-- Account Sidebar -->
   <div class="row">
+    <h2>My Account</h2>
     <div class="ui menu vertical fluid">
       <div class="ui item">
         <div class="ui horizontal divider">Address</div>
-        <p></p>
-        <div style="text-align: center">
-          0xd6Cd31F283d24cfb442cBA1Bcf42290c07C15792
-        </div>
+        <h5 style="text-align: center;">0x969198107395FAFe177c5633D8762C67C4cA3f7b</h5>
       </div>
 
       <div class="ui item">
@@ -120,7 +145,6 @@
             ETH
           </div>
         </div>
-        <!--<img class="ui icon-img image spaced" src="../../assets/images/ether-black-logo.svg">-->
       </div>
 
       <div class="ui item">
@@ -139,7 +163,6 @@
           <input type="checkbox">
           <label>KRO/%</label>
         </div>
-        <!--<img class="ui icon-img image spaced kairos-icon" src="../../assets/images/kairos-logo-v1.svg">-->
       </div>
 
       <div class="ui item">
@@ -156,52 +179,202 @@
     </div>
   </div>
 
+  <div class="ui horizontal divider"></div>
+
   <!-- Holds the block related to the Tabbed right sidebar -->
   <div class="row">
-    <!-- Tab buttons -->
-    <div class="ui top attached tabular menu">
-      <a class="item active header" data-tab="first">Deposit</a>
-      <a class="item header" data-tab="second">Withdraw</a>
-      <a class="item header" data-tab="third">History</a>
-    </div>
+    {{> transact_box}}
+  </div>
 
-    <!-- Actual Tab Content -->
-    <div class="ui bottom attached tab segment active" data-tab="first">
-      <!--Amount Input-->
-      <div class="ui right labeled input fluid">
-        <input placeholder="Deposit Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
-        <div class="ui label">
-          ETH
-        </div>
-      </div>
-
-      <div class="ui horizontal divider"></div>
-
-      <button class="ui primary button fluid">Deposit</button>
-    </div>
-
-    <div class="ui bottom attached tab segment" data-tab="second">
-      <!--Amount Input-->
-      <div class="ui right labeled input fluid">
-        <input placeholder="Withdraw Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
-        <div class="ui label">
-          ETH
-        </div>
-      </div>
-
-      <div class="ui horizontal divider"></div>
-
-      <button class="ui primary button fluid">Withdraw</button>
-    </div>
-
-    <div class="ui bottom attached tab segment" data-tab="third">
-      Placeholder
-    </div>
+  <div class="row">
+    {{> supported_props_box}}
   </div>
 </template>
 
+<template name="transact_box">
+  <!-- Tab buttons -->
+  <div class="ui top attached tabular menu">
+    <a class="item active header" data-tab="first">Deposit</a>
+    <a class="item header" data-tab="second">Withdraw</a>
+    <a class="item header" data-tab="third">History</a>
+  </div>
+
+  <!-- Actual Tab Content -->
+  <div class="ui bottom attached tab segment active" data-tab="first">
+    <!--Amount Input-->
+    <div class="ui right labeled input fluid">
+      <input placeholder="Deposit Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
+      <div class="ui label">
+        ETH
+      </div>
+    </div>
+
+    <div class="ui horizontal divider"></div>
+
+    <button class="ui primary button fluid">Deposit</button>
+  </div>
+
+  <div class="ui bottom attached tab segment" data-tab="second">
+    <!--Amount Input-->
+    <div class="ui right labeled input fluid">
+      <input placeholder="Withdraw Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
+      <div class="ui label">
+        ETH
+      </div>
+    </div>
+
+    <div class="ui horizontal divider"></div>
+
+    <button class="ui primary button fluid">Withdraw</button>
+  </div>
+
+  <div class="ui bottom attached tab segment" data-tab="third">
+    <!--History Tab-->
+    <table class="ui table celled sortable">
+      <!-- Table header -->
+      <thead>
+      <tr>
+        <th>Type</th>
+        <th>Amount/ETH</th>
+        <th>Timestamp</th>
+      </tr>
+      </thead>
+
+      <!-- Actual table rows go here -->
+      <tbody>
+      <tr>
+        <td>Withdraw</td>
+        <td>10</td>
+        <td>2017/11/24 16:08:01 PST</td>
+      </tr>
+
+      <tr>
+        <td>Deposit</td>
+        <td>20</td>
+        <td>2017/11/24 17:00:01 PST</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<template name="supported_props_box">
+  <h3>Supported Proposals</h3>
+  <table class="ui table celled sortable">
+    <!-- Table header -->
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>Symbol</th>
+      <th>Invested/ETH</th>
+      <th>Staked/KRO</th>
+      <th>Action</th>
+    </tr>
+    </thead>
+
+    <!-- Actual table rows go here -->
+    <tbody>
+    <tr>
+      <td>1</td>
+      <td>DNT</td>
+      <td>12345.6</td>
+      <td>23</td>
+      <td>
+        <button class="ui icon button">
+          <i class="remove icon" style="text-align: center;"></i>
+        </button>
+      </td>
+    </tr>
+
+    <tr>
+      <td>2</td>
+      <td>BAT</td>
+      <td>382.45</td>
+      <td>10</td>
+      <td>
+        <button class="ui icon button">
+          <i class="remove icon" style="text-align: center;"></i>
+        </button>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+</template>
+
 <template name="stats_tab">
-  Stats
+  <div class="ui grid">
+    <div class="twelve wide column">
+      <canvas id="myChart" width="400" height="400"></canvas>
+    </div>
+
+    <div class="four wide column">
+      <div style="text-align: center;">
+        <div class="ui horizontal divider">Fund Stats</div>
+        <div class="ui mini statistic">
+          <div class="label">
+            Total Investment
+          </div>
+          <div class="value">
+            40,509 ETH
+          </div>
+        </div>
+        <p></p>
+        <div class="ui mini statistic">
+          <div class="label">
+            Average ROI
+          </div>
+          <div class="value">
+            32.6%
+          </div>
+        </div>
+        <p></p>
+        <div class="ui mini statistic">
+          <div class="label">
+            Previous Cycle ROI
+          </div>
+          <div class="value">
+            45.1%
+          </div>
+        </div>
+        <p></p>
+        <div class="ui mini statistic">
+          <div class="label">
+            Member Count
+          </div>
+          <div class="value">
+            143
+          </div>
+        </div>
+        <p></p>
+        <div class="ui mini statistic">
+          <div class="label">
+            Cycle Length
+          </div>
+          <div class="value">
+            30 Days
+          </div>
+        </div>
+        <p></p>
+        <div class="ui mini statistic">
+          <div class="label">
+            Previous Cycle Commission Payout
+          </div>
+          <div class="value">
+            30.2 ETH
+          </div>
+        </div>
+        <p></p>
+        <div class="ui mini statistic">
+          <div class="label">
+            Historical Commission Payout
+          </div>
+          <div class="value">
+            105.3 ETH
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <template name="proposals_tab">
