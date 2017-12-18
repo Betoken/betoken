@@ -19,6 +19,7 @@ userAddress = new ReactiveVar("")
 kairoBalance = new ReactiveVar("")
 kairoTotalSupply = new ReactiveVar("")
 displayedKairoBalance = new ReactiveVar("")
+cyclePhase = new ReactiveVar(0)
 
 $('document').ready(() ->
   $('.menu .item').tab()
@@ -93,6 +94,7 @@ Template.phase_indicator.helpers(
     isActive = new ReactiveVar("")
     betoken.getPrimitiveVar("cyclePhase").then(
       (result) ->
+        cyclePhase.set(result)
         if result == index
           isActive.set("active")
     )
@@ -125,6 +127,46 @@ Template.sidebar.events(
     else
       displayedKairoBalance.set(web3.util.fromWei(kairoBalance.get(), "ether"))
       this.isOn = true
+)
+
+Template.transact_box.onCreated(
+  () ->
+    this.depositInputHasError = new ReactiveVar(false)
+    this.withdrawInputHasError = new ReactiveVar(false)
+)
+
+Template.transact_box.helpers(
+  is_disabled: () ->
+    if cyclePhase.get() != 0
+      return "disabled"
+    return ""
+
+  has_error: (input_id) ->
+    if input_id == 0
+      if this.depositInputHasError.get()
+        return "error"
+    else
+      if this.withdrawInputHasError.get()
+        return "error"
+    return ""
+)
+
+Template.transact_box.events(
+  "click .deposit_button": (event) ->
+    try
+      this.depositInputHasError.set(false)
+      amount = web3.util.toWei(document.getElementById("deposit_input").value)
+      betoken.deposit(amount)
+    catch
+      this.depositInputHasError.set(true)
+
+  "click .withdraw_button": (event) ->
+    try
+      this.withdrawInputHasError.set(false)
+      amount = web3.util.toWei(document.getElementById("deposit_input").value)
+      betoken.withdraw(amount)
+    catch
+      this.depositInputHasError.set(true)
 )
 
 Template.members_tab.helpers(

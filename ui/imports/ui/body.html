@@ -204,8 +204,8 @@
   <!-- Actual Tab Content -->
   <div class="ui bottom attached tab segment active" data-tab="first">
     <!--Amount Input-->
-    <div class="ui right labeled input fluid">
-      <input placeholder="Deposit Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
+    <div class="{{has_error 0}} ui right labeled input fluid">
+      <input id="deposit_input" placeholder="Deposit Amount..." type="text">
       <div class="ui label">
         ETH
       </div>
@@ -213,13 +213,13 @@
 
     <div class="ui horizontal divider"></div>
 
-    <button class="ui primary button fluid">Deposit</button>
+    <button class="deposit_button {{is_disabled}} ui primary button fluid">Deposit</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="second">
     <!--Amount Input-->
-    <div class="ui right labeled input fluid">
-      <input placeholder="Withdraw Amount..." pattern="-?[0-9]*(\.[0-9]+)?" type="text">
+    <div class="{{has_error 1}} ui right labeled input fluid">
+      <input id="withdraw_input" placeholder="Withdraw Amount..." type="text">
       <div class="ui label">
         ETH
       </div>
@@ -227,7 +227,7 @@
 
     <div class="ui horizontal divider"></div>
 
-    <button class="ui primary button fluid">Withdraw</button>
+    <button class="withdraw_button {{is_disabled}} ui primary button fluid">Withdraw</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="third">
