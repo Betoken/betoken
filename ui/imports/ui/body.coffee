@@ -4,6 +4,9 @@ import './tablesort.js'
 import { Betoken } from '../objects/betoken.js'
 import Chart from 'chart.js'
 
+betoken_addr = ""
+betoken = new Betoken(betoken_addr)
+
 $('document').ready(() ->
   $('.menu .item').tab()
   $('table').tablesort()
@@ -51,5 +54,13 @@ $('document').ready(() ->
   )
 )
 
-betoken_addr = ""
-betoken = new Betoken(betoken_addr)
+Template.phase_indicator.helpers(
+  phase_active: (index) ->
+    isActive = new ReactiveVar("")
+    betoken.getPrimitiveVar("cyclePhase").then(
+      (result) ->
+        if result == index
+          isActive.set("active")
+    )
+    return isActive.get()
+)

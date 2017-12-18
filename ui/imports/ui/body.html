@@ -95,30 +95,30 @@
 <template name="phase_indicator">
   <!--Phase Indicator-->
   <div class="ui steps">
-    <div class="step">
+    <div class="{{phase_active 0}} step">
       <div class="content">
         <div class="title">Deposit&Withdraw</div>
       </div>
     </div>
-    <div class="step">
+    <div class="{{phase_active 1}} step">
       <div class="content">
         <div class="title">Invest</div>
         <div class="description">Make or support investment proposals</div>
       </div>
     </div>
-    <div class="active step">
+    <div class="{{phase_active 2}} step">
       <div class="content">
         <div class="title">Wait</div>
         <div class="description">Wait for end of investment cycle</div>
       </div>
     </div>
-    <div class="step">
+    <div class="{{phase_active 3}} step">
       <div class="content">
         <div class="title">Cycle Ended</div>
         <div class="description">Cycle ended, waiting for tokens to be sold</div>
       </div>
     </div>
-    <div class="step">
+    <div class="{{phase_active 4}} step">
       <div class="content">
         <div class="title">Cycle Finalized</div>
         <div class="description">Tokens have been sold, bets have been settled, and funds have been redistributed</div>
