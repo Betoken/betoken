@@ -437,29 +437,26 @@
 
     <!-- Table header -->
     <thead>
-    <tr>
-      <th>Address</th>
-      <th>Ether Balance</th>
-      <th>Kairo Balance</th>
-      <th>Accuracy</th>
-    </tr>
+      <tr>
+        <th>Address</th>
+        <th>Ether Balance</th>
+        <th>Kairo Balance</th>
+        <th>Kairo Proportion</th>
+        <th>Accuracy</th>
+      </tr>
     </thead>
 
     <!-- Actual table rows go here -->
     <tbody>
-    <tr>
-      <td>0x0000</td>
-      <td>3 ETH</td>
-      <td>103 KRO</td>
-      <td>94%</td>
-    </tr>
-
-    <tr>
-      <td>0x0100</td>
-      <td>300 ETH</td>
-      <td>13 KRO</td>
-      <td>75%</td>
-    </tr>
+      <tr>
+        {{#each member_list}}
+          <td>{{address}}</td>
+          <td>{{eth_balance}} ETH</td>
+          <td>{{kro_balance}} KRO</td>
+          <td>{{kro_proportion}}</td>
+          <td>94%</td>
+        {{/each}}
+      </tr>
     </tbody>
   </table>
 </template>

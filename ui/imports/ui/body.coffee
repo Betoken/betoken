@@ -70,21 +70,21 @@ $('document').ready(() ->
 Template.body.onCreated(
   () ->
     betoken.getCurrentAccount().then(
-      (result) ->
-        userAddress.set(result)
+      (_userAddress) ->
+        userAddress.set(_userAddress)
     ).then(
       () ->
         return betoken.getKairoBalance(userAddress.get())
     ).then(
-      (result) ->
+      (_kairoBalance) ->
         kairoBalance.set(result)
         displayedKairoBalance.set(web3.util.fromWei(result, "ether"))
     ).then(
       () ->
         return betoken.getKairoTotalSupply()
     ).then(
-      (result) ->
-        kairoTotalSupply.set(result)
+      (_kairoTotalSupply) ->
+        kairoTotalSupply.set(_kairoTotalSupply)
     )
 )
 
@@ -125,4 +125,53 @@ Template.sidebar.events(
     else
       displayedKairoBalance.set(web3.util.fromWei(kairoBalance.get(), "ether"))
       this.isOn = true
+)
+
+Template.members_tab.helpers(
+  member_list: () ->
+    reactive_list = new ReactiveVar([])
+    list = []
+    betoken.getArray("participants").then(
+      (_array) ->
+        #Get member addresses
+        list = new Array(_array.length)
+        for i in [0.._array.length - 1]
+          list[i].address = _array[i]
+        return
+    ).then(
+      () ->
+        #Get member ETH balances
+        allPromises = []
+        for member in list
+          allPromises.push(web3.eth.getBalance(member.address).then(
+            (_eth_balance) ->
+              member.eth_balance = _eth_balance
+              return
+          ))
+        return Promise.all(allPromises)
+    ).then(
+      () ->
+        #Get member KRO balances
+        allPromises = []
+        for member in list
+          allPromises.push(betoken.getKairoBalance(member.address).then(
+            (_kro_balance) ->
+              member.kro_balance = web3.util.fromWei(_kro_balance, "ether")
+              return
+          ))
+        return Promise.all(allPromises)
+    ).then(
+      () ->
+        #Get member KRO proportions
+        for member in list
+          kairoBalanceInKRO = Number.parseFloat(member.kro_balance)
+          kairoSupplyInKRO = Number.parseFloat(web3.util.fromWei(kairoTotalSupply.get(), "ether"))
+          member.kro_proportion = kairoBalanceInKRO / kairoSupplyInKRO * 100
+        return
+    ).then(
+      () ->
+        #Update reactive_list
+        reactive_list.set(list)
+    )
+    return reactive_list.get()
 )

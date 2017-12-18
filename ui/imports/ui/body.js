@@ -100,17 +100,17 @@ $('document').ready(function() {
 });
 
 Template.body.onCreated(function() {
-  return betoken.getCurrentAccount().then(function(result) {
-    return userAddress.set(result);
+  return betoken.getCurrentAccount().then(function(_userAddress) {
+    return userAddress.set(_userAddress);
   }).then(function() {
     return betoken.getKairoBalance(userAddress.get());
-  }).then(function(result) {
+  }).then(function(_kairoBalance) {
     kairoBalance.set(result);
     return displayedKairoBalance.set(web3.util.fromWei(result, "ether"));
   }).then(function() {
     return betoken.getKairoTotalSupply();
-  }).then(function(result) {
-    return kairoTotalSupply.set(result);
+  }).then(function(_kairoTotalSupply) {
+    return kairoTotalSupply.set(_kairoTotalSupply);
   });
 });
 
@@ -156,5 +156,56 @@ Template.sidebar.events({
       displayedKairoBalance.set(web3.util.fromWei(kairoBalance.get(), "ether"));
       return this.isOn = true;
     }
+  }
+});
+
+Template.members_tab.helpers({
+  member_list: function() {
+    var list, reactive_list;
+    reactive_list = new ReactiveVar([]);
+    list = [];
+    betoken.getArray("participants").then(function(_array) {
+      var i, j, ref;
+      //Get member addresses
+      list = new Array(_array.length);
+      for (i = j = 0, ref = _array.length - 1; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+        list[i].address = _array[i];
+      }
+    }).then(function() {
+      var allPromises, j, len, member;
+      //Get member ETH balances
+      allPromises = [];
+      for (j = 0, len = list.length; j < len; j++) {
+        member = list[j];
+        allPromises.push(web3.eth.getBalance(member.address).then(function(_eth_balance) {
+          member.eth_balance = _eth_balance;
+        }));
+      }
+      return Promise.all(allPromises);
+    }).then(function() {
+      var allPromises, j, len, member;
+      //Get member KRO balances
+      allPromises = [];
+      for (j = 0, len = list.length; j < len; j++) {
+        member = list[j];
+        allPromises.push(betoken.getKairoBalance(member.address).then(function(_kro_balance) {
+          member.kro_balance = web3.util.fromWei(_kro_balance, "ether");
+        }));
+      }
+      return Promise.all(allPromises);
+    }).then(function() {
+      var j, kairoBalanceInKRO, kairoSupplyInKRO, len, member;
+      //Get member KRO proportions
+      for (j = 0, len = list.length; j < len; j++) {
+        member = list[j];
+        kairoBalanceInKRO = Number.parseFloat(member.kro_balance);
+        kairoSupplyInKRO = Number.parseFloat(web3.util.fromWei(kairoTotalSupply.get(), "ether"));
+        member.kro_proportion = kairoBalanceInKRO / kairoSupplyInKRO * 100;
+      }
+    }).then(function() {
+      //Update reactive_list
+      return reactive_list.set(list);
+    });
+    return reactive_list.get();
   }
 });

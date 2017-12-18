@@ -79,19 +79,20 @@ export Betoken = (_address) ->
         count = +_count
         if count == 0
           return []
+        array = new Array(count)
         getItem = (id) ->
           return self.contracts.groupFund.methods[_name](id).call().then(
             (_item) ->
               return new Promise((fullfill, reject) ->
                 if typeof _item != null
-                  array.push(_item)
+                  array[id] = _item
                   fullfill()
                 else
                   reject()
                 return
               )
           )
-        getAllItems = (getItem(id) for id in [1..count - 1])
+        getAllItems = (getItem(id) for id in [0..count - 1])
         return Promise.all(getAllItems)
     ).then(
       () ->

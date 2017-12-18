@@ -88,11 +88,12 @@ export var Betoken = function(_address) {
       if (count === 0) {
         return [];
       }
+      array = new Array(count);
       getItem = function(id) {
         return self.contracts.groupFund.methods[_name](id).call().then(function(_item) {
           return new Promise(function(fullfill, reject) {
             if (typeof _item !== null) {
-              array.push(_item);
+              array[id] = _item;
               fullfill();
             } else {
               reject();
@@ -103,7 +104,7 @@ export var Betoken = function(_address) {
       getAllItems = (function() {
         var i, ref, results;
         results = [];
-        for (id = i = 1, ref = count - 1; 1 <= ref ? i <= ref : i >= ref; id = 1 <= ref ? ++i : --i) {
+        for (id = i = 0, ref = count - 1; 0 <= ref ? i <= ref : i >= ref; id = 0 <= ref ? ++i : --i) {
           results.push(getItem(id));
         }
         return results;
