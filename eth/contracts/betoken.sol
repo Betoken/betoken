@@ -121,6 +121,7 @@ contract GroupFund is Ownable {
   address[] public participants; // A list of everyone who is participating in the GroupFund
   Proposal[] public proposals;
 
+  // Internal var names for the auxiliary contracts
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
   OraclizeHandler internal oraclize;
@@ -158,6 +159,7 @@ contract GroupFund is Ownable {
   {
     require(_timeOfChangeMaking.add(_timeOfProposalMaking) <= _timeOfCycle);
 
+    // Set all the relevant variables
     etherDeltaAddr = _etherDeltaAddr;
     developerFeeAccount = _developerFeeAccount;
     decimals = _decimals;
@@ -181,6 +183,7 @@ contract GroupFund is Ownable {
     etherDelta = EtherDelta(etherDeltaAddr);
   }
 
+  // Initialize OraclizeHandler and ControlToken contracts
   function initializeSubcontracts(address _cTokenAddr, address _oraclizeAddr) public {
     require(msg.sender == creator);
     require(!initialized);
@@ -194,35 +197,43 @@ contract GroupFund is Ownable {
     oraclize = OraclizeHandler(oraclizeAddr);
   }
 
+  // Changes the address associated with the decentralized exchange
   function changeEtherDeltaAddress(address _newAddr) public onlyOwner {
     etherDeltaAddr = _newAddr;
     etherDelta = EtherDelta(_newAddr);
     oraclize.__changeEtherDeltaAddress(_newAddr);
   }
 
+  // Update the address where the fees go
   function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
     developerFeeAccount = _newAddr;
   }
 
-  //Fee Proportion setters
+  //** Fee Proportion setters **
+  /*****************************/
 
+  // Changes the amount we store for handling Oraclize payments
   function changeOraclizeFeeProportion(uint256 _newProp) public onlyOwner {
     require(_newProp < oraclizeFeeProportion);
     oraclizeFeeProportion = _newProp;
   }
 
+  // Changes the amount that goes to the dev account
   function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
     require(_newProp < developerFeeProportion);
     developerFeeProportion = _newProp;
   }
 
+  // Change the amount that gets distributed among Kairo holders
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
     commissionRate = _newProp;
   }
 
-  function topupOraclizeFees() public payable onlyOwner {
+  // Add more funds to the OraclizeHandler contract
+  function topOffOraclizeFees() public payable onlyOwner {
     oraclizeAddr.transfer(msg.value);
   }
+  /*****************************/
 
   //Starts a new cycle
   function startNewCycle() public during(CyclePhase.Finalized) {
@@ -259,8 +270,10 @@ contract GroupFund is Ownable {
     delete forStakedControlOfProposal[_proposalId];
   }
 
-  //Change making time functions
+  //Change Making time functions
+  /*****************************/
 
+  // Deposit funds into contract
   function deposit()
     public
     payable
@@ -296,6 +309,7 @@ contract GroupFund is Ownable {
 
     msg.sender.transfer(_amountInWeis);
   }
+  /*****************************/
 
   function endChangeMakingTime() public during(CyclePhase.ChangeMaking) {
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
@@ -306,6 +320,9 @@ contract GroupFund is Ownable {
   }
 
   //Proposal making time functions
+  /*****************************/
+
+  // Create a Proposal
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
@@ -342,6 +359,7 @@ contract GroupFund is Ownable {
     NewProposal(proposalId, _tokenAddress, _tokenSymbol, _amountInWeis);
   }
 
+  // Supports a proposal
   function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
     public
     during(CyclePhase.ProposalMaking)
@@ -364,6 +382,7 @@ contract GroupFund is Ownable {
     SupportedProposal(_proposalId, _amountInWeis);
   }
 
+  // Undoes support for a proposal
   function cancelProposalSupport(uint256 _proposalId)
     public
     during(CyclePhase.ProposalMaking)
@@ -429,6 +448,7 @@ contract GroupFund is Ownable {
 
     ProposalMakingTimeEnded(now);
   }
+  /*****************************/
 
   function endCycle() public during(CyclePhase.Waiting) {
     require(now >= startTimeOfCycle.add(timeOfCycle));
