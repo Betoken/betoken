@@ -62,7 +62,10 @@ export Betoken = (_address) ->
    * @return {Promise}          .then((_value)->)
   ###
   self.getKairoBalance = (_address) ->
-    return self.contracts.contracts.controlToken.methods.balanceOf(_address).call()
+    return self.contracts.controlToken.methods.balanceOf(_address).call()
+
+  self.getKairoTotalSupply = () ->
+    return self.contracts.controlToken.methods.totalSupply().call()
 
   ###*
    * Gets an entire array
@@ -188,7 +191,16 @@ export Betoken = (_address) ->
    * @return {Promise}             .then(()->)
   ###
   self.cancelSupport = (_proposalId) ->
-    #TBD
+    return getDefaultAccount().then(
+      () ->
+        return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount})
+    )
+
+  self.getCurrentAccount = () ->
+    return getDefaultAccount().then(
+      () ->
+        return web3.eth.defaultAccount
+    )
 
   ###
     Object Initialization

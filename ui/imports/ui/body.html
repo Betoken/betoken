@@ -134,14 +134,14 @@
     <div class="ui menu vertical fluid">
       <div class="ui item">
         <div class="ui horizontal divider">Address</div>
-        <h5 style="text-align: center;">0x969198107395FAFe177c5633D8762C67C4cA3f7b</h5>
+        <h5 style="text-align: center;">{{user_address}}</h5>
       </div>
 
       <div class="ui item">
         <div class="ui horizontal divider">Ether Deposit Balance</div>
         <div class="ui mini horizontal statistic">
           <div class="value">
-            2,204
+            {{user_balance}}
           </div>
           <div class="label">
             ETH
@@ -154,7 +154,7 @@
 
         <div class="ui mini horizontal statistic">
           <div class="value">
-            1,234
+            {{user_kairo_balance}}
           </div>
           <div class="label">
             KRO
@@ -162,7 +162,7 @@
         </div>
 
         <div class="ui slider checkbox" style="float: right; margin-top: 4%;">
-          <input type="checkbox">
+          <input type="checkbox" class="kairo_unit_switch">
           <label>KRO/%</label>
         </div>
       </div>
@@ -171,7 +171,7 @@
         <div class="ui horizontal divider">Expected Commission</div>
         <div class="ui mini horizontal statistic">
           <div class="value">
-            0.23
+            0.23 <!--Should be (1 + avg_roi) * totalFunds * commissionRate * (kairoBalance / kairoTotalSupply)-->
           </div>
           <div class="label">
             ETH

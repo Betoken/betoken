@@ -69,7 +69,10 @@ export var Betoken = function(_address) {
    * @return {Promise}          .then((_value)->)
    */
   self.getKairoBalance = function(_address) {
-    return self.contracts.contracts.controlToken.methods.balanceOf(_address).call();
+    return self.contracts.controlToken.methods.balanceOf(_address).call();
+  };
+  self.getKairoTotalSupply = function() {
+    return self.contracts.controlToken.methods.totalSupply().call();
   };
   /**
    * Gets an entire array
@@ -208,10 +211,20 @@ export var Betoken = function(_address) {
    * @param  {Integer} _proposalId the proposal ID
    * @return {Promise}             .then(()->)
    */
-  self.cancelSupport = function(_proposalId) {};
-  //TBD
+  self.cancelSupport = function(_proposalId) {
+    return getDefaultAccount().then(function() {
+      return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({
+        from: web3.eth.defaultAccount
+      });
+    });
+  };
+  self.getCurrentAccount = function() {
+    return getDefaultAccount().then(function() {
+      return web3.eth.defaultAccount;
+    });
+  };
   /*
-    Object Initialization
+  Object Initialization
   */
   //Initialize GroupFund contract
   self.addrs.groupFund = _address;

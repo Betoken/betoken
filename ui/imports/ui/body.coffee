@@ -4,8 +4,21 @@ import './tablesort.js'
 import { Betoken } from '../objects/betoken.js'
 import Chart from 'chart.js'
 
+#Import web3
+Web3 = require 'web3'
+web3 = window.web3
+if typeof web3 != undefined
+  web3 = new Web3(web3.currentProvider)
+else
+  web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
+
 betoken_addr = ""
 betoken = new Betoken(betoken_addr)
+
+userAddress = new ReactiveVar("")
+kairoBalance = new ReactiveVar("")
+kairoTotalSupply = new ReactiveVar("")
+displayedKairoBalance = new ReactiveVar("")
 
 $('document').ready(() ->
   $('.menu .item').tab()
@@ -54,6 +67,27 @@ $('document').ready(() ->
   )
 )
 
+Template.body.onCreated(
+  () ->
+    betoken.getCurrentAccount().then(
+      (result) ->
+        userAddress.set(result)
+    ).then(
+      () ->
+        return betoken.getKairoBalance(userAddress.get())
+    ).then(
+      (result) ->
+        kairoBalance.set(result)
+        displayedKairoBalance.set(web3.util.fromWei(result, "ether"))
+    ).then(
+      () ->
+        return betoken.getKairoTotalSupply()
+    ).then(
+      (result) ->
+        kairoTotalSupply.set(result)
+    )
+)
+
 Template.phase_indicator.helpers(
   phase_active: (index) ->
     isActive = new ReactiveVar("")
@@ -63,4 +97,32 @@ Template.phase_indicator.helpers(
           isActive.set("active")
     )
     return isActive.get()
+)
+
+Template.sidebar.helpers(
+  user_address: () ->
+    return userAddress.get()
+
+  user_balance: () ->
+    balance = new ReactiveVar("")
+    betoken.getMappingOrArrayItem("balanceOf", userAddress.get()).then(
+      (result) ->
+        balance.set(web3.util.fromWei(result, "ether"))
+    )
+    return balance.get()
+
+  user_kairo_balance: () ->
+    return displayedKairoBalance.get()
+)
+
+Template.sidebar.events(
+  "click .kairo_unit_switch": (event) ->
+    if this.isOn
+      kairoBalanceInKRO = Number.parseFloat(web3.util.fromWei(kairoBalance.get(), "ether"))
+      kairoSupplyInKRO = Number.parseFloat(web3.util.fromWei(kairoTotalSupply.get(), "ether"))
+      displayedKairoBalance.set(kairoBalanceInKRO / kairoSupplyInKRO * 100)
+      this.isOn = false
+    else
+      displayedKairoBalance.set(web3.util.fromWei(kairoBalance.get(), "ether"))
+      this.isOn = true
 )
