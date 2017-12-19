@@ -268,7 +268,6 @@
     <tr>
       <th>#</th>
       <th>Symbol</th>
-      <th>Invested/ETH</th>
       <th>Staked/KRO</th>
       <th>Action</th>
     </tr>
@@ -276,29 +275,18 @@
 
     <!-- Actual table rows go here -->
     <tbody>
-    <tr>
-      <td>1</td>
-      <td>DNT</td>
-      <td>12345.6</td>
-      <td>23</td>
-      <td>
-        <button class="ui icon button">
-          <i class="remove icon" style="text-align: center;"></i>
-        </button>
-      </td>
-    </tr>
-
-    <tr>
-      <td>2</td>
-      <td>BAT</td>
-      <td>382.45</td>
-      <td>10</td>
-      <td>
-        <button class="ui icon button">
-          <i class="remove icon" style="text-align: center;"></i>
-        </button>
-      </td>
-    </tr>
+      {{#each proposal_list}}
+        <tr>
+          <td>{{id}}</td>
+          <td>{{token_symbol}}</td>
+          <td>{{user_stake}}</td>
+          <td>
+            <button class="cancel_support_button ui icon button">
+              <i class="remove icon" style="text-align: center;"></i>
+            </button>
+          </td>
+        </tr>
+      {{/each}}
     </tbody>
   </table>
 </template>

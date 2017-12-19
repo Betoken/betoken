@@ -22,6 +22,8 @@ kairoTotalSupply = new ReactiveVar(BigNumber(""))
 displayedKairoBalance = new ReactiveVar(BigNumber(""))
 cyclePhase = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(""))
+proposalList = new ReactiveVar([])
+supportedProposalList = new ReactiveVar([])
 
 $('document').ready(() ->
   $('.menu .item').tab()
@@ -72,35 +74,95 @@ $('document').ready(() ->
 
 Template.body.onCreated(
   () ->
+    proposals = []
+    supportedProposals = []
     betoken.getCurrentAccount().then(
       (_userAddress) ->
+        #Initialize user address
         userAddress.set(_userAddress)
+        return
     ).then(
       () ->
+        #Get user's Kairo balance
         return betoken.getKairoBalance(userAddress.get())
     ).then(
       (_kairoBalance) ->
         kairoBalance.set(BigNumber(_kairoBalance))
         displayedKairoBalance.set(BigNumber(web3.util.fromWei(_kairoBalance, "ether")).toFormat(4))
+        return
     ).then(
       () ->
+        #Get Kairo's total supply
         return betoken.getKairoTotalSupply()
     ).then(
       (_kairoTotalSupply) ->
         kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
+        return
+    ).then(
+      () ->
+        #Get total funds
+        return betoken.getPrimitiveVar("totalFunds")
+    ).then(
+      (_totalFunds) ->
+        totalFunds.set(BigNumber(_totalFunds))
+        return
+    ).then(
+      () ->
+        #Get cycle phase
+        betoken.getPrimitiveVar("cyclePhase")
+    ).then(
+      (_result) ->
+        cyclePhase.set(+_result)
+        return
+    ).then(
+      () ->
+        #Get proposals
+        return betoken.getArray("proposals")
+    ).then(
+      (_proposals) ->
+        allPromises = []
+        for i in [0.._proposals.length - 1]
+          if _proposals[i].numFor > 0
+            allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
+              (_stake) ->
+                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.util.fromWei(totalFunds.get()))
+                proposal =
+                  id: i
+                  token_symbol: _proposals[i].tokenSymbol
+                  investment: investment.toFormat(4)
+                  supporters: _proposals[i].numFor
+                proposals.push(proposal)
+            ))
+        return Promise.all(allPromises)
+    ).then(
+      () ->
+        proposalList.set(proposals)
+        return
+    ).then(
+      () ->
+        #Filter out proposals the user supported
+        allPromises = []
+        for proposal in proposalList.get()
+          allPromises.push(betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
+            (_stake) ->
+              _stake = BigNumber(_stake)
+              if _stake.greaterThan(0)
+                proposal.user_stake = _stake
+                supportedProposals.push(proposal)
+          ))
+        return Promise.all(allPromises)
+    ).then(
+      () ->
+        supportedProposalList.set(supportedProposals)
+        return
     )
 )
 
 Template.phase_indicator.helpers(
   phase_active: (index) ->
-    isActive = new ReactiveVar("")
-    betoken.getPrimitiveVar("cyclePhase").then(
-      (_result) ->
-        cyclePhase.set(+_result)
-        if +_result == index
-          isActive.set("active")
-    )
-    return isActive.get()
+    if cyclePhase.get() == index
+      return "active"
+    return ""
 )
 
 Template.sidebar.helpers(
@@ -169,41 +231,19 @@ Template.transact_box.events(
       this.depositInputHasError.set(true)
 )
 
-Template.stats_tab.onCreated(
-  () ->
-    betoken.getPrimitiveVar("totalFunds").then(
-      (_totalFunds) ->
-        totalFunds.set(BigNumber(_totalFunds))
-    )
+Template.supported_props_box.helpers(
+  proposal_list: () ->
+    return supportedProposalList.get()
+)
+
+Template.supported_props_box.events(
+  "click .cancel_support_button": (event) ->
+    betoken.cancelSupport(this.id)
 )
 
 Template.proposals_tab.helpers(
   proposal_list: () ->
-    reactive_proposals = new ReactiveVar([])
-    proposals = []
-    betoken.getArray("proposals").then(
-      (_proposals) ->
-        #Get all proposals
-        allPromises = []
-        for i in [0.._proposals.length - 1]
-          if _proposals[i].numFor > 0
-            allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
-              (_stake) ->
-                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.util.fromWei(totalFunds.get()))
-                proposal =
-                  id: i
-                  token_symbol: _proposals[i].tokenSymbol
-                  investment: investment.toFormat(4)
-                  supporters: _proposals[i].numFor
-                proposals.push(proposal)
-            ))
-        return Promise.all(allPromises)
-    ).then(
-      () ->
-        reactive_proposals.set(proposals)
-        return
-    )
-    return reactive_proposals.get()
+    return proposalList.get()
 )
 
 Template.proposals_tab.events(
