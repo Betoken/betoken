@@ -318,7 +318,7 @@ contract GroupFund is Ownable {
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
-    uint256 _amountInWeis
+    uint256 _stakeInWeis
   )
     public
     during(CyclePhase.ProposalMaking)
@@ -346,12 +346,12 @@ contract GroupFund is Ownable {
 
     //Stake control tokens
     uint256 proposalId = proposals.length - 1;
-    supportProposal(proposalId, _amountInWeis);
+    supportProposal(proposalId, _stakeInWeis);
 
-    NewProposal(proposalId, _tokenAddress, _tokenSymbol, _amountInWeis);
+    NewProposal(proposalId, _tokenAddress, _tokenSymbol, _stakeInWeis);
   }
 
-  function supportProposal(uint256 _proposalId, uint256 _amountInWeis)
+  function supportProposal(uint256 _proposalId, uint256 _stakeInWeis)
     public
     during(CyclePhase.ProposalMaking)
     onlyParticipant
@@ -360,17 +360,17 @@ contract GroupFund is Ownable {
     require(proposals[_proposalId].numFor > 0); //Non-empty proposal
 
     //Stake control tokens
-    uint256 controlStake = _amountInWeis.mul(cToken.totalSupply()).div(totalFundsInWeis);
+
     //Ensure stake is larger than the minimum proportion of Kairo balance
-    require(controlStake.mul(tenToDecimals).div(cToken.balanceOf(msg.sender)) >= minStakeProportion);
+    require(_stakeInWeis.mul(tenToDecimals).div(cToken.balanceOf(msg.sender)) >= minStakeProportion);
     //Collect staked control tokens
-    cToken.ownerCollectFrom(msg.sender, controlStake);
+    cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
     //Update stake data
     proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
-    forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(controlStake);
-    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(controlStake);
+    forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
+    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
 
-    SupportedProposal(_proposalId, _amountInWeis);
+    SupportedProposal(_proposalId, _stakeInWeis);
   }
 
   function cancelProposalSupport(uint256 _proposalId)

@@ -111,6 +111,7 @@ export Betoken = (_address) ->
     funcName = null
     return self.getPrimitiveVar("cyclePhase").then(
       (_cyclePhase) ->
+        _cyclePhase = +_cyclePhase
         switch _cyclePhase
           when 0
             funcName = "endChangeMakingTime"
@@ -136,7 +137,7 @@ export Betoken = (_address) ->
 
   ###*
    * Allows user to deposit into the GroupFund
-   * @param  {Integer} _amountInWeis the deposit amount
+   * @param  {BigNumber} _amountInWeis the deposit amount
    * @return {Promise}               .then(()->)
   ###
   self.deposit = (_amountInWeis) ->
@@ -148,7 +149,7 @@ export Betoken = (_address) ->
 
   ###*
    * Allows user to withdraw from GroupFund balance
-   * @param  {Integer} _amountInWeis the withdrawl amount
+   * @param  {BigNumber} _amountInWeis the withdrawl amount
    * @return {Promise}               .then(()->)
   ###
   self.withdraw = (_amountInWeis) ->
@@ -165,25 +166,25 @@ export Betoken = (_address) ->
    * Creates proposal
    * @param  {String} _tokenAddress the token address
    * @param  {String} _tokenSymbol  the token symbol (ticker)
-   * @param  {Integer} _amountInWeis the investment amount
+   * @param  {BigNumber} _stakeInWeis the investment amount
    * @return {Promise}               .then(()->)
   ###
-  self.createProposal = (_tokenAddress, _tokenSymbol, _amountInWeis) ->
+  self.createProposal = (_tokenAddress, _tokenSymbol, _stakeInWeis) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _amountInWeis).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _stakeInWeis).send({from: web3.eth.defaultAccount})
     )
 
   ###*
    * Supports proposal
    * @param  {Integer} _proposalId   the proposal ID
-   * @param  {Integer} _amountInWeis the investment amount
+   * @param  {BigNumber} _stakeInWeis the investment amount
    * @return {Promise}               .then(()->)
   ###
-  self.supportProposal = (_proposalId, _amountInWeis) ->
+  self.supportProposal = (_proposalId, _stakeInWeis) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.supportProposal(_proposalId, _amountInWeis).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({from: web3.eth.defaultAccount})
     )
 
   ###*

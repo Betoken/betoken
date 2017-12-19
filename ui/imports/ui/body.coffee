@@ -3,6 +3,7 @@ import './body.css'
 import './tablesort.js'
 import { Betoken } from '../objects/betoken.js'
 import Chart from 'chart.js'
+import BigNumber from 'bignumber.js'
 
 #Import web3
 Web3 = require 'web3'
@@ -16,10 +17,11 @@ betoken_addr = ""
 betoken = new Betoken(betoken_addr)
 
 userAddress = new ReactiveVar("")
-kairoBalance = new ReactiveVar("")
-kairoTotalSupply = new ReactiveVar("")
-displayedKairoBalance = new ReactiveVar("")
+kairoBalance = new ReactiveVar(BigNumber(""))
+kairoTotalSupply = new ReactiveVar(BigNumber(""))
+displayedKairoBalance = new ReactiveVar(BigNumber(""))
 cyclePhase = new ReactiveVar(0)
+totalFunds = new ReactiveVar(BigNumber(""))
 
 $('document').ready(() ->
   $('.menu .item').tab()
@@ -78,14 +80,14 @@ Template.body.onCreated(
         return betoken.getKairoBalance(userAddress.get())
     ).then(
       (_kairoBalance) ->
-        kairoBalance.set(result)
-        displayedKairoBalance.set(web3.util.fromWei(result, "ether"))
+        kairoBalance.set(BigNumber(_kairoBalance))
+        displayedKairoBalance.set(BigNumber(web3.util.fromWei(_kairoBalance, "ether")).toFormat(4))
     ).then(
       () ->
         return betoken.getKairoTotalSupply()
     ).then(
       (_kairoTotalSupply) ->
-        kairoTotalSupply.set(_kairoTotalSupply)
+        kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
     )
 )
 
@@ -93,9 +95,9 @@ Template.phase_indicator.helpers(
   phase_active: (index) ->
     isActive = new ReactiveVar("")
     betoken.getPrimitiveVar("cyclePhase").then(
-      (result) ->
-        cyclePhase.set(result)
-        if result == index
+      (_result) ->
+        cyclePhase.set(+_result)
+        if +_result == index
           isActive.set("active")
     )
     return isActive.get()
@@ -109,7 +111,7 @@ Template.sidebar.helpers(
     balance = new ReactiveVar("")
     betoken.getMappingOrArrayItem("balanceOf", userAddress.get()).then(
       (result) ->
-        balance.set(web3.util.fromWei(result, "ether"))
+        balance.set(BigNumber(web3.util.fromWei(result, "ether")).toFormat(4))
     )
     return balance.get()
 
@@ -119,14 +121,12 @@ Template.sidebar.helpers(
 
 Template.sidebar.events(
   "click .kairo_unit_switch": (event) ->
-    if this.isOn
-      kairoBalanceInKRO = Number.parseFloat(web3.util.fromWei(kairoBalance.get(), "ether"))
-      kairoSupplyInKRO = Number.parseFloat(web3.util.fromWei(kairoTotalSupply.get(), "ether"))
-      displayedKairoBalance.set(kairoBalanceInKRO / kairoSupplyInKRO * 100)
-      this.isOn = false
+    if this.checked
+      #Display proportion
+      displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times(100).toFormat(4))
     else
-      displayedKairoBalance.set(web3.util.fromWei(kairoBalance.get(), "ether"))
-      this.isOn = true
+      #Display Kairo
+      displayedKairoBalance.set(BigNumber(web3.util.fromWei(kairoBalance.get(), "ether")).toFormat(4))
 )
 
 Template.transact_box.onCreated(
@@ -155,7 +155,7 @@ Template.transact_box.events(
   "click .deposit_button": (event) ->
     try
       this.depositInputHasError.set(false)
-      amount = web3.util.toWei(document.getElementById("deposit_input").value)
+      amount = BigNumber(web3.util.toWei(document.getElementById("deposit_input").value))
       betoken.deposit(amount)
     catch
       this.depositInputHasError.set(true)
@@ -163,10 +163,65 @@ Template.transact_box.events(
   "click .withdraw_button": (event) ->
     try
       this.withdrawInputHasError.set(false)
-      amount = web3.util.toWei(document.getElementById("deposit_input").value)
+      amount = BigNumber(web3.util.toWei(document.getElementById("deposit_input").value))
       betoken.withdraw(amount)
     catch
       this.depositInputHasError.set(true)
+)
+
+Template.stats_tab.onCreated(
+  () ->
+    betoken.getPrimitiveVar("totalFunds").then(
+      (_totalFunds) ->
+        totalFunds.set(BigNumber(_totalFunds))
+    )
+)
+
+Template.proposals_tab.helpers(
+  proposal_list: () ->
+    reactive_proposals = new ReactiveVar([])
+    proposals = []
+    betoken.getArray("proposals").then(
+      (_proposals) ->
+        #Get all proposals
+        allPromises = []
+        for i in [0.._proposals.length - 1]
+          if _proposals[i].numFor > 0
+            allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
+              (_stake) ->
+                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.util.fromWei(totalFunds.get()))
+                proposal =
+                  id: i
+                  token_symbol: _proposals[i].tokenSymbol
+                  investment: investment.toFormat(4)
+                  supporters: _proposals[i].numFor
+                proposals.push(proposal)
+            ))
+        return Promise.all(allPromises)
+    ).then(
+      () ->
+        reactive_proposals.set(proposals)
+        return
+    )
+    return reactive_proposals.get()
+)
+
+Template.proposals_tab.events(
+  "click .stake_button": (event) ->
+    try
+      kairoAmountInWeis = BigNumber(web3.util.toWei(document.getElementById("stake_input_" + this.id).value))
+      betoken.supportProposal(this.id, kairoAmountInWeis)
+    catch
+      #Todo:Display error message
+
+  "click .stake_button_new": (event) ->
+    try
+      address = document.getElementById("address_input_new").value
+      tickerSymbol = document.getElementById("ticker_input_new").value
+      kairoAmountInWeis = BigNumber(web3.util.toWei(document.getElementById("stake_input_new").value))
+      betoken.createProposal(address, tickerSymbol, kairoAmountInWeis)
+    catch
+      #Todo:Display error message
 )
 
 Template.members_tab.helpers(
@@ -187,7 +242,7 @@ Template.members_tab.helpers(
         for member in list
           allPromises.push(web3.eth.getBalance(member.address).then(
             (_eth_balance) ->
-              member.eth_balance = _eth_balance
+              member.eth_balance = BigNumber(web3.util.fromWei(_eth_balance, "ether")).toFormat(4)
               return
           ))
         return Promise.all(allPromises)
@@ -198,7 +253,7 @@ Template.members_tab.helpers(
         for member in list
           allPromises.push(betoken.getKairoBalance(member.address).then(
             (_kro_balance) ->
-              member.kro_balance = web3.util.fromWei(_kro_balance, "ether")
+              member.kro_balance = BigNumber(web3.util.fromWei(_kro_balance, "ether")).toFormat(4)
               return
           ))
         return Promise.all(allPromises)
@@ -206,9 +261,7 @@ Template.members_tab.helpers(
       () ->
         #Get member KRO proportions
         for member in list
-          kairoBalanceInKRO = Number.parseFloat(member.kro_balance)
-          kairoSupplyInKRO = Number.parseFloat(web3.util.fromWei(kairoTotalSupply.get(), "ether"))
-          member.kro_proportion = kairoBalanceInKRO / kairoSupplyInKRO * 100
+          member.kro_proportion = member.kro_balance.dividedBy(web3.util.fromWei(kairoTotalSupply.get(), "ether")).times(100).toPrecision(4)
         return
     ).then(
       () ->

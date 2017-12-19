@@ -125,6 +125,7 @@ export var Betoken = function(_address) {
     var funcName;
     funcName = null;
     return self.getPrimitiveVar("cyclePhase").then(function(_cyclePhase) {
+      _cyclePhase = +_cyclePhase;
       switch (_cyclePhase) {
         case 0:
           return funcName = "endChangeMakingTime";
@@ -150,7 +151,7 @@ export var Betoken = function(_address) {
   */
   /**
    * Allows user to deposit into the GroupFund
-   * @param  {Integer} _amountInWeis the deposit amount
+   * @param  {BigNumber} _amountInWeis the deposit amount
    * @return {Promise}               .then(()->)
    */
   self.deposit = function(_amountInWeis) {
@@ -167,7 +168,7 @@ export var Betoken = function(_address) {
   };
   /**
    * Allows user to withdraw from GroupFund balance
-   * @param  {Integer} _amountInWeis the withdrawl amount
+   * @param  {BigNumber} _amountInWeis the withdrawl amount
    * @return {Promise}               .then(()->)
    */
   self.withdraw = function(_amountInWeis) {
@@ -184,12 +185,12 @@ export var Betoken = function(_address) {
    * Creates proposal
    * @param  {String} _tokenAddress the token address
    * @param  {String} _tokenSymbol  the token symbol (ticker)
-   * @param  {Integer} _amountInWeis the investment amount
+   * @param  {BigNumber} _stakeInWeis the investment amount
    * @return {Promise}               .then(()->)
    */
-  self.createProposal = function(_tokenAddress, _tokenSymbol, _amountInWeis) {
+  self.createProposal = function(_tokenAddress, _tokenSymbol, _stakeInWeis) {
     return getDefaultAccount().then(function() {
-      return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _amountInWeis).send({
+      return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _stakeInWeis).send({
         from: web3.eth.defaultAccount
       });
     });
@@ -197,12 +198,12 @@ export var Betoken = function(_address) {
   /**
    * Supports proposal
    * @param  {Integer} _proposalId   the proposal ID
-   * @param  {Integer} _amountInWeis the investment amount
+   * @param  {BigNumber} _stakeInWeis the investment amount
    * @return {Promise}               .then(()->)
    */
-  self.supportProposal = function(_proposalId, _amountInWeis) {
+  self.supportProposal = function(_proposalId, _stakeInWeis) {
     return getDefaultAccount().then(function() {
-      return self.contracts.groupFund.methods.supportProposal(_proposalId, _amountInWeis).send({
+      return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({
         from: web3.eth.defaultAccount
       });
     });
