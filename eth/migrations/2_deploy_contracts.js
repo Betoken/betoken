@@ -8,11 +8,11 @@ module.exports = function(deployer, network, accounts) {
     GroupFund,
     etherDeltaAddress, //Ethdelta address
     accounts[0], //developerFeeAccount
-    18, //decimals
+    Math.pow(10, 18), //tenToDecimals
     1800,//30 * 24 * 3600, //timeOfCycle
     600,//2 * 24 * 3600, //timeOfChangeMaking
     600,//2 * 24 * 3600, //timeOfProposalMaking
-    0.01 * Math.pow(10, 18), //againstStakeProportion
+    0.01 * Math.pow(10, 18), //minStakeProportion
     20, //maxProposals
     0.01 * Math.pow(10, 18), //commissionRate
     30,//3600 / 20, //orderExpirationTimeInBlocks

@@ -506,37 +506,37 @@ contract GroupFund is Ownable {
   //Internal use functions
 
   function __sellOrderFinished(uint256 _proposalId) internal returns(bool) {
-    Proposal storage prop = proposals[proposalId];
+    Proposal storage prop = proposals[_proposalId];
     uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
     uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
-    uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0);
+    uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0);
 
     return amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum;
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
-  function __settleBets(uint256 proposalId) internal {
+  function __settleBets(uint256 _proposalId) internal {
     //Settle bets
-    Proposal prop = proposals[proposalId];
+    Proposal storage prop = proposals[_proposalId];
     uint256 tokenReward;
     uint256 stake;
     uint256 j;
     address participant;
-    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[proposalId]).div(cToken.totalSupply());
-    if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, proposalId, address(this), 0, 0, 0) != 0) {
+    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cToken.totalSupply());
+    if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceInWeis > prop.buyPriceInWeis) {
         //For wins
-        tokenReward = forStakedControlOfProposal[proposalId].div(prop.numFor);
+        tokenReward = forStakedControlOfProposal[_proposalId].div(prop.numFor);
         for (j = 0; j < participants.length; j = j.add(1)) {
           participant = participants[j];
-          stake = forStakedControlOfProposalOfUser[proposalId][participant];
+          stake = forStakedControlOfProposalOfUser[_proposalId][participant];
           if (stake > 0) {
             //Give control tokens
             cToken.transfer(participant, stake.add(tokenReward));
             //Won bet
             PredictionResult(participant, true);
           } else {
-            if (againstStakedControlOfProposalOfUser[proposalId][participant] > 0) {
+            if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
               //Lost bet
               PredictionResult(participant, false);
             }
@@ -545,17 +545,17 @@ contract GroupFund is Ownable {
       } else {
         //Against wins
         if (prop.numAgainst > 0) {
-          tokenReward = forStakedControlOfProposal[proposalId].div(prop.numAgainst);
+          tokenReward = forStakedControlOfProposal[_proposalId].div(prop.numAgainst);
           for (j = 0; j < participants.length; j = j.add(1)) {
             participant = participants[j];
-            stake = againstStakedControlOfProposalOfUser[proposalId][participant];
+            stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
             if (stake > 0) {
               //Give control tokens
               cToken.transfer(participant, stake.add(tokenReward));
               //Won bet
               PredictionResult(participant, true);
             } else {
-              if (forStakedControlOfProposalOfUser[proposalId][participant] > 0) {
+              if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
                 //Lost bet
                 PredictionResult(participant, false);
               }
@@ -563,12 +563,12 @@ contract GroupFund is Ownable {
           }
         } else {
           //Everyone f'ed up somehow. No point in punishing. Return stakes.
-          __returnStakes(proposalId);
+          __returnStakes(_proposalId);
         }
       }
     } else {
       //Buy order failed completely. Give back stakes.
-      __returnStakes(proposalId);
+      __returnStakes(_proposalId);
     }
     //Burn any Kairo left in GroupFund's account
     cToken.burnOwnerBalance();
