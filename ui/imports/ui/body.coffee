@@ -13,7 +13,7 @@ if typeof web3 != undefined
 else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
-betoken_addr = "0x345ca3e014aaf5dca488057592ee47305d9b3e10"
+betoken_addr = "0x122851366d44fb3f60b538f88c7ac8845a0cab12"
 betoken = new Betoken(betoken_addr)
 
 userAddress = new ReactiveVar("")
@@ -39,7 +39,7 @@ $('document').ready(() ->
   $('.menu .item').tab()
   $('table').tablesort()
 
-  ctx = document.getElementById("myChart");
+  ctx = $("#myChart");
   myChart = new Chart(ctx,
     type: 'line',
     data:
@@ -96,7 +96,8 @@ Template.body.onCreated(
         return betoken.getMappingOrArrayItem("balanceOf", userAddress.get())
     ).then(
       (_balance) ->
-        userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(4))
+        #Get user Ether deposit balance
+        userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18))
     ).then(
       () ->
         #Get user's Kairo balance
@@ -104,7 +105,7 @@ Template.body.onCreated(
     ).then(
       (_kairoBalance) ->
         kairoBalance.set(BigNumber(_kairoBalance))
-        displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(4))
+        displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
         return
     ).then(
       () ->
@@ -125,7 +126,7 @@ Template.body.onCreated(
     ).then(
       () ->
         #Get cycle phase
-        betoken.getPrimitiveVar("cyclePhase")
+        return betoken.getPrimitiveVar("cyclePhase")
     ).then(
       (_result) ->
         cyclePhase.set(+_result)
@@ -197,10 +198,10 @@ Template.sidebar.events(
   "click .kairo_unit_switch": (event) ->
     if this.checked
       #Display proportion
-      displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times("100").toFormat("4"))
+      displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times("100").toFormat("18"))
     else
       #Display Kairo
-      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get(), "ether")).toFormat("4"))
+      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get(), "ether")).toFormat("18"))
 )
 
 Template.transact_box.onCreated(
@@ -229,7 +230,7 @@ Template.transact_box.events(
   "click .deposit_button": (event) ->
     try
       Template.instance().depositInputHasError.set(false)
-      amount = BigNumber(web3.utils.toWei(document.getElementById("deposit_input").value))
+      amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
       betoken.deposit(amount)
     catch
       Template.instance().depositInputHasError.set(true)
@@ -237,7 +238,7 @@ Template.transact_box.events(
   "click .withdraw_button": (event) ->
     try
       Template.instance().withdrawInputHasError.set(false)
-      amount = BigNumber(web3.utils.toWei(document.getElementById("withdraw_input").value))
+      amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
       console.log(amount)
       betoken.withdraw(amount)
     catch
@@ -247,6 +248,11 @@ Template.transact_box.events(
 Template.supported_props_box.helpers(
   proposal_list: () ->
     return supportedProposalList.get()
+
+  is_disabled: () ->
+    if cyclePhase.get() != 1
+      return "disabled"
+    return ""
 )
 
 Template.supported_props_box.events(
@@ -257,24 +263,32 @@ Template.supported_props_box.events(
 Template.proposals_tab.helpers(
   proposal_list: () ->
     return proposalList.get()
+
+  is_disabled: () ->
+    if cyclePhase.get() != 1
+      return "disabled"
+    return ""
 )
 
 Template.proposals_tab.events(
   "click .stake_button": (event) ->
     try
-      kairoAmountInWeis = BigNumber(web3.utils.toWei(document.getElementById("stake_input_" + this.id).value))
+      kairoAmountInWeis = BigNumber(web3.utils.toWei($("#stake_input_" + this.id)[0].value))
       betoken.supportProposal(this.id, kairoAmountInWeis)
     catch
       #Todo:Display error message
 
-  "click .stake_button_new": (event) ->
-    try
-      address = document.getElementById("address_input_new").value
-      tickerSymbol = document.getElementById("ticker_input_new").value
-      kairoAmountInWeis = BigNumber(web3.utils.toWei(document.getElementById("stake_input_new").value))
-      betoken.createProposal(address, tickerSymbol, kairoAmountInWeis)
-    catch
-      #Todo:Display error message
+  "click .new_proposal": (event) ->
+    $('.ui.basic.modal.new_proposal_modal').modal(
+      onApprove: (e) ->
+        try
+          address = $("#address_input_new")[0].value
+          tickerSymbol = $("#ticker_input_new")[0].value
+          kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
+          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis)
+        catch error
+          #Todo:Display error message
+    ).modal('show')
 )
 
 Template.members_tab.helpers(

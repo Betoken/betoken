@@ -26,7 +26,7 @@ if (typeof web3 !== void 0) {
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
 }
 
-betoken_addr = "0x345ca3e014aaf5dca488057592ee47305d9b3e10";
+betoken_addr = "0x122851366d44fb3f60b538f88c7ac8845a0cab12";
 
 betoken = new Betoken(betoken_addr);
 
@@ -60,7 +60,7 @@ $('document').ready(function() {
   var ctx, myChart;
   $('.menu .item').tab();
   $('table').tablesort();
-  ctx = document.getElementById("myChart");
+  ctx = $("#myChart");
   return myChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -129,6 +129,7 @@ Template.body.onCreated(function() {
   }).then(function() {
     return betoken.getMappingOrArrayItem("balanceOf", userAddress.get());
   }).then(function(_balance) {
+    //Get user Ether deposit balance
     return userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(4));
   }).then(function() {
     //Get user's Kairo balance
@@ -262,9 +263,9 @@ Template.transact_box.events({
     var amount;
     try {
       Template.instance().depositInputHasError.set(false);
-      amount = BigNumber(web3.utils.toWei(document.getElementById("deposit_input").value));
+      amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value));
       return betoken.deposit(amount);
-    } catch (error) {
+    } catch (error1) {
       return Template.instance().depositInputHasError.set(true);
     }
   },
@@ -272,10 +273,10 @@ Template.transact_box.events({
     var amount;
     try {
       Template.instance().withdrawInputHasError.set(false);
-      amount = BigNumber(web3.utils.toWei(document.getElementById("withdraw_input").value));
+      amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value));
       console.log(amount);
       return betoken.withdraw(amount);
-    } catch (error) {
+    } catch (error1) {
       return Template.instance().withdrawInputHasError.set(true);
     }
   }
@@ -284,6 +285,12 @@ Template.transact_box.events({
 Template.supported_props_box.helpers({
   proposal_list: function() {
     return supportedProposalList.get();
+  },
+  is_disabled: function() {
+    if (cyclePhase.get() !== 1) {
+      return "disabled";
+    }
+    return "";
   }
 });
 
@@ -296,6 +303,12 @@ Template.supported_props_box.events({
 Template.proposals_tab.helpers({
   proposal_list: function() {
     return proposalList.get();
+  },
+  is_disabled: function() {
+    if (cyclePhase.get() !== 1) {
+      return "disabled";
+    }
+    return "";
   }
 });
 
@@ -303,27 +316,31 @@ Template.proposals_tab.events({
   "click .stake_button": function(event) {
     var kairoAmountInWeis;
     try {
-      kairoAmountInWeis = BigNumber(web3.utils.toWei(document.getElementById("stake_input_" + this.id).value));
+      kairoAmountInWeis = BigNumber(web3.utils.toWei($("#stake_input_" + this.id)[0].value));
       return betoken.supportProposal(this.id, kairoAmountInWeis);
-    } catch (error) {
+    } catch (error1) {
 
     }
   },
   //Todo:Display error message
-  "click .stake_button_new": function(event) {
-    var address, kairoAmountInWeis, tickerSymbol;
-    try {
-      address = document.getElementById("address_input_new").value;
-      tickerSymbol = document.getElementById("ticker_input_new").value;
-      kairoAmountInWeis = BigNumber(web3.utils.toWei(document.getElementById("stake_input_new").value));
-      return betoken.createProposal(address, tickerSymbol, kairoAmountInWeis);
-    } catch (error) {
-
-    }
+  "click .new_proposal": function(event) {
+    return $('.ui.basic.modal.new_proposal_modal').modal({
+      onApprove: function(e) {
+        var address, error, kairoAmountInWeis, tickerSymbol;
+        try {
+          address = $("#address_input_new")[0].value;
+          tickerSymbol = $("#ticker_input_new")[0].value;
+          kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18");
+          return betoken.createProposal(address, tickerSymbol, kairoAmountInWeis);
+        } catch (error1) {
+          error = error1;
+        }
+      }
+    //Todo:Display error message
+    }).modal('show');
   }
 });
 
-//Todo:Display error message
 Template.members_tab.helpers({
   member_list: function() {
     var list, reactive_list;

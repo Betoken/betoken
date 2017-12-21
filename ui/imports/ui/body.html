@@ -160,9 +160,6 @@
           <div class="value">
             {{user_kairo_balance}}
           </div>
-          <div class="label">
-            KRO
-          </div>
         </div>
 
         <div class="ui slider checkbox" style="float: right; margin-top: 4%;">
@@ -285,7 +282,7 @@
           <td>{{token_symbol}}</td>
           <td>{{user_stake}}</td>
           <td>
-            <button class="cancel_support_button ui icon button">
+            <button class="cancel_support_button ui icon button {{is_disabled}}">
               <i class="remove icon" style="text-align: center;"></i>
             </button>
           </td>
@@ -374,25 +371,8 @@
 <template name="proposals_tab">
   <div class="ui menu">
     <div class="item">
-      <div class="ui floating icon dropdown button">
+      <div class="ui button new_proposal {{is_disabled}}">
         New Proposal
-        <div class="menu">
-          <div class="header">
-            Propose to invest in an ERC20 token
-          </div>
-          <div class="ui left input">
-            <input id="address_input_new"  placeholder="Contract address of the token you propose to invest in..." type="text">
-          </div>
-          <div class="ui left input">
-            <input id="ticker_input_new"  placeholder="Ticker of the token you propose to invest in...(ex. BAT)" type="text">
-          </div>
-          <div class="ui left input">
-            <input id="stake_input_new"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
-          </div>
-          <div class="stake_button_new item">
-            Propose
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -434,25 +414,59 @@
           <td>{{investment}}</td>
           <td>{{supporters}}</td>
           <td>
-            <div class="ui floating icon dropdown button">
+            <div class="ui floating icon button {{is_disabled}}">
               <i class="thumbs outline up icon"></i>
-              <div class="menu">
-                <div class="header">
-                  Support Proposal
-                </div>
-                <div class="ui left input">
-                  <input id="stake_input_{{id}}"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
-                </div>
-                <div class="stake_button item">
-                  Stake
-                </div>
-              </div>
             </div>
           </td>
         </tr>
+        <!--Support Proposal Modal-->
+        <div class="ui basic modal support_proposal_modal">
+          <div class="ui icon header">
+            <i class="line chart icon"></i>
+            Support an investment proposal
+          </div>
+          <div class="content">
+            <div class="ui left fluid inverted transparent input">
+              <input id="stake_input_new"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
+            </div>
+          </div>
+          <div class="actions">
+            <div class="ui green ok inverted button fluid stake_button_new">
+              <i class="checkmark icon"></i>
+              Support
+            </div>
+          </div>
+        </div>
       {{/each}}
     </tbody>
   </table>
+
+  <!--New Proposal Modal-->
+  <div class="ui basic modal new_proposal_modal">
+    <div class="ui icon header">
+      <i class="line chart icon"></i>
+      Propose an ERC20 token you want the fund to invest in
+    </div>
+    <div class="content">
+      <div class="ui left fluid inverted transparent input">
+        <input id="address_input_new"  placeholder="Contract address of the token you propose to invest in..." type="text">
+      </div>
+      <div class="ui divider"></div>
+      <div class="ui left fluid inverted transparent input">
+        <input id="ticker_input_new"  placeholder="Ticker of the token you propose to invest in...(ex. BAT)" type="text">
+      </div>
+      <div class="ui divider"></div>
+      <div class="ui left fluid inverted transparent input">
+        <input id="stake_input_new"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
+      </div>
+    </div>
+    <div class="actions">
+      <div class="ui green ok inverted button fluid stake_button_new">
+        <i class="checkmark icon"></i>
+        Propose
+      </div>
+    </div>
+  </div>
 </template>
 
 <template name="members_tab">
