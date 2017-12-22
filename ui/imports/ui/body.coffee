@@ -13,8 +13,8 @@ if typeof web3 != undefined
 else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
-betoken_addr = "0x122851366d44fb3f60b538f88c7ac8845a0cab12"
-betoken = new Betoken(betoken_addr)
+betoken_addr = new ReactiveVar("0x122851366d44fb3f60b538f88c7ac8845a0cab12")
+betoken = new Betoken(betoken_addr.get())
 
 #Session data
 userAddress = new ReactiveVar("")
@@ -29,9 +29,11 @@ timeOfProposalMaking = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber("0"))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
+memberList = new ReactiveVar([])
 
 #Displayed variables
 displayedKairoBalance = new ReactiveVar(BigNumber("0"))
+displayedKairoUnit = new ReactiveVar("KRO")
 countdownDay = new ReactiveVar(0)
 countdownHour = new ReactiveVar(0)
 countdownMin = new ReactiveVar(0)
@@ -127,6 +129,7 @@ clock = () ->
 loadFundData = () ->
   proposals = []
   supportedProposals = []
+  members = []
   getCurrentAccount().then(
     (_userAddress) ->
       #Initialize user address
@@ -234,6 +237,50 @@ loadFundData = () ->
     () ->
       supportedProposalList.set(supportedProposals)
       return
+  ).then(
+    () ->
+      betoken.getArray("participants").then(
+        (_array) ->
+          #Get member addresses
+          members = new Array(_array.length)
+          if _array.length > 0
+            for i in [0.._array.length - 1]
+              members[i] = new Object()
+              members[i].address = _array[i]
+          return
+      ).then(
+        () ->
+          #Get member ETH balances
+          allPromises = []
+          for member in members
+            allPromises.push(betoken.getMappingOrArrayItem("balanceOf", member.address).then(
+              (_eth_balance) ->
+                member.eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
+                return
+            ))
+          return Promise.all(allPromises)
+      ).then(
+        () ->
+          #Get member KRO balances
+          allPromises = []
+          for member in members
+            allPromises.push(betoken.getKairoBalance(member.address).then(
+              (_kro_balance) ->
+                member.kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
+                return
+            ))
+          return Promise.all(allPromises)
+      ).then(
+        () ->
+          #Get member KRO proportions
+          for member in members
+            member.kro_proportion = BigNumber(member.kro_balance).dividedBy(web3.utils.fromWei(kairoTotalSupply.get().toString())).times(100).toPrecision(4)
+          return
+      ).then(
+        () ->
+          #Update reactive_list
+          memberList.set(members)
+      )
   )
 
 Template.body.onCreated(loadFundData)
@@ -244,10 +291,7 @@ Template.top_bar.helpers(
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
-    betoken.endPhase().then(
-      () ->
-        loadFundData()
-    )
+    betoken.endPhase().then(loadFundData)
 )
 
 Template.countdown_timer.helpers(
@@ -265,24 +309,25 @@ Template.phase_indicator.helpers(
 )
 
 Template.sidebar.helpers(
-  user_address: () ->
-    return userAddress.get()
+  user_address: () -> userAddress.get()
 
-  user_balance: () ->
-    return userBalance.get()
+  user_balance: () -> userBalance.get()
 
-  user_kairo_balance: () ->
-    return displayedKairoBalance.get()
+  user_kairo_balance: () -> displayedKairoBalance.get()
+
+  kairo_unit: () -> displayedKairoUnit.get()
 )
 
 Template.sidebar.events(
   "click .kairo_unit_switch": (event) ->
-    if this.checked
+    if event.target.checked
       #Display proportion
       displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times("100").toFormat(18))
+      displayedKairoUnit.set("%")
     else
       #Display Kairo
-      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get(), "ether")).toFormat(18))
+      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get().toString(), "ether")).toFormat(18))
+      displayedKairoUnit.set("KRO")
 )
 
 Template.transact_box.onCreated(
@@ -312,7 +357,7 @@ Template.transact_box.events(
     try
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
-      betoken.deposit(amount)
+      betoken.deposit(amount).then(loadFundData)
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -320,15 +365,13 @@ Template.transact_box.events(
     try
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
-      console.log(amount)
-      betoken.withdraw(amount)
+      betoken.withdraw(amount).then(loadFundData)
     catch
       Template.instance().withdrawInputHasError.set(true)
 )
 
 Template.supported_props_box.helpers(
-  proposal_list: () ->
-    return supportedProposalList.get()
+  proposal_list: () -> supportedProposalList.get()
 
   is_disabled: () ->
     if cyclePhase.get() != 1
@@ -338,12 +381,11 @@ Template.supported_props_box.helpers(
 
 Template.supported_props_box.events(
   "click .cancel_support_button": (event) ->
-    betoken.cancelSupport(this.id)
+    betoken.cancelSupport(this.id).then(loadFundData)
 )
 
 Template.proposals_tab.helpers(
-  proposal_list: () ->
-    return proposalList.get()
+  proposal_list: () -> proposalList.get()
 
   is_disabled: () ->
     if cyclePhase.get() != 1
@@ -357,7 +399,7 @@ Template.proposals_tab.events(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + this.id)[0].value).times("1e18")
-          betoken.supportProposal(this.id, kairoAmountInWeis)
+          betoken.supportProposal(this.id, kairoAmountInWeis).then(loadFundData)
         catch error
           #Todo:Display error message
     ).modal('show')
@@ -369,56 +411,12 @@ Template.proposals_tab.events(
           address = $("#address_input_new")[0].value
           tickerSymbol = $("#ticker_input_new")[0].value
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
-          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis)
+          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(loadFundData)
         catch error
           #Todo:Display error message
     ).modal('show')
 )
 
 Template.members_tab.helpers(
-  member_list: () ->
-    reactive_list = new ReactiveVar([])
-    list = []
-    betoken.getArray("participants").then(
-      (_array) ->
-        #Get member addresses
-        list = new Array(_array.length)
-        if _array.length > 0
-          for i in [0.._array.length - 1]
-            list[i].address = _array[i]
-        return
-    ).then(
-      () ->
-        #Get member ETH balances
-        allPromises = []
-        for member in list
-          allPromises.push(web3.eth.getBalance(member.address).then(
-            (_eth_balance) ->
-              member.eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
-              return
-          ))
-        return Promise.all(allPromises)
-    ).then(
-      () ->
-        #Get member KRO balances
-        allPromises = []
-        for member in list
-          allPromises.push(betoken.getKairoBalance(member.address).then(
-            (_kro_balance) ->
-              member.kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
-              return
-          ))
-        return Promise.all(allPromises)
-    ).then(
-      () ->
-        #Get member KRO proportions
-        for member in list
-          member.kro_proportion = member.kro_balance.dividedBy(web3.utils.fromWei(kairoTotalSupply.get(), "ether")).times(100).toPrecision(4)
-        return
-    ).then(
-      () ->
-        #Update reactive_list
-        reactive_list.set(list)
-    )
-    return reactive_list.get()
+  member_list: () -> memberList.get()
 )
