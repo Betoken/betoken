@@ -44,41 +44,13 @@
     </div>
 
     <div class="item">
-      <h3>Phase Change In&nbsp;&nbsp;&nbsp;&nbsp;</h3>
-      <div class="ui mini statistics">
-        <div class="ui statistic">
-          <div class="value">
-            22
-          </div>
-          <div class="label">
-            Days
-          </div>
-        </div>
-        <div class="ui statistic">
-          <div class="value">
-            15
-          </div>
-          <div class="label">
-            Hours
-          </div>
-        </div>
-        <div class="ui statistic">
-          <div class="value">
-            53
-          </div>
-          <div class="label">
-            Minutes
-          </div>
-        </div>
-        <div class="ui statistic">
-          <div class="value">
-            36
-          </div>
-          <div class="label">
-            Seconds
-          </div>
-        </div>
-      </div>
+      {{#if show_countdown}}
+        {{> countdown_timer}}
+      {{else}}
+        <button class="ui button next_phase">
+          Next Phase
+        </button>
+      {{/if}}
     </div>
 
     <div class="item">
@@ -93,7 +65,44 @@
       </div>
     </div>
   </div>
+</template>
 
+<template name="countdown_timer">
+  <h3>Phase Change In&nbsp;&nbsp;&nbsp;&nbsp;</h3>
+  <div class="ui mini statistics">
+    <div class="ui statistic">
+      <div class="value">
+        {{day}}
+      </div>
+      <div class="label">
+        Days
+      </div>
+    </div>
+    <div class="ui statistic">
+      <div class="value">
+        {{hour}}
+      </div>
+      <div class="label">
+        Hours
+      </div>
+    </div>
+    <div class="ui statistic">
+      <div class="value">
+        {{minute}}
+      </div>
+      <div class="label">
+        Minutes
+      </div>
+    </div>
+    <div class="ui statistic">
+      <div class="value">
+        {{second}}
+      </div>
+      <div class="label">
+        Seconds
+      </div>
+    </div>
+  </div>
 </template>
 
 <template name="phase_indicator">
@@ -414,24 +423,24 @@
           <td>{{investment}}</td>
           <td>{{supporters}}</td>
           <td>
-            <div class="ui floating icon button {{is_disabled}}">
+            <div class="ui floating icon button {{is_disabled}} support_proposal">
               <i class="thumbs outline up icon"></i>
             </div>
           </td>
         </tr>
         <!--Support Proposal Modal-->
-        <div class="ui basic modal support_proposal_modal">
+        <div class="ui basic modal support_proposal_modal_{{id}}">
           <div class="ui icon header">
             <i class="line chart icon"></i>
             Support an investment proposal
           </div>
           <div class="content">
             <div class="ui left fluid inverted transparent input">
-              <input id="stake_input_new"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
+              <input id="stake_input_{{id}}"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
             </div>
           </div>
           <div class="actions">
-            <div class="ui green ok inverted button fluid stake_button_new">
+            <div class="ui green ok inverted button fluid">
               <i class="checkmark icon"></i>
               Support
             </div>

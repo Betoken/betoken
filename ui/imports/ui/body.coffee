@@ -16,15 +16,27 @@ else
 betoken_addr = "0x122851366d44fb3f60b538f88c7ac8845a0cab12"
 betoken = new Betoken(betoken_addr)
 
+#Session data
 userAddress = new ReactiveVar("")
 userBalance = new ReactiveVar(BigNumber("0"))
 kairoBalance = new ReactiveVar(BigNumber("0"))
 kairoTotalSupply = new ReactiveVar(BigNumber("0"))
-displayedKairoBalance = new ReactiveVar(BigNumber("0"))
 cyclePhase = new ReactiveVar(0)
+startTimeOfCycle = new ReactiveVar(0)
+timeOfCycle = new ReactiveVar(0)
+timeOfChangeMaking = new ReactiveVar(0)
+timeOfProposalMaking = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber("0"))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
+
+#Displayed variables
+displayedKairoBalance = new ReactiveVar(BigNumber("0"))
+countdownDay = new ReactiveVar(0)
+countdownHour = new ReactiveVar(0)
+countdownMin = new ReactiveVar(0)
+countdownSec = new ReactiveVar(0)
+showCountdown = new ReactiveVar(true)
 
 getCurrentAccount = () ->
   return web3.eth.getAccounts().then(
@@ -38,6 +50,7 @@ getCurrentAccount = () ->
 $('document').ready(() ->
   $('.menu .item').tab()
   $('table').tablesort()
+  clock()
 
   ctx = $("#myChart");
   myChart = new Chart(ctx,
@@ -82,98 +95,166 @@ $('document').ready(() ->
   )
 )
 
-Template.body.onCreated(
-  () ->
-    proposals = []
-    supportedProposals = []
-    getCurrentAccount().then(
-      (_userAddress) ->
-        #Initialize user address
-        userAddress.set(_userAddress)
-        return
-    ).then(
+clock = () ->
+  setInterval(
+    () ->
+      now = Math.floor(new Date().getTime() / 1000)
+      target = 0
+      switch cyclePhase.get()
+        when 0
+          target = startTimeOfCycle.get() + timeOfChangeMaking.get()
+        when 1
+          target = startTimeOfCycle.get() + timeOfChangeMaking.get() + timeOfProposalMaking.get()
+        when 2
+          target = startTimeOfCycle.get() + timeOfCycle.get()
+      distance = target - now
+
+      if distance > 0
+        showCountdown.set(true)
+        days = Math.floor(distance / (60 * 60 * 24))
+        hours = Math.floor((distance % (60 * 60 * 24)) / (60 * 60))
+        minutes = Math.floor((distance % (60 * 60)) / 60)
+        seconds = Math.floor(distance % 60)
+
+        countdownDay.set(days)
+        countdownHour.set(hours)
+        countdownMin.set(minutes)
+        countdownSec.set(seconds)
+      else
+        showCountdown.set(false)
+  , 1000)
+
+loadFundData = () ->
+  proposals = []
+  supportedProposals = []
+  getCurrentAccount().then(
+    (_userAddress) ->
+      #Initialize user address
+      userAddress.set(_userAddress)
+      return
+  ).then(
+    () ->
+      return betoken.getMappingOrArrayItem("balanceOf", userAddress.get())
+  ).then(
+    (_balance) ->
+      #Get user Ether deposit balance
+      userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18))
+  ).then(
+    () ->
+      #Get user's Kairo balance
+      return betoken.getKairoBalance(userAddress.get())
+  ).then(
+    (_kairoBalance) ->
+      kairoBalance.set(BigNumber(_kairoBalance))
+      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
+      return
+  ).then(
+    () ->
+      #Get Kairo's total supply
+      return betoken.getKairoTotalSupply()
+  ).then(
+    (_kairoTotalSupply) ->
+      kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
+      return
+  ).then(
+    () ->
+      #Get total funds
+      return betoken.getPrimitiveVar("totalFundsInWeis").then(
+        (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
+      )
+  ).then(
+    () ->
+      #Get cycle phase
+      return betoken.getPrimitiveVar("cyclePhase").then(
+        (_cyclePhase) -> cyclePhase.set(+_cyclePhase)
+      )
+  ).then(
+    () ->
+      #Get startTimeOfCycle
+      return betoken.getPrimitiveVar("startTimeOfCycle").then(
+        (_startTime) -> startTimeOfCycle.set(+_startTime)
+      )
+  ).then(
+    () ->
+      #Get timeOfCycle
+      return betoken.getPrimitiveVar("timeOfCycle").then(
+        (_time) -> timeOfCycle.set(+_time)
+      )
+  ).then(
+    () ->
+      #Get timeOfChangeMaking
+      return betoken.getPrimitiveVar("timeOfChangeMaking").then(
+        (_time) -> timeOfChangeMaking.set(+_time)
+      )
+  ).then(
+    () ->
+      #Get timeOfProposalMaking
+      return betoken.getPrimitiveVar("timeOfProposalMaking").then(
+        (_time) -> timeOfProposalMaking.set(+_time)
+      )
+  ).then(
+    () ->
+      #Get proposals
+      return betoken.getArray("proposals")
+  ).then(
+    (_proposals) ->
+      allPromises = []
+      if _proposals.length > 0
+        for i in [0.._proposals.length - 1]
+          if _proposals[i].numFor > 0
+            allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
+              (_stake) ->
+                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get()))
+                proposal =
+                  id: i
+                  token_symbol: _proposals[i].tokenSymbol
+                  investment: investment.toFormat(4)
+                  supporters: _proposals[i].numFor
+                proposals.push(proposal)
+            ))
+      return Promise.all(allPromises)
+  ).then(
+    () ->
+      proposalList.set(proposals)
+      return
+  ).then(
+    () ->
+      #Filter out proposals the user supported
+      allPromises = []
+      for proposal in proposalList.get()
+        allPromises.push(betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
+          (_stake) ->
+            _stake = BigNumber(_stake)
+            if _stake.greaterThan(0)
+              proposal.user_stake = _stake
+              supportedProposals.push(proposal)
+        ))
+      return Promise.all(allPromises)
+  ).then(
+    () ->
+      supportedProposalList.set(supportedProposals)
+      return
+  )
+
+Template.body.onCreated(loadFundData)
+
+Template.top_bar.helpers(
+  show_countdown: () -> showCountdown.get()
+)
+
+Template.top_bar.events(
+  "click .next_phase": (event) ->
+    betoken.endPhase().then(
       () ->
-        return betoken.getMappingOrArrayItem("balanceOf", userAddress.get())
-    ).then(
-      (_balance) ->
-        #Get user Ether deposit balance
-        userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18))
-    ).then(
-      () ->
-        #Get user's Kairo balance
-        return betoken.getKairoBalance(userAddress.get())
-    ).then(
-      (_kairoBalance) ->
-        kairoBalance.set(BigNumber(_kairoBalance))
-        displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
-        return
-    ).then(
-      () ->
-        #Get Kairo's total supply
-        return betoken.getKairoTotalSupply()
-    ).then(
-      (_kairoTotalSupply) ->
-        kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
-        return
-    ).then(
-      () ->
-        #Get total funds
-        return betoken.getPrimitiveVar("totalFundsInWeis")
-    ).then(
-      (_totalFunds) ->
-        totalFunds.set(BigNumber(_totalFunds))
-        return
-    ).then(
-      () ->
-        #Get cycle phase
-        return betoken.getPrimitiveVar("cyclePhase")
-    ).then(
-      (_result) ->
-        cyclePhase.set(+_result)
-        return
-    ).then(
-      () ->
-        #Get proposals
-        return betoken.getArray("proposals")
-    ).then(
-      (_proposals) ->
-        allPromises = []
-        if _proposals.length > 0
-          for i in [0.._proposals.length - 1]
-            if _proposals[i].numFor > 0
-              allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
-                (_stake) ->
-                  investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get()))
-                  proposal =
-                    id: i
-                    token_symbol: _proposals[i].tokenSymbol
-                    investment: investment.toFormat(4)
-                    supporters: _proposals[i].numFor
-                  proposals.push(proposal)
-              ))
-        return Promise.all(allPromises)
-    ).then(
-      () ->
-        proposalList.set(proposals)
-        return
-    ).then(
-      () ->
-        #Filter out proposals the user supported
-        allPromises = []
-        for proposal in proposalList.get()
-          allPromises.push(betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
-            (_stake) ->
-              _stake = BigNumber(_stake)
-              if _stake.greaterThan(0)
-                proposal.user_stake = _stake
-                supportedProposals.push(proposal)
-          ))
-        return Promise.all(allPromises)
-    ).then(
-      () ->
-        supportedProposalList.set(supportedProposals)
-        return
+        loadFundData()
     )
+)
+
+Template.countdown_timer.helpers(
+  day: () -> countdownDay.get()
+  hour: () -> countdownHour.get()
+  minute: () -> countdownMin.get()
+  second: () -> countdownSec.get()
 )
 
 Template.phase_indicator.helpers(
@@ -198,10 +279,10 @@ Template.sidebar.events(
   "click .kairo_unit_switch": (event) ->
     if this.checked
       #Display proportion
-      displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times("100").toFormat("18"))
+      displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times("100").toFormat(18))
     else
       #Display Kairo
-      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get(), "ether")).toFormat("18"))
+      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get(), "ether")).toFormat(18))
 )
 
 Template.transact_box.onCreated(
@@ -271,12 +352,15 @@ Template.proposals_tab.helpers(
 )
 
 Template.proposals_tab.events(
-  "click .stake_button": (event) ->
-    try
-      kairoAmountInWeis = BigNumber(web3.utils.toWei($("#stake_input_" + this.id)[0].value))
-      betoken.supportProposal(this.id, kairoAmountInWeis)
-    catch
-      #Todo:Display error message
+  "click .support_proposal": (event) ->
+    $('.ui.basic.modal.support_proposal_modal_' + this.id).modal(
+      onApprove: (e) ->
+        try
+          kairoAmountInWeis = BigNumber($("#stake_input_" + this.id)[0].value).times("1e18")
+          betoken.supportProposal(this.id, kairoAmountInWeis)
+        catch error
+          #Todo:Display error message
+    ).modal('show')
 
   "click .new_proposal": (event) ->
     $('.ui.basic.modal.new_proposal_modal').modal(
