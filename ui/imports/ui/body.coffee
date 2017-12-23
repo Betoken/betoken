@@ -13,8 +13,11 @@ if typeof web3 != undefined
 else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
+#Fund metadata
 betoken_addr = new ReactiveVar("0x122851366d44fb3f60b538f88c7ac8845a0cab12")
 betoken = new Betoken(betoken_addr.get())
+kairo_addr = new ReactiveVar("")
+etherDelta_addr = new ReactiveVar("")
 
 #Session data
 userAddress = new ReactiveVar("")
@@ -130,6 +133,7 @@ loadFundData = () ->
   proposals = []
   supportedProposals = []
   members = []
+
   getCurrentAccount().then(
     (_userAddress) ->
       #Initialize user address
@@ -195,6 +199,17 @@ loadFundData = () ->
       return betoken.getPrimitiveVar("timeOfProposalMaking").then(
         (_time) -> timeOfProposalMaking.set(+_time)
       )
+  ).then(
+    () ->
+      #Set Kairo contract address
+      kairo_addr.set(betoken.addrs.controlToken)
+  ).then(
+    () ->
+      #Get etherDelta address
+      return betoken.getPrimitiveVar("etherDeltaAddr")
+  ).then(
+    (_etherDeltaAddr) ->
+      etherDelta_addr.set(_etherDeltaAddr)
   ).then(
     () ->
       #Get proposals
@@ -287,11 +302,26 @@ Template.body.onCreated(loadFundData)
 
 Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
+  betoken_addr: () -> betoken_addr.get()
+  kairo_addr: () -> kairo_addr.get()
+  etherdelta_addr: () -> etherDelta_addr.get()
 )
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
     betoken.endPhase().then(loadFundData)
+
+  "click .change_contract": (event) ->
+    $('.ui.basic.modal.change_contract_modal').modal(
+      onApprove: (e) ->
+        try
+          new_addr = $("#contract_addr_input")[0].value
+          betoken_addr.set(new_addr)
+          betoken = new Betoken(betoken_addr.get())
+          loadFundData()
+        catch error
+          #Todo:Display error message
+    ).modal('show')
 )
 
 Template.countdown_timer.helpers(

@@ -54,14 +54,35 @@
     </div>
 
     <div class="item">
-      <div class="ui selection dropdown">
-        Smart Contract <i class="dropdown icon"></i>
-        <div class="menu">
-          <div class="header">Current: </div>
-          <div class="item">Choice 1</div>
-          <div class="item">Choice 2</div>
-          <div class="item">Choice 3</div>
-        </div>
+      <h5>
+        Fund Address: {{betoken_addr}}
+        <p></p>
+        Kairo Address: {{kairo_addr}}
+        <p></p>
+        EtherDelta Address: {{etherdelta_addr}}
+        <p></p>
+        <button class="ui button change_contract">
+          Change Smart Contract
+        </button>
+      </h5>
+    </div>
+  </div>
+
+  <!--Change contract modal-->
+  <div class="ui basic modal change_contract_modal">
+    <div class="ui icon header">
+      <i class="line chart icon"></i>
+      Change smart contract address...
+    </div>
+    <div class="content">
+      <div class="ui left fluid inverted transparent input">
+        <input id="contract_addr_input"  placeholder="Address of the fund you want to switch to..." type="text">
+      </div>
+    </div>
+    <div class="actions">
+      <div class="ui green ok inverted button fluid">
+        <i class="checkmark icon"></i>
+        Save Change
       </div>
     </div>
   </div>
@@ -473,7 +494,7 @@
       </div>
     </div>
     <div class="actions">
-      <div class="ui green ok inverted button fluid stake_button_new">
+      <div class="ui green ok inverted button fluid">
         <i class="checkmark icon"></i>
         Propose
       </div>
