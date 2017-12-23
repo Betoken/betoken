@@ -47,7 +47,7 @@
       {{#if show_countdown}}
         {{> countdown_timer}}
       {{else}}
-        <button class="ui button next_phase">
+        <button class="ui positive button next_phase">
           Next Phase
         </button>
       {{/if}}
@@ -55,15 +55,16 @@
 
     <div class="item">
       <h5>
+        <button class="circular ui icon button change_contract" style="float: right;">
+          <i class="settings icon"></i>
+        </button>
+        <p></p>
         Fund Address: {{betoken_addr}}
         <p></p>
         Kairo Address: {{kairo_addr}}
         <p></p>
         EtherDelta Address: {{etherdelta_addr}}
         <p></p>
-        <button class="ui button change_contract">
-          Change Smart Contract
-        </button>
       </h5>
     </div>
   </div>
@@ -71,7 +72,7 @@
   <!--Change contract modal-->
   <div class="ui basic modal change_contract_modal">
     <div class="ui icon header">
-      <i class="line chart icon"></i>
+      <i class="settings icon"></i>
       Change smart contract address...
     </div>
     <div class="content">
@@ -315,7 +316,7 @@
           <td>{{token_symbol}}</td>
           <td>{{user_stake}}</td>
           <td>
-            <button class="cancel_support_button ui icon button {{is_disabled}}">
+            <button class="cancel_support_button ui negative icon button {{is_disabled}}">
               <i class="remove icon" style="text-align: center;"></i>
             </button>
           </td>
@@ -447,7 +448,7 @@
           <td>{{investment}}</td>
           <td>{{supporters}}</td>
           <td>
-            <div class="ui floating icon button {{is_disabled}} support_proposal">
+            <div class="ui positive icon button {{is_disabled}} support_proposal">
               <i class="thumbs outline up icon"></i>
             </div>
           </td>
