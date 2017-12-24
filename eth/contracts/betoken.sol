@@ -111,7 +111,6 @@ contract GroupFund is Ownable {
 
   // Mapping from Proposal to Participant to number of Control Tokens being staked
   mapping(uint256 => mapping(address => uint256)) public forStakedControlOfProposalOfUser;
-
   mapping(uint256 => mapping(address => uint256)) public againstStakedControlOfProposalOfUser;
 
   // Mapping to check if a proposal for a token has already been made
@@ -120,9 +119,11 @@ contract GroupFund is Ownable {
   address[] public participants; // A list of everyone who is participating in the GroupFund
   Proposal[] public proposals;
 
+  // Referrents to other contracts
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
   OraclizeHandler internal oraclize;
+
   CyclePhase public cyclePhase;
 
   event CycleStarted(uint256 timestamp);
@@ -180,6 +181,7 @@ contract GroupFund is Ownable {
     etherDelta = EtherDelta(etherDeltaAddr);
   }
 
+  // Constructor for the Control Token and Oraclize contracts
   function initializeSubcontracts(address _cTokenAddr, address _oraclizeAddr) public {
     require(msg.sender == creator);
     require(!initialized);
@@ -193,18 +195,23 @@ contract GroupFund is Ownable {
     oraclize = OraclizeHandler(oraclizeAddr);
   }
 
+  // Allow updating of the exchange's address
   function changeEtherDeltaAddress(address _newAddr) public onlyOwner {
     etherDeltaAddr = _newAddr;
+
+    // Creates new EtherDelta API contract with the new address
     etherDelta = EtherDelta(_newAddr);
     oraclize.__changeEtherDeltaAddress(_newAddr);
   }
 
+  // Allow the developer's address to change
   function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
     developerFeeAccount = _newAddr;
   }
 
+  //*******
   //Getters
-
+  //*******
   function participantsCount() public view returns(uint256 _count) {
     return participants.length;
   }
@@ -213,8 +220,9 @@ contract GroupFund is Ownable {
     return proposals.length;
   }
 
+  //*******
   //Fee Proportion setters
-
+  //*******
   function changeOraclizeFeeProportion(uint256 _newProp) public onlyOwner {
     require(_newProp < oraclizeFeeProportion);
     oraclizeFeeProportion = _newProp;
@@ -225,6 +233,7 @@ contract GroupFund is Ownable {
     developerFeeProportion = _newProp;
   }
 
+  // Modify the commission that gets distributed to token holders
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
     commissionRate = _newProp;
   }
@@ -235,16 +244,20 @@ contract GroupFund is Ownable {
 
   //Starts a new cycle
   function startNewCycle() public during(CyclePhase.Finalized) {
+
+    // Contract needs to be initialized
+    // (Used to prevent function calls before initializing subcontracts)
     require(initialized);
 
+    // Update the Cycles
     cyclePhase = CyclePhase.ChangeMaking;
-
     startTimeOfCycle = now;
 
     //Reset data
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       __resetMemberData(participants[i]);
     }
+
     for (i = 0; i < proposals.length; i = i.add(1)) {
       __resetProposalData(i);
     }
@@ -252,9 +265,13 @@ contract GroupFund is Ownable {
     delete proposals;
     delete numProposals;
 
+    // Updated the time when the cycle started
     CycleStarted(now);
   }
 
+  // *******
+  // Reset functions
+  //*******
   function __resetMemberData(address _addr) internal {
     delete createdProposalCount[_addr];
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
@@ -473,7 +490,8 @@ contract GroupFund is Ownable {
 
     //Sell all invested tokens
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
+      if (proposals[i].numFor > 0) {
+        //Ensure proposal isn't a deleted one
         oraclize.__grabCurrentPriceFromOraclize(i);
       }
     }
@@ -486,7 +504,8 @@ contract GroupFund is Ownable {
 
     //Ensure all the sell orders are inactive
     for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
-      if (proposals[proposalId].numFor > 0) { //Ensure proposal isn't a deleted one
+      if (proposals[proposalId].numFor > 0) {
+        //Ensure proposal isn't a deleted one
         require(__sellOrderFinished(proposalId));
         __settleBets(proposalId);
       }
