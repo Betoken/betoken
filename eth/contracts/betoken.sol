@@ -242,15 +242,15 @@ contract GroupFund is Ownable {
     startTimeOfCycle = now;
 
     //Reset data
-    oraclize.__deleteTokenSymbolOfProposal();
-    delete proposals;
-    delete numProposals;
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       __resetMemberData(participants[i]);
     }
     for (i = 0; i < proposals.length; i = i.add(1)) {
       __resetProposalData(i);
     }
+    oraclize.__deleteTokenSymbolOfProposal();
+    delete proposals;
+    delete numProposals;
 
     CycleStarted(now);
   }
