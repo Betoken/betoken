@@ -27,7 +27,7 @@ if (typeof web3 !== void 0) {
 }
 
 //Fund metadata
-betoken_addr = new ReactiveVar("0x122851366d44fb3f60b538f88c7ac8845a0cab12");
+betoken_addr = new ReactiveVar("0xa1a52b9d9aae02f04a8f9df1506148053b44f0f5");
 
 betoken = new Betoken(betoken_addr.get());
 
@@ -300,6 +300,8 @@ loadFundData = function() {
       }
     }).then(function() {
       var allPromises, j, len, member;
+      console.log(0);
+      console.log(members);
       //Get member ETH balances
       allPromises = [];
       for (j = 0, len = members.length; j < len; j++) {
@@ -311,6 +313,8 @@ loadFundData = function() {
       return Promise.all(allPromises);
     }).then(function() {
       var allPromises, j, len, member;
+      console.log(1);
+      console.log(members);
       //Get member KRO balances
       allPromises = [];
       for (j = 0, len = members.length; j < len; j++) {
@@ -322,6 +326,8 @@ loadFundData = function() {
       return Promise.all(allPromises);
     }).then(function() {
       var j, len, member;
+      console.log(2);
+      console.log(members);
       //Get member KRO proportions
       for (j = 0, len = members.length; j < len; j++) {
         member = members[j];

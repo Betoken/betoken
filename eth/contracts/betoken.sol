@@ -374,7 +374,7 @@ contract GroupFund is Ownable {
     onlyParticipant
   {
     require(_proposalId < proposals.length);
-    require(proposals[_proposalId].numFor > 0); //Non-empty proposal
+    require(isTokenAlreadyProposed[proposals[_proposalId].tokenAddress]); //Non-empty proposal
 
     //Stake control tokens
 

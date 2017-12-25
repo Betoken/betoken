@@ -14,7 +14,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund metadata
-betoken_addr = new ReactiveVar("0x122851366d44fb3f60b538f88c7ac8845a0cab12")
+betoken_addr = new ReactiveVar("0xa1a52b9d9aae02f04a8f9df1506148053b44f0f5")
 betoken = new Betoken(betoken_addr.get())
 kairo_addr = new ReactiveVar("")
 etherDelta_addr = new ReactiveVar("")
@@ -265,6 +265,8 @@ loadFundData = () ->
           return
       ).then(
         () ->
+          console.log 0
+          console.log members
           #Get member ETH balances
           allPromises = []
           for member in members
@@ -276,6 +278,8 @@ loadFundData = () ->
           return Promise.all(allPromises)
       ).then(
         () ->
+          console.log 1
+          console.log members
           #Get member KRO balances
           allPromises = []
           for member in members
@@ -287,6 +291,8 @@ loadFundData = () ->
           return Promise.all(allPromises)
       ).then(
         () ->
+          console.log 2
+          console.log members
           #Get member KRO proportions
           for member in members
             member.kro_proportion = BigNumber(member.kro_balance).dividedBy(web3.utils.fromWei(kairoTotalSupply.get().toString())).times(100).toPrecision(4)
