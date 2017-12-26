@@ -14,7 +14,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund metadata
-betoken_addr = new ReactiveVar("0xa1a52b9d9aae02f04a8f9df1506148053b44f0f5")
+betoken_addr = new ReactiveVar("0xc1d9ba667f5f363f9bb93918d04e8be43c33a6c1")
 betoken = new Betoken(betoken_addr.get())
 kairo_addr = new ReactiveVar("")
 etherDelta_addr = new ReactiveVar("")
@@ -265,34 +265,28 @@ loadFundData = () ->
           return
       ).then(
         () ->
-          console.log 0
-          console.log members
           #Get member ETH balances
-          allPromises = []
-          for member in members
-            allPromises.push(betoken.getMappingOrArrayItem("balanceOf", member.address).then(
+          setBalance = (id) ->
+            betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
               (_eth_balance) ->
-                member.eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
+                members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
                 return
-            ))
+            )
+          allPromises = (setBalance(i) for i in [0..members.length - 1])
           return Promise.all(allPromises)
       ).then(
         () ->
-          console.log 1
-          console.log members
           #Get member KRO balances
-          allPromises = []
-          for member in members
-            allPromises.push(betoken.getKairoBalance(member.address).then(
+          setBalance = (id) ->
+            betoken.getKairoBalance(members[id].address).then(
               (_kro_balance) ->
-                member.kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
+                members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
                 return
-            ))
+            )
+          allPromises = (setBalance(i) for i in [0..members.length - 1])
           return Promise.all(allPromises)
       ).then(
         () ->
-          console.log 2
-          console.log members
           #Get member KRO proportions
           for member in members
             member.kro_proportion = BigNumber(member.kro_balance).dividedBy(web3.utils.fromWei(kairoTotalSupply.get().toString())).times(100).toPrecision(4)

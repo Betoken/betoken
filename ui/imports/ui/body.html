@@ -520,15 +520,15 @@
 
     <!-- Actual table rows go here -->
     <tbody>
-      <tr>
-        {{#each member_list}}
+      {{#each member_list}}
+        <tr>
           <td>{{address}}</td>
           <td>{{eth_balance}} ETH</td>
           <td>{{kro_balance}} KRO</td>
           <td>{{kro_proportion}}%</td>
           <td>94%</td>
-        {{/each}}
-      </tr>
+        </tr>
+      {{/each}}
     </tbody>
   </table>
 </template>

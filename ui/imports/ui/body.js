@@ -27,7 +27,7 @@ if (typeof web3 !== void 0) {
 }
 
 //Fund metadata
-betoken_addr = new ReactiveVar("0xa1a52b9d9aae02f04a8f9df1506148053b44f0f5");
+betoken_addr = new ReactiveVar("0xc1d9ba667f5f363f9bb93918d04e8be43c33a6c1");
 
 betoken = new Betoken(betoken_addr.get());
 
@@ -299,34 +299,41 @@ loadFundData = function() {
         }
       }
     }).then(function() {
-      var allPromises, j, len, member;
-      console.log(0);
-      console.log(members);
+      var allPromises, i, setBalance;
       //Get member ETH balances
-      allPromises = [];
-      for (j = 0, len = members.length; j < len; j++) {
-        member = members[j];
-        allPromises.push(betoken.getMappingOrArrayItem("balanceOf", member.address).then(function(_eth_balance) {
-          member.eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4);
-        }));
-      }
+      setBalance = function(id) {
+        return betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(function(_eth_balance) {
+          members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4);
+        });
+      };
+      allPromises = (function() {
+        var j, ref, results;
+        results = [];
+        for (i = j = 0, ref = members.length - 1; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+          results.push(setBalance(i));
+        }
+        return results;
+      })();
       return Promise.all(allPromises);
     }).then(function() {
-      var allPromises, j, len, member;
-      console.log(1);
-      console.log(members);
+      var allPromises, i, setBalance;
       //Get member KRO balances
-      allPromises = [];
-      for (j = 0, len = members.length; j < len; j++) {
-        member = members[j];
-        allPromises.push(betoken.getKairoBalance(member.address).then(function(_kro_balance) {
-          member.kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4);
-        }));
-      }
+      setBalance = function(id) {
+        return betoken.getKairoBalance(members[id].address).then(function(_kro_balance) {
+          members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4);
+        });
+      };
+      allPromises = (function() {
+        var j, ref, results;
+        results = [];
+        for (i = j = 0, ref = members.length - 1; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+          results.push(setBalance(i));
+        }
+        return results;
+      })();
       return Promise.all(allPromises);
     }).then(function() {
       var j, len, member;
-      console.log(2);
       console.log(members);
       //Get member KRO proportions
       for (j = 0, len = members.length; j < len; j++) {
