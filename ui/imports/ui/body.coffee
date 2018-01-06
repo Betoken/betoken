@@ -322,6 +322,9 @@ Template.top_bar.events(
         catch error
           #Todo:Display error message
     ).modal('show')
+
+  "click .refresh_button": (event) ->
+    loadFundData()
 )
 
 Template.countdown_timer.helpers(

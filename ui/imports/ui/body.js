@@ -334,7 +334,6 @@ loadFundData = function() {
       return Promise.all(allPromises);
     }).then(function() {
       var j, len, member;
-      console.log(members);
       //Get member KRO proportions
       for (j = 0, len = members.length; j < len; j++) {
         member = members[j];
@@ -383,6 +382,9 @@ Template.top_bar.events({
       }
     //Todo:Display error message
     }).modal('show');
+  },
+  "click .refresh_button": function(event) {
+    return loadFundData();
   }
 });
 

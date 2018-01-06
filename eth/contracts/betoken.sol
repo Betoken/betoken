@@ -537,7 +537,6 @@ contract GroupFund is Ownable {
   function __settleBets(uint256 _proposalId) internal {
     //Settle bets
     Proposal storage prop = proposals[_proposalId];
-    uint256 tokenReward;
     uint256 stake;
     uint256 j;
     address participant;
@@ -545,13 +544,12 @@ contract GroupFund is Ownable {
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceInWeis > prop.buyPriceInWeis) {
         //For wins
-        tokenReward = forStakedControlOfProposal[_proposalId].div(prop.numFor);
         for (j = 0; j < participants.length; j = j.add(1)) {
           participant = participants[j];
           stake = forStakedControlOfProposalOfUser[_proposalId][participant];
-          if (stake > 0) {
+        if (stake > 0) {
             //Give control tokens
-            cToken.transfer(participant, stake.add(tokenReward));
+            cToken.transfer(participant, stake.mul(2));
             //Won bet
             PredictionResult(participant, true);
           } else {
@@ -564,13 +562,12 @@ contract GroupFund is Ownable {
       } else {
         //Against wins
         if (prop.numAgainst > 0) {
-          tokenReward = forStakedControlOfProposal[_proposalId].div(prop.numAgainst);
           for (j = 0; j < participants.length; j = j.add(1)) {
             participant = participants[j];
             stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
-            if (stake > 0) {
+          if (stake > 0) {
               //Give control tokens
-              cToken.transfer(participant, stake.add(tokenReward));
+              cToken.transfer(participant, stake.mul(2));
               //Won bet
               PredictionResult(participant, true);
             } else {
