@@ -32,6 +32,20 @@
     <div class="ui six wide column container">
       {{> sidebar}}
     </div>
+
+    <div class="ui basic modal" id="transaction_sent_modal">
+      <div class="ui icon header">
+        <i class="checkmark icon"></i>
+        <p>You've successfully sent an Ethereum transaction!</p>
+        <p>Changes you've just made will be in effect after the transaction has been written to the blockchain.</p>
+        <p>You can monitor the status of your transaction here: <a href="https://etherscan.io/tx/{{transaction_hash}}">{{transaction_hash}}</a></p>
+      </div>
+      <div class="actions">
+        <div class="ui green ok inverted button fluid">
+          OK
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 
@@ -73,7 +87,7 @@
   </div>
 
   <!--Change contract modal-->
-  <div class="ui basic modal change_contract_modal">
+  <div class="ui basic modal" id="change_contract_modal">
     <div class="ui icon header">
       <i class="settings icon"></i>
       Change smart contract address...
@@ -457,7 +471,7 @@
           </td>
         </tr>
         <!--Support Proposal Modal-->
-        <div class="ui basic modal support_proposal_modal_{{id}}">
+        <div class="ui basic modal" id="support_proposal_modal_{{id}}">
           <div class="ui icon header">
             <i class="line chart icon"></i>
             Support an investment proposal
@@ -479,7 +493,7 @@
   </table>
 
   <!--New Proposal Modal-->
-  <div class="ui basic modal new_proposal_modal">
+  <div class="ui basic modal" id="new_proposal_modal">
     <div class="ui icon header">
       <i class="line chart icon"></i>
       Propose an ERC20 token you want the fund to invest in

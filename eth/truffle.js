@@ -2,7 +2,7 @@ module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
   networks: {
-    rinkeby: {
+    development: {
       host: "localhost",
       port: 8545,
       gas: 8000000,

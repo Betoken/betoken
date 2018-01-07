@@ -14,7 +14,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund metadata
-betoken_addr = new ReactiveVar("0xc1d9ba667f5f363f9bb93918d04e8be43c33a6c1")
+betoken_addr = new ReactiveVar("0xb19d37150fbe41d0f7090fce80ad45eff55d6d52")
 betoken = new Betoken(betoken_addr.get())
 kairo_addr = new ReactiveVar("")
 etherDelta_addr = new ReactiveVar("")
@@ -42,6 +42,7 @@ countdownHour = new ReactiveVar(0)
 countdownMin = new ReactiveVar(0)
 countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
+transactionHash = new ReactiveVar("")
 
 getCurrentAccount = () ->
   return web3.eth.getAccounts().then(
@@ -52,53 +53,10 @@ getCurrentAccount = () ->
       return web3.eth.defaultAccount
   )
 
-$('document').ready(() ->
-  $('.menu .item').tab()
-  $('table').tablesort()
-  clock()
-
-  ctx = $("#myChart");
-  myChart = new Chart(ctx,
-    type: 'line',
-    data:
-      datasets: [
-        label: "ROI Per Cycle"
-        backgroundColor: 'rgba(0, 0, 100, 0.5)'
-        borderColor: 'rgba(0, 0, 100, 1)'
-        data: [
-          x: 1
-          y: 10
-        ,
-          x: 2
-          y: 13
-        ,
-          x: 3
-          y: 20
-        ]
-      ]
-    ,
-    options:
-      scales:
-        xAxes: [
-          type: 'linear'
-          position: 'bottom'
-          scaleLabel:
-            display: true
-            labelString: 'Investment Cycle'
-          ticks:
-            stepSize: 1
-        ]
-        yAxes: [
-          type: 'linear'
-          position: 'left'
-          scaleLabel:
-            display: true
-            labelString: 'Percent'
-          ticks:
-            beginAtZero: true
-        ]
-  )
-)
+showTransaction = (_transaction) ->
+  transactionHash.set(_transaction.transactionHash)
+  $('#transaction_sent_modal').modal('show')
+  return
 
 clock = () ->
   setInterval(
@@ -266,25 +224,27 @@ loadFundData = () ->
       ).then(
         () ->
           #Get member ETH balances
-          setBalance = (id) ->
-            betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
-              (_eth_balance) ->
-                members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
-                return
-            )
-          allPromises = (setBalance(i) for i in [0..members.length - 1])
-          return Promise.all(allPromises)
+          if members.length > 0
+            setBalance = (id) ->
+              betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
+                (_eth_balance) ->
+                  members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
+                  return
+              )
+            allPromises = (setBalance(i) for i in [0..members.length - 1])
+            return Promise.all(allPromises)
       ).then(
         () ->
           #Get member KRO balances
-          setBalance = (id) ->
-            betoken.getKairoBalance(members[id].address).then(
-              (_kro_balance) ->
-                members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
-                return
-            )
-          allPromises = (setBalance(i) for i in [0..members.length - 1])
-          return Promise.all(allPromises)
+          if members.length > 0
+            setBalance = (id) ->
+              betoken.getKairoBalance(members[id].address).then(
+                (_kro_balance) ->
+                  members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
+                  return
+              )
+            allPromises = (setBalance(i) for i in [0..members.length - 1])
+            return Promise.all(allPromises)
       ).then(
         () ->
           #Get member KRO proportions
@@ -298,7 +258,59 @@ loadFundData = () ->
       )
   )
 
+$('document').ready(() ->
+  $('.menu .item').tab()
+  $('table').tablesort()
+  clock()
+
+  ctx = $("#myChart");
+  myChart = new Chart(ctx,
+    type: 'line',
+    data:
+      datasets: [
+        label: "ROI Per Cycle"
+        backgroundColor: 'rgba(0, 0, 100, 0.5)'
+        borderColor: 'rgba(0, 0, 100, 1)'
+        data: [
+          x: 1
+          y: 10
+        ,
+          x: 2
+          y: 13
+        ,
+          x: 3
+          y: 20
+        ]
+      ]
+  ,
+    options:
+      scales:
+        xAxes: [
+          type: 'linear'
+          position: 'bottom'
+          scaleLabel:
+            display: true
+            labelString: 'Investment Cycle'
+          ticks:
+            stepSize: 1
+        ]
+        yAxes: [
+          type: 'linear'
+          position: 'left'
+          scaleLabel:
+            display: true
+            labelString: 'Percent'
+          ticks:
+            beginAtZero: true
+        ]
+  )
+)
+
 Template.body.onCreated(loadFundData)
+
+Template.body.helpers(
+  transaction_hash: () -> transactionHash.get()
+)
 
 Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
@@ -309,10 +321,10 @@ Template.top_bar.helpers(
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
-    betoken.endPhase().then(loadFundData)
+    betoken.endPhase().then(showTransaction)
 
   "click .change_contract": (event) ->
-    $('.ui.basic.modal.change_contract_modal').modal(
+    $('#change_contract_modal').modal(
       onApprove: (e) ->
         try
           new_addr = $("#contract_addr_input")[0].value
@@ -390,7 +402,7 @@ Template.transact_box.events(
     try
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
-      betoken.deposit(amount).then(loadFundData)
+      betoken.deposit(amount).then(showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -398,7 +410,7 @@ Template.transact_box.events(
     try
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
-      betoken.withdraw(amount).then(loadFundData)
+      betoken.withdraw(amount).then(showTransaction)
     catch
       Template.instance().withdrawInputHasError.set(true)
 )
@@ -414,7 +426,7 @@ Template.supported_props_box.helpers(
 
 Template.supported_props_box.events(
   "click .cancel_support_button": (event) ->
-    betoken.cancelSupport(this.id).then(loadFundData)
+    betoken.cancelSupport(this.id).then(showTransaction)
 )
 
 Template.proposals_tab.helpers(
@@ -428,23 +440,23 @@ Template.proposals_tab.helpers(
 
 Template.proposals_tab.events(
   "click .support_proposal": (event) ->
-    $('.ui.basic.modal.support_proposal_modal_' + this.id).modal(
+    $('#support_proposal_modal_' + this.id).modal(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + this.id)[0].value).times("1e18")
-          betoken.supportProposal(this.id, kairoAmountInWeis).then(loadFundData)
+          betoken.supportProposal(this.id, kairoAmountInWeis).then(showTransaction)
         catch error
           #Todo:Display error message
     ).modal('show')
 
   "click .new_proposal": (event) ->
-    $('.ui.basic.modal.new_proposal_modal').modal(
+    $('#new_proposal_modal').modal(
       onApprove: (e) ->
         try
           address = $("#address_input_new")[0].value
           tickerSymbol = $("#ticker_input_new")[0].value
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
-          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(loadFundData)
+          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(showTransaction)
         catch error
           #Todo:Display error message
     ).modal('show')
