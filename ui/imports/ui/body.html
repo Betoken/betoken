@@ -76,11 +76,13 @@
           <i class="refresh icon"></i>
         </button>
         <p></p>
-        Fund Address: {{betoken_addr}}
+        Smart Contract Addresses:
         <p></p>
-        Kairo Address: {{kairo_addr}}
+        Fund: {{betoken_addr}}
         <p></p>
-        EtherDelta Address: {{etherdelta_addr}}
+        Kairo: {{kairo_addr}}
+        <p></p>
+        EtherDelta: {{etherdelta_addr}}
         <p></p>
       </h5>
     </div>
@@ -185,8 +187,12 @@
     <h2>My Account</h2>
     <div class="ui menu vertical fluid">
       <div class="ui item">
+        <div class="ui horizontal divider">Current Network</div>
+        <h4 style="text-align: center;">{{network_name}}</h4>
+      </div>
+      <div class="ui item">
         <div class="ui horizontal divider">Address</div>
-        <h5 style="text-align: center;">{{user_address}}</h5>
+        <h4 style="text-align: center;">{{user_address}}</h4>
       </div>
 
       <div class="ui item">

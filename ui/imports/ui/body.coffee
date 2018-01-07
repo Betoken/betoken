@@ -43,6 +43,7 @@ countdownMin = new ReactiveVar(0)
 countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
 transactionHash = new ReactiveVar("")
+networkName = new ReactiveVar("")
 
 getCurrentAccount = () ->
   return web3.eth.getAccounts().then(
@@ -258,6 +259,24 @@ loadFundData = () ->
       )
   )
 
+  #Get Network ID
+  web3.eth.net.getId().then(
+    (_id) ->
+      switch _id
+        when 1
+          net = "Main Ethereum Network"
+        when 3
+          net = "Ropsten Testnet"
+        when 4
+          net = "Rinkeby Testnet"
+        when 42
+          net = "Kovan Testnet"
+        else
+          net = "Unknown Network"
+      networkName.set(net)
+      return
+  )
+
 $('document').ready(() ->
   $('.menu .item').tab()
   $('table').tablesort()
@@ -354,12 +373,10 @@ Template.phase_indicator.helpers(
 )
 
 Template.sidebar.helpers(
+  network_name: () -> networkName.get()
   user_address: () -> userAddress.get()
-
   user_balance: () -> userBalance.get()
-
   user_kairo_balance: () -> displayedKairoBalance.get()
-
   kairo_unit: () -> displayedKairoUnit.get()
 )
 
