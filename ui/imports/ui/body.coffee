@@ -14,7 +14,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund metadata
-betoken_addr = new ReactiveVar("0xb19d37150fbe41d0f7090fce80ad45eff55d6d52")
+betoken_addr = new ReactiveVar("0x29d016c6a7b65269b9da620bf5d28afa51ea0e50")
 betoken = new Betoken(betoken_addr.get())
 kairo_addr = new ReactiveVar("")
 etherDelta_addr = new ReactiveVar("")
@@ -177,18 +177,19 @@ loadFundData = () ->
     (_proposals) ->
       allPromises = []
       if _proposals.length > 0
-        for i in [0.._proposals.length - 1]
+        getProposal = (i) ->
           if _proposals[i].numFor > 0
-            allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
+            return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
               (_stake) ->
-                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get()))
+                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
                 proposal =
                   id: i
                   token_symbol: _proposals[i].tokenSymbol
                   investment: investment.toFormat(4)
                   supporters: _proposals[i].numFor
                 proposals.push(proposal)
-            ))
+            )
+        allPromises = (getProposal(i) for i in [0.._proposals.length - 1])
       return Promise.all(allPromises)
   ).then(
     () ->
@@ -198,14 +199,15 @@ loadFundData = () ->
     () ->
       #Filter out proposals the user supported
       allPromises = []
-      for proposal in proposalList.get()
-        allPromises.push(betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
+      filterProposal = (proposal) ->
+        betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
           (_stake) ->
-            _stake = BigNumber(_stake)
+            _stake = BigNumber(web3.utils.fromWei(_stake))
             if _stake.greaterThan(0)
               proposal.user_stake = _stake
               supportedProposals.push(proposal)
-        ))
+        )
+      allPromises = (filterProposal(proposal) for proposal in proposalList.get())
       return Promise.all(allPromises)
   ).then(
     () ->
@@ -457,13 +459,15 @@ Template.proposals_tab.helpers(
 
 Template.proposals_tab.events(
   "click .support_proposal": (event) ->
-    $('#support_proposal_modal_' + this.id).modal(
+    id = this.id
+    $('#support_proposal_modal_' + id).modal(
       onApprove: (e) ->
         try
-          kairoAmountInWeis = BigNumber($("#stake_input_" + this.id)[0].value).times("1e18")
-          betoken.supportProposal(this.id, kairoAmountInWeis).then(showTransaction)
+          kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
+          betoken.supportProposal(id, kairoAmountInWeis).then(showTransaction)
         catch error
           #Todo:Display error message
+          console.log error
     ).modal('show')
 
   "click .new_proposal": (event) ->

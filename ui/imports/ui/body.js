@@ -27,7 +27,7 @@ if (typeof web3 !== void 0) {
 }
 
 //Fund metadata
-betoken_addr = new ReactiveVar("0xb19d37150fbe41d0f7090fce80ad45eff55d6d52");
+betoken_addr = new ReactiveVar("0x29d016c6a7b65269b9da620bf5d28afa51ea0e50");
 
 betoken = new Betoken(betoken_addr.get());
 
@@ -192,14 +192,14 @@ loadFundData = function() {
     //Get proposals
     return betoken.getArray("proposals");
   }).then(function(_proposals) {
-    var allPromises, i, j, ref;
+    var allPromises, getProposal, i;
     allPromises = [];
     if (_proposals.length > 0) {
-      for (i = j = 0, ref = _proposals.length - 1; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+      getProposal = function(i) {
         if (_proposals[i].numFor > 0) {
-          allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(function(_stake) {
+          return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(function(_stake) {
             var investment, proposal;
-            investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get()));
+            investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get().toString()));
             proposal = {
               id: i,
               token_symbol: _proposals[i].tokenSymbol,
@@ -207,28 +207,44 @@ loadFundData = function() {
               supporters: _proposals[i].numFor
             };
             return proposals.push(proposal);
-          }));
+          });
         }
-      }
+      };
+      allPromises = (function() {
+        var j, ref, results;
+        results = [];
+        for (i = j = 0, ref = _proposals.length - 1; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+          results.push(getProposal(i));
+        }
+        return results;
+      })();
     }
     return Promise.all(allPromises);
   }).then(function() {
     proposalList.set(proposals);
   }).then(function() {
-    var allPromises, j, len, proposal, ref;
+    var allPromises, filterProposal, proposal;
     //Filter out proposals the user supported
     allPromises = [];
-    ref = proposalList.get();
-    for (j = 0, len = ref.length; j < len; j++) {
-      proposal = ref[j];
-      allPromises.push(betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(function(_stake) {
-        _stake = BigNumber(_stake);
+    filterProposal = function(proposal) {
+      return betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(function(_stake) {
+        _stake = BigNumber(web3.utils.fromWei(_stake));
         if (_stake.greaterThan(0)) {
           proposal.user_stake = _stake;
           return supportedProposals.push(proposal);
         }
-      }));
-    }
+      });
+    };
+    allPromises = (function() {
+      var j, len, ref, results;
+      ref = proposalList.get();
+      results = [];
+      for (j = 0, len = ref.length; j < len; j++) {
+        proposal = ref[j];
+        results.push(filterProposal(proposal));
+      }
+      return results;
+    })();
     return Promise.all(allPromises);
   }).then(function() {
     supportedProposalList.set(supportedProposals);
@@ -566,17 +582,20 @@ Template.proposals_tab.helpers({
 
 Template.proposals_tab.events({
   "click .support_proposal": function(event) {
-    return $('#support_proposal_modal_' + this.id).modal({
+    var id;
+    id = this.id;
+    return $('#support_proposal_modal_' + id).modal({
       onApprove: function(e) {
         var error, kairoAmountInWeis;
         try {
-          kairoAmountInWeis = BigNumber($("#stake_input_" + this.id)[0].value).times("1e18");
-          return betoken.supportProposal(this.id, kairoAmountInWeis).then(showTransaction);
+          kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18");
+          return betoken.supportProposal(id, kairoAmountInWeis).then(showTransaction);
         } catch (error1) {
           error = error1;
+          //Todo:Display error message
+          return console.log(error);
         }
       }
-    //Todo:Display error message
     }).modal('show');
   },
   "click .new_proposal": function(event) {

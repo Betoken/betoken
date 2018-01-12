@@ -383,7 +383,9 @@ contract GroupFund is Ownable {
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
     //Update stake data
-    proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+    if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
+      proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+    }
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
 
@@ -565,7 +567,7 @@ contract GroupFund is Ownable {
           for (j = 0; j < participants.length; j = j.add(1)) {
             participant = participants[j];
             stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
-          if (stake > 0) {
+            if (stake > 0) {
               //Give control tokens
               cToken.transfer(participant, stake.mul(2));
               //Won bet
