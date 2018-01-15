@@ -32,6 +32,20 @@
     <div class="ui six wide column container">
       {{> sidebar}}
     </div>
+
+    <div class="ui basic modal" id="transaction_sent_modal">
+      <div class="ui icon header">
+        <i class="checkmark icon"></i>
+        <p>You've successfully sent an Ethereum transaction!</p>
+        <p>Changes you've just made will be in effect after the transaction has been written to the blockchain.</p>
+        <p>You can monitor the status of your transaction here: <a href="https://etherscan.io/tx/{{transaction_hash}}">{{transaction_hash}}</a></p>
+      </div>
+      <div class="actions">
+        <div class="ui green ok inverted button fluid">
+          OK
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 
@@ -58,19 +72,24 @@
         <button class="circular ui icon button change_contract" style="float: right;">
           <i class="settings icon"></i>
         </button>
+        <button class="circular ui icon button refresh_button" style="float: right;">
+          <i class="refresh icon"></i>
+        </button>
         <p></p>
-        Fund Address: {{betoken_addr}}
+        Smart Contract Addresses:
         <p></p>
-        Kairo Address: {{kairo_addr}}
+        Fund: {{betoken_addr}}
         <p></p>
-        EtherDelta Address: {{etherdelta_addr}}
+        Kairo: {{kairo_addr}}
+        <p></p>
+        EtherDelta: {{etherdelta_addr}}
         <p></p>
       </h5>
     </div>
   </div>
 
   <!--Change contract modal-->
-  <div class="ui basic modal change_contract_modal">
+  <div class="ui basic modal" id="change_contract_modal">
     <div class="ui icon header">
       <i class="settings icon"></i>
       Change smart contract address...
@@ -132,7 +151,7 @@
   <div class="ui steps">
     <div class="{{phase_active 0}} step">
       <div class="content">
-        <div class="title">Deposit&Withdraw</div>
+        <div class="title">Deposit & Withdraw</div>
       </div>
     </div>
     <div class="{{phase_active 1}} step">
@@ -168,8 +187,12 @@
     <h2>My Account</h2>
     <div class="ui menu vertical fluid">
       <div class="ui item">
+        <div class="ui horizontal divider">Current Network</div>
+        <h4 style="text-align: center;">{{network_name}}</h4>
+      </div>
+      <div class="ui item">
         <div class="ui horizontal divider">Address</div>
-        <h5 style="text-align: center;">{{user_address}}</h5>
+        <h4 style="text-align: center;">{{user_address}}</h4>
       </div>
 
       <div class="ui item">
@@ -303,7 +326,7 @@
     <tr>
       <th>#</th>
       <th>Symbol</th>
-      <th>Staked/KRO</th>
+      <th>Stake/KRO</th>
       <th>Action</th>
     </tr>
     </thead>
@@ -454,7 +477,7 @@
           </td>
         </tr>
         <!--Support Proposal Modal-->
-        <div class="ui basic modal support_proposal_modal_{{id}}">
+        <div class="ui basic modal" id="support_proposal_modal_{{id}}">
           <div class="ui icon header">
             <i class="line chart icon"></i>
             Support an investment proposal
@@ -476,7 +499,7 @@
   </table>
 
   <!--New Proposal Modal-->
-  <div class="ui basic modal new_proposal_modal">
+  <div class="ui basic modal" id="new_proposal_modal">
     <div class="ui icon header">
       <i class="line chart icon"></i>
       Propose an ERC20 token you want the fund to invest in
@@ -514,21 +537,19 @@
         <th>Ether Balance</th>
         <th>Kairo Balance</th>
         <th>Kairo Proportion</th>
-        <th>Accuracy</th>
       </tr>
     </thead>
 
     <!-- Actual table rows go here -->
     <tbody>
-      <tr>
-        {{#each member_list}}
+      {{#each member_list}}
+        <tr>
           <td>{{address}}</td>
           <td>{{eth_balance}} ETH</td>
           <td>{{kro_balance}} KRO</td>
           <td>{{kro_proportion}}%</td>
-          <td>94%</td>
-        {{/each}}
-      </tr>
+        </tr>
+      {{/each}}
     </tbody>
   </table>
 </template>

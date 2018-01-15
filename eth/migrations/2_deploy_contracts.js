@@ -9,8 +9,8 @@ module.exports = function(deployer, network, accounts) {
     etherDeltaAddress, //Ethdelta address
     accounts[0], //developerFeeAccount
     Math.pow(10, 18), //tenToDecimals
-    1800,//30 * 24 * 3600, //timeOfCycle
-    600,//2 * 24 * 3600, //timeOfChangeMaking
+    660,//30 * 24 * 3600, //timeOfCycle
+    60,//2 * 24 * 3600, //timeOfChangeMaking
     600,//2 * 24 * 3600, //timeOfProposalMaking
     0.01 * Math.pow(10, 18), //minStakeProportion
     20, //maxProposals

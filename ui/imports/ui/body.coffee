@@ -14,7 +14,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund metadata
-betoken_addr = new ReactiveVar("0x122851366d44fb3f60b538f88c7ac8845a0cab12")
+betoken_addr = new ReactiveVar("0x29d016c6a7b65269b9da620bf5d28afa51ea0e50")
 betoken = new Betoken(betoken_addr.get())
 kairo_addr = new ReactiveVar("")
 etherDelta_addr = new ReactiveVar("")
@@ -42,6 +42,8 @@ countdownHour = new ReactiveVar(0)
 countdownMin = new ReactiveVar(0)
 countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
+transactionHash = new ReactiveVar("")
+networkName = new ReactiveVar("")
 
 getCurrentAccount = () ->
   return web3.eth.getAccounts().then(
@@ -52,53 +54,10 @@ getCurrentAccount = () ->
       return web3.eth.defaultAccount
   )
 
-$('document').ready(() ->
-  $('.menu .item').tab()
-  $('table').tablesort()
-  clock()
-
-  ctx = $("#myChart");
-  myChart = new Chart(ctx,
-    type: 'line',
-    data:
-      datasets: [
-        label: "ROI Per Cycle"
-        backgroundColor: 'rgba(0, 0, 100, 0.5)'
-        borderColor: 'rgba(0, 0, 100, 1)'
-        data: [
-          x: 1
-          y: 10
-        ,
-          x: 2
-          y: 13
-        ,
-          x: 3
-          y: 20
-        ]
-      ]
-    ,
-    options:
-      scales:
-        xAxes: [
-          type: 'linear'
-          position: 'bottom'
-          scaleLabel:
-            display: true
-            labelString: 'Investment Cycle'
-          ticks:
-            stepSize: 1
-        ]
-        yAxes: [
-          type: 'linear'
-          position: 'left'
-          scaleLabel:
-            display: true
-            labelString: 'Percent'
-          ticks:
-            beginAtZero: true
-        ]
-  )
-)
+showTransaction = (_transaction) ->
+  transactionHash.set(_transaction.transactionHash)
+  $('#transaction_sent_modal').modal('show')
+  return
 
 clock = () ->
   setInterval(
@@ -218,18 +177,19 @@ loadFundData = () ->
     (_proposals) ->
       allPromises = []
       if _proposals.length > 0
-        for i in [0.._proposals.length - 1]
+        getProposal = (i) ->
           if _proposals[i].numFor > 0
-            allPromises.push(betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
+            return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
               (_stake) ->
-                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get()))
+                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
                 proposal =
                   id: i
                   token_symbol: _proposals[i].tokenSymbol
                   investment: investment.toFormat(4)
                   supporters: _proposals[i].numFor
                 proposals.push(proposal)
-            ))
+            )
+        allPromises = (getProposal(i) for i in [0.._proposals.length - 1])
       return Promise.all(allPromises)
   ).then(
     () ->
@@ -239,14 +199,15 @@ loadFundData = () ->
     () ->
       #Filter out proposals the user supported
       allPromises = []
-      for proposal in proposalList.get()
-        allPromises.push(betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
+      filterProposal = (proposal) ->
+        betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
           (_stake) ->
-            _stake = BigNumber(_stake)
+            _stake = BigNumber(web3.utils.fromWei(_stake))
             if _stake.greaterThan(0)
               proposal.user_stake = _stake
               supportedProposals.push(proposal)
-        ))
+        )
+      allPromises = (filterProposal(proposal) for proposal in proposalList.get())
       return Promise.all(allPromises)
   ).then(
     () ->
@@ -266,25 +227,27 @@ loadFundData = () ->
       ).then(
         () ->
           #Get member ETH balances
-          allPromises = []
-          for member in members
-            allPromises.push(betoken.getMappingOrArrayItem("balanceOf", member.address).then(
-              (_eth_balance) ->
-                member.eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
-                return
-            ))
-          return Promise.all(allPromises)
+          if members.length > 0
+            setBalance = (id) ->
+              betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
+                (_eth_balance) ->
+                  members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
+                  return
+              )
+            allPromises = (setBalance(i) for i in [0..members.length - 1])
+            return Promise.all(allPromises)
       ).then(
         () ->
           #Get member KRO balances
-          allPromises = []
-          for member in members
-            allPromises.push(betoken.getKairoBalance(member.address).then(
-              (_kro_balance) ->
-                member.kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
-                return
-            ))
-          return Promise.all(allPromises)
+          if members.length > 0
+            setBalance = (id) ->
+              betoken.getKairoBalance(members[id].address).then(
+                (_kro_balance) ->
+                  members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
+                  return
+              )
+            allPromises = (setBalance(i) for i in [0..members.length - 1])
+            return Promise.all(allPromises)
       ).then(
         () ->
           #Get member KRO proportions
@@ -298,7 +261,77 @@ loadFundData = () ->
       )
   )
 
+  #Get Network ID
+  web3.eth.net.getId().then(
+    (_id) ->
+      switch _id
+        when 1
+          net = "Main Ethereum Network"
+        when 3
+          net = "Ropsten Testnet"
+        when 4
+          net = "Rinkeby Testnet"
+        when 42
+          net = "Kovan Testnet"
+        else
+          net = "Unknown Network"
+      networkName.set(net)
+      return
+  )
+
+$('document').ready(() ->
+  $('.menu .item').tab()
+  $('table').tablesort()
+  clock()
+
+  ctx = $("#myChart");
+  myChart = new Chart(ctx,
+    type: 'line',
+    data:
+      datasets: [
+        label: "ROI Per Cycle"
+        backgroundColor: 'rgba(0, 0, 100, 0.5)'
+        borderColor: 'rgba(0, 0, 100, 1)'
+        data: [
+          x: 1
+          y: 10
+        ,
+          x: 2
+          y: 13
+        ,
+          x: 3
+          y: 20
+        ]
+      ]
+  ,
+    options:
+      scales:
+        xAxes: [
+          type: 'linear'
+          position: 'bottom'
+          scaleLabel:
+            display: true
+            labelString: 'Investment Cycle'
+          ticks:
+            stepSize: 1
+        ]
+        yAxes: [
+          type: 'linear'
+          position: 'left'
+          scaleLabel:
+            display: true
+            labelString: 'Percent'
+          ticks:
+            beginAtZero: true
+        ]
+  )
+)
+
 Template.body.onCreated(loadFundData)
+
+Template.body.helpers(
+  transaction_hash: () -> transactionHash.get()
+)
 
 Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
@@ -309,10 +342,10 @@ Template.top_bar.helpers(
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
-    betoken.endPhase().then(loadFundData)
+    betoken.endPhase().then(showTransaction)
 
   "click .change_contract": (event) ->
-    $('.ui.basic.modal.change_contract_modal').modal(
+    $('#change_contract_modal').modal(
       onApprove: (e) ->
         try
           new_addr = $("#contract_addr_input")[0].value
@@ -322,6 +355,9 @@ Template.top_bar.events(
         catch error
           #Todo:Display error message
     ).modal('show')
+
+  "click .refresh_button": (event) ->
+    loadFundData()
 )
 
 Template.countdown_timer.helpers(
@@ -339,12 +375,10 @@ Template.phase_indicator.helpers(
 )
 
 Template.sidebar.helpers(
+  network_name: () -> networkName.get()
   user_address: () -> userAddress.get()
-
   user_balance: () -> userBalance.get()
-
   user_kairo_balance: () -> displayedKairoBalance.get()
-
   kairo_unit: () -> displayedKairoUnit.get()
 )
 
@@ -387,7 +421,7 @@ Template.transact_box.events(
     try
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
-      betoken.deposit(amount).then(loadFundData)
+      betoken.deposit(amount).then(showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -395,7 +429,7 @@ Template.transact_box.events(
     try
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
-      betoken.withdraw(amount).then(loadFundData)
+      betoken.withdraw(amount).then(showTransaction)
     catch
       Template.instance().withdrawInputHasError.set(true)
 )
@@ -411,7 +445,7 @@ Template.supported_props_box.helpers(
 
 Template.supported_props_box.events(
   "click .cancel_support_button": (event) ->
-    betoken.cancelSupport(this.id).then(loadFundData)
+    betoken.cancelSupport(this.id).then(showTransaction)
 )
 
 Template.proposals_tab.helpers(
@@ -425,23 +459,25 @@ Template.proposals_tab.helpers(
 
 Template.proposals_tab.events(
   "click .support_proposal": (event) ->
-    $('.ui.basic.modal.support_proposal_modal_' + this.id).modal(
+    id = this.id
+    $('#support_proposal_modal_' + id).modal(
       onApprove: (e) ->
         try
-          kairoAmountInWeis = BigNumber($("#stake_input_" + this.id)[0].value).times("1e18")
-          betoken.supportProposal(this.id, kairoAmountInWeis).then(loadFundData)
+          kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
+          betoken.supportProposal(id, kairoAmountInWeis).then(showTransaction)
         catch error
           #Todo:Display error message
+          console.log error
     ).modal('show')
 
   "click .new_proposal": (event) ->
-    $('.ui.basic.modal.new_proposal_modal').modal(
+    $('#new_proposal_modal').modal(
       onApprove: (e) ->
         try
           address = $("#address_input_new")[0].value
           tickerSymbol = $("#ticker_input_new")[0].value
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
-          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(loadFundData)
+          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(showTransaction)
         catch error
           #Todo:Display error message
     ).modal('show')

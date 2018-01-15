@@ -256,13 +256,6 @@ contract GroupFund is Ownable {
     startTimeOfCycle = now;
 
     //Reset data
-    oraclize.__deleteTokenSymbolOfProposal();
-
-    // Is it okay to delete this if we need to iterate through one line later?
-    delete proposals;
-
-    delete numProposals;
-
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       __resetMemberData(participants[i]);
     }
@@ -270,6 +263,9 @@ contract GroupFund is Ownable {
     for (i = 0; i < proposals.length; i = i.add(1)) {
       __resetProposalData(i);
     }
+    oraclize.__deleteTokenSymbolOfProposal();
+    delete proposals;
+    delete numProposals;
 
     // Updated the time when the cycle started
     CycleStarted(now);
@@ -387,7 +383,7 @@ contract GroupFund is Ownable {
     onlyParticipant
   {
     require(_proposalId < proposals.length);
-    require(proposals[_proposalId].numFor > 0); //Non-empty proposal
+    require(isTokenAlreadyProposed[proposals[_proposalId].tokenAddress]); //Non-empty proposal
 
     //Stake control tokens
 
@@ -396,7 +392,9 @@ contract GroupFund is Ownable {
     //Collect staked control tokens
     cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
     //Update stake data
-    proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+    if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
+      proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+    }
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
 
@@ -550,7 +548,6 @@ contract GroupFund is Ownable {
   function __settleBets(uint256 _proposalId) internal {
     //Settle bets
     Proposal storage prop = proposals[_proposalId];
-    uint256 tokenReward;
     uint256 stake;
     uint256 j;
     address participant;
@@ -558,13 +555,12 @@ contract GroupFund is Ownable {
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceInWeis > prop.buyPriceInWeis) {
         //For wins
-        tokenReward = forStakedControlOfProposal[_proposalId].div(prop.numFor);
         for (j = 0; j < participants.length; j = j.add(1)) {
           participant = participants[j];
           stake = forStakedControlOfProposalOfUser[_proposalId][participant];
-          if (stake > 0) {
+        if (stake > 0) {
             //Give control tokens
-            cToken.transfer(participant, stake.add(tokenReward));
+            cToken.transfer(participant, stake.mul(2));
             //Won bet
             PredictionResult(participant, true);
           } else {
@@ -577,13 +573,12 @@ contract GroupFund is Ownable {
       } else {
         //Against wins
         if (prop.numAgainst > 0) {
-          tokenReward = forStakedControlOfProposal[_proposalId].div(prop.numAgainst);
           for (j = 0; j < participants.length; j = j.add(1)) {
             participant = participants[j];
             stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
             if (stake > 0) {
               //Give control tokens
-              cToken.transfer(participant, stake.add(tokenReward));
+              cToken.transfer(participant, stake.mul(2));
               //Won bet
               PredictionResult(participant, true);
             } else {
