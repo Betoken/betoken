@@ -80,6 +80,7 @@ contract GroupFund is Ownable {
   // The maximum number of proposals a participant can make
   uint256 public maxProposals;
 
+  // The amount of the fund that gets distributed to token holders
   uint256 public commissionRate;
 
   uint256 public orderExpirationTimeInBlocks;
@@ -87,6 +88,7 @@ contract GroupFund is Ownable {
   //The proportion of contract balance reserved for Oraclize fees
   uint256 public oraclizeFeeProportion;
 
+  // The proportion of contract balance that goes the the devs
   uint256 public developerFeeProportion;
 
   //The max number of proposals a member can create
@@ -209,9 +211,9 @@ contract GroupFund is Ownable {
     developerFeeAccount = _newAddr;
   }
 
-  //*******
-  //Getters
-  //*******
+  // *******
+  // Getters
+  // *******
   function participantsCount() public view returns(uint256 _count) {
     return participants.length;
   }
@@ -220,9 +222,9 @@ contract GroupFund is Ownable {
     return proposals.length;
   }
 
-  //*******
-  //Fee Proportion setters
-  //*******
+  // *******
+  // Fee Proportion setters
+  // *******
   function changeOraclizeFeeProportion(uint256 _newProp) public onlyOwner {
     require(_newProp < oraclizeFeeProportion);
     oraclizeFeeProportion = _newProp;
@@ -275,9 +277,11 @@ contract GroupFund is Ownable {
 
   // *******
   // Reset functions
-  //*******
+  // *******
   function __resetMemberData(address _addr) internal {
     delete createdProposalCount[_addr];
+
+    // Remove the associated corresponding control staked for/against for each proposal
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       delete forStakedControlOfProposalOfUser[i][_addr];
       delete againstStakedControlOfProposalOfUser[i][_addr];
@@ -289,13 +293,17 @@ contract GroupFund is Ownable {
     delete forStakedControlOfProposal[_proposalId];
   }
 
-  //Change making time functions
+  // *******
+  // Change making time functions
+  // *******
 
+  // Deposit into GroupFund
   function deposit()
     public
     payable
     during(CyclePhase.ChangeMaking)
   {
+    // If caller is not a participant, add them onto the participants list
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
       isParticipant[msg.sender] = true;
@@ -327,6 +335,7 @@ contract GroupFund is Ownable {
     msg.sender.transfer(_amountInWeis);
   }
 
+  // End the change making time phase
   function endChangeMakingTime() public during(CyclePhase.ChangeMaking) {
     require(now >= startTimeOfCycle.add(timeOfChangeMaking));
 
@@ -707,7 +716,9 @@ contract OraclizeHandler is usingOraclize, Ownable {
     owner.transfer(this.balance);
   }
 
+  // *******
   //Oraclize functions
+  // *******
 
   // Query Oraclize for the current price
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
@@ -716,6 +727,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     groupFund = GroupFund(owner);
 
     string storage tokenSymbol = tokenSymbolOfProposal[_proposalId];
+
     // Grab the cryptocompare URL that is the price in ETH of the token to purchase
     string memory etherSymbol = "ETH";
     string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
@@ -729,6 +741,10 @@ contract OraclizeHandler is usingOraclize, Ownable {
   // Callback function from Oraclize query:
   function __callback(bytes32 _myID, string _result) public {
     require(msg.sender == oraclize_cbAddress());
+
+    // Require the callback response to be non-empty:
+    require(_result !== "");
+
     groupFund = GroupFund(owner);
 
     // Grab ETH price in Weis
