@@ -33,6 +33,8 @@ totalFunds = new ReactiveVar(BigNumber("0"))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
 memberList = new ReactiveVar([])
+devFeeProportion = new ReactiveVar(0)
+commissionRate = new ReactiveVar(0)
 
 #Displayed variables
 displayedKairoBalance = new ReactiveVar(BigNumber("0"))
@@ -44,6 +46,9 @@ countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
 transactionHash = new ReactiveVar("")
 networkName = new ReactiveVar("")
+ROIList = new ReactiveVar([])
+chart = null
+ROIRawData = new ReactiveVar([])
 
 getCurrentAccount = () ->
   return web3.eth.getAccounts().then(
@@ -259,6 +264,54 @@ loadFundData = () ->
           #Update reactive_list
           memberList.set(members)
       )
+  ).then(
+    () ->
+      chart.data.datasets[0].data = []
+      betoken.contracts.groupFund.events.ROI(
+        fromBlock: 0
+      ).on('data', (_event) ->
+        data = _event.returnValues
+        chart.data.datasets[0].data.push(
+          x: data._cycleNumber
+          y: BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100).toString()
+        )
+        chart.data.datasets[0].data.sort(
+          (a, b) -> Number.parseInt(a.x) - Number.parseInt(b.x)
+        )
+        chart.update()
+
+        rawData = ROIRawData.get()
+        rawData.push(data)
+        rawData.sort(
+          (a, b) -> Number.parseInt(a._cycleNumber) - Number.parseInt(b._cycleNumber)
+        )
+        ROIRawData.set(rawData)
+
+        ROIList.set(chart.data.datasets[0].data)
+      )
+
+      #Example data
+      chart.data.datasets[0].data = [
+        x: "1"
+        y: "10"
+      ,
+        x: "2"
+        y: "13"
+      ,
+        x: "3"
+        y: "20"
+      ]
+      chart.update()
+  )
+
+  betoken.getPrimitiveVar('developerFeeProportion').then(
+    (_result) ->
+      devFeeProportion.set(+_result)
+  )
+
+  betoken.getPrimitiveVar('commissionRate').then(
+    (_result) ->
+      commissionRate.set(+_result)
   )
 
   #Get Network ID
@@ -284,26 +337,16 @@ $('document').ready(() ->
   $('table').tablesort()
   clock()
 
-  ctx = $("#myChart");
-  myChart = new Chart(ctx,
+  chart = new Chart($("#myChart"),
     type: 'line',
     data:
       datasets: [
         label: "ROI Per Cycle"
         backgroundColor: 'rgba(0, 0, 100, 0.5)'
         borderColor: 'rgba(0, 0, 100, 1)'
-        data: [
-          x: 1
-          y: 10
-        ,
-          x: 2
-          y: 13
-        ,
-          x: 3
-          y: 20
-        ]
+        data: []
       ]
-  ,
+    ,
     options:
       scales:
         xAxes: [
@@ -325,9 +368,9 @@ $('document').ready(() ->
             beginAtZero: true
         ]
   )
-)
 
-Template.body.onCreated(loadFundData)
+  loadFundData()
+)
 
 Template.body.helpers(
   transaction_hash: () -> transactionHash.get()
@@ -446,6 +489,25 @@ Template.supported_props_box.helpers(
 Template.supported_props_box.events(
   "click .cancel_support_button": (event) ->
     betoken.cancelSupport(this.id).then(showTransaction)
+)
+
+Template.stats_tab.helpers(
+  member_count: () -> memberList.get().length
+  cycle_length: () -> BigNumber(timeOfCycle.get()).div(24 * 60 * 60).toDigits(3)
+  total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
+  prev_roi: () -> BigNumber(ROIList.get()[-1].y).toFormat(2)
+  avg_roi: () ->
+    sum = 0
+    for data in ROIList.get()
+      sum += +data.y
+    return BigNumber(sum / ROIList.get().length).toFormat(2)
+  prev_commission: () -> BigNumber(ROIRawData.get()[-1]._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion).toFormat(2)
+  historical_commission: () ->
+    sum = BigNumber(0)
+    for data in ROIRawData.get()
+      commission = BigNumber(data._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion)
+      sum = sum.add(commission)
+    return sum.toFormat(2)
 )
 
 Template.proposals_tab.helpers(

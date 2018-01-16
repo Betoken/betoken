@@ -363,7 +363,7 @@
             Total Investment
           </div>
           <div class="value">
-            40,509 ETH
+            {{total_funds}} ETH
           </div>
         </div>
         <p></p>
@@ -372,7 +372,7 @@
             Average ROI
           </div>
           <div class="value">
-            32.6%
+            {{avg_roi}}%
           </div>
         </div>
         <p></p>
@@ -381,7 +381,7 @@
             Previous Cycle ROI
           </div>
           <div class="value">
-            45.1%
+            {{prev_roi}}%
           </div>
         </div>
         <p></p>
@@ -390,7 +390,7 @@
             Member Count
           </div>
           <div class="value">
-            143
+            {{member_count}}
           </div>
         </div>
         <p></p>
@@ -399,7 +399,7 @@
             Cycle Length
           </div>
           <div class="value">
-            30 Days
+            {{cycle_length}} Days
           </div>
         </div>
         <p></p>
@@ -408,7 +408,7 @@
             Previous Cycle Commission Payout
           </div>
           <div class="value">
-            30.2 ETH
+            {{prev_commission}} ETH
           </div>
         </div>
         <p></p>
@@ -417,7 +417,7 @@
             Historical Commission Payout
           </div>
           <div class="value">
-            105.3 ETH
+            {{historical_commission}} ETH
           </div>
         </div>
       </div>
@@ -462,7 +462,7 @@
                 var s = document.createElement("script");
                 s.type = "text/javascript";
                 s.async = true;
-                var theUrl = baseUrl+'serve/v2/coin/header?fsyms={{token_symbol}}&tsyms=USD';
+                var theUrl = baseUrl+'serve/v1/coin/chart?fsym={{token_symbol}}&tsym=USD';
                 s.src = theUrl + ( theUrl.indexOf("?") >= 0 ? "&" : "?") + "app=" + appName;
                 embedder.parentNode.appendChild(s);
               })();

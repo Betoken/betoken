@@ -57,6 +57,8 @@ contract GroupFund is Ownable {
   // Address of the developers ^_^
   address public developerFeeAccount;
 
+  uint256 public cycleNumber;
+
   uint256 public tenToDecimals;
 
   // The total amount of funds held by the group
@@ -137,7 +139,7 @@ contract GroupFund is Ownable {
   event ProposalMakingTimeEnded(uint256 timestamp);
   event CycleEnded(uint256 timestamp);
   event CycleFinalized(uint256 timestamp);
-  event ROI(uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
+  event ROI(uint256 _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event PredictionResult(address _member, bool _success);
 
   // GroupFund constructor
@@ -178,6 +180,7 @@ contract GroupFund is Ownable {
     cyclePhase = CyclePhase.Finalized;
     creator = msg.sender;
     numProposals = 0;
+    cycleNumber = 0;
 
     //Initialize etherDelta contract
     etherDelta = EtherDelta(etherDeltaAddr);
@@ -254,6 +257,7 @@ contract GroupFund is Ownable {
     // Update the Cycles
     cyclePhase = CyclePhase.ChangeMaking;
     startTimeOfCycle = now;
+    cycleNumber = cycleNumber.add(1);
 
     //Reset data
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
@@ -628,7 +632,7 @@ contract GroupFund is Ownable {
     }
 
     uint256 newTotalFunds = newTotalRegularFunds.add(totalCommission);
-    ROI(totalFundsInWeis, newTotalFunds);
+    ROI(cycleNumber, totalFundsInWeis, newTotalFunds);
     totalFundsInWeis = newTotalFunds;
 
     developerFeeAccount.transfer(devFee);
