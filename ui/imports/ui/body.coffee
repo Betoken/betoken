@@ -13,31 +13,30 @@ if typeof web3 != undefined
 else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
-#Fund metadata
+#Fund object
 betoken_addr = new ReactiveVar("0x29d016c6a7b65269b9da620bf5d28afa51ea0e50")
 betoken = new Betoken(betoken_addr.get())
-kairo_addr = new ReactiveVar("")
-etherDelta_addr = new ReactiveVar("")
 
 #Session data
 userAddress = new ReactiveVar("")
-userBalance = new ReactiveVar(BigNumber("0"))
-kairoBalance = new ReactiveVar(BigNumber("0"))
-kairoTotalSupply = new ReactiveVar(BigNumber("0"))
+userBalance = new ReactiveVar(BigNumber(0))
+kairoBalance = new ReactiveVar(BigNumber(0))
+kairoTotalSupply = new ReactiveVar(BigNumber(0))
 cyclePhase = new ReactiveVar(0)
 startTimeOfCycle = new ReactiveVar(0)
 timeOfCycle = new ReactiveVar(0)
 timeOfChangeMaking = new ReactiveVar(0)
 timeOfProposalMaking = new ReactiveVar(0)
-totalFunds = new ReactiveVar(BigNumber("0"))
+totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
 memberList = new ReactiveVar([])
-devFeeProportion = new ReactiveVar(0)
-commissionRate = new ReactiveVar(0)
+cycleNumber = new ReactiveVar(0)
 
 #Displayed variables
-displayedKairoBalance = new ReactiveVar(BigNumber("0"))
+kairo_addr = new ReactiveVar("")
+etherDelta_addr = new ReactiveVar("")
+displayedKairoBalance = new ReactiveVar(BigNumber(0))
 displayedKairoUnit = new ReactiveVar("KRO")
 countdownDay = new ReactiveVar(0)
 countdownHour = new ReactiveVar(0)
@@ -46,18 +45,11 @@ countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
 transactionHash = new ReactiveVar("")
 networkName = new ReactiveVar("")
-ROIList = new ReactiveVar([])
 chart = null
-ROIRawData = new ReactiveVar([])
-
-getCurrentAccount = () ->
-  return web3.eth.getAccounts().then(
-    (accounts) ->
-      web3.eth.defaultAccount = accounts[0]
-  ).then(
-    () ->
-      return web3.eth.defaultAccount
-  )
+prevROI = new ReactiveVar(BigNumber(0))
+avgROI = new ReactiveVar(BigNumber(0))
+prevCommission = new ReactiveVar(BigNumber(0))
+totalCommission = new ReactiveVar(BigNumber(0))
 
 showTransaction = (_transaction) ->
   transactionHash.set(_transaction.transactionHash)
@@ -97,221 +89,53 @@ loadFundData = () ->
   proposals = []
   supportedProposals = []
   members = []
+  receivedROICount = 0
 
-  getCurrentAccount().then(
+  web3.eth.getAccounts().then(
+    (accounts) ->
+      web3.eth.defaultAccount = accounts[0]
+  ).then(
+    () ->
+      return web3.eth.defaultAccount
+  ).then(
     (_userAddress) ->
       #Initialize user address
       userAddress.set(_userAddress)
-      return
-  ).then(
-    () ->
-      return betoken.getMappingOrArrayItem("balanceOf", userAddress.get())
-  ).then(
-    (_balance) ->
-      #Get user Ether deposit balance
-      userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18))
-  ).then(
-    () ->
-      #Get user's Kairo balance
-      return betoken.getKairoBalance(userAddress.get())
-  ).then(
-    (_kairoBalance) ->
-      kairoBalance.set(BigNumber(_kairoBalance))
-      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
-      return
-  ).then(
-    () ->
-      #Get Kairo's total supply
-      return betoken.getKairoTotalSupply()
-  ).then(
-    (_kairoTotalSupply) ->
-      kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
-      return
-  ).then(
-    () ->
-      #Get total funds
-      return betoken.getPrimitiveVar("totalFundsInWeis").then(
-        (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
+      betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(
+        (_balance) ->
+          #Get user Ether deposit balance
+          userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18))
       )
-  ).then(
-    () ->
-      #Get cycle phase
-      return betoken.getPrimitiveVar("cyclePhase").then(
-        (_cyclePhase) -> cyclePhase.set(+_cyclePhase)
+      betoken.getKairoBalance(_userAddress).then(
+        (_kairoBalance) ->
+          #Get user's Kairo balance
+          kairoBalance.set(BigNumber(_kairoBalance))
+          displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
       )
-  ).then(
-    () ->
-      #Get startTimeOfCycle
-      return betoken.getPrimitiveVar("startTimeOfCycle").then(
-        (_startTime) -> startTimeOfCycle.set(+_startTime)
-      )
-  ).then(
-    () ->
-      #Get timeOfCycle
-      return betoken.getPrimitiveVar("timeOfCycle").then(
-        (_time) -> timeOfCycle.set(+_time)
-      )
-  ).then(
-    () ->
-      #Get timeOfChangeMaking
-      return betoken.getPrimitiveVar("timeOfChangeMaking").then(
-        (_time) -> timeOfChangeMaking.set(+_time)
-      )
-  ).then(
-    () ->
-      #Get timeOfProposalMaking
-      return betoken.getPrimitiveVar("timeOfProposalMaking").then(
-        (_time) -> timeOfProposalMaking.set(+_time)
-      )
-  ).then(
-    () ->
-      #Set Kairo contract address
-      kairo_addr.set(betoken.addrs.controlToken)
-  ).then(
-    () ->
-      #Get etherDelta address
-      return betoken.getPrimitiveVar("etherDeltaAddr")
-  ).then(
+  )
+
+  #Get cycle data
+  betoken.getPrimitiveVar("cyclePhase").then(
+    (_cyclePhase) -> cyclePhase.set(+_cyclePhase)
+  )
+  betoken.getPrimitiveVar("startTimeOfCycle").then(
+    (_startTime) -> startTimeOfCycle.set(+_startTime)
+  )
+  betoken.getPrimitiveVar("timeOfCycle").then(
+    (_time) -> timeOfCycle.set(+_time)
+  )
+  betoken.getPrimitiveVar("timeOfChangeMaking").then(
+    (_time) -> timeOfChangeMaking.set(+_time)
+  )
+  betoken.getPrimitiveVar("timeOfProposalMaking").then(
+    (_time) -> timeOfProposalMaking.set(+_time)
+  )
+
+  #Get contract addresses
+  kairo_addr.set(betoken.addrs.controlToken)
+  betoken.getPrimitiveVar("etherDeltaAddr").then(
     (_etherDeltaAddr) ->
       etherDelta_addr.set(_etherDeltaAddr)
-  ).then(
-    () ->
-      #Get proposals
-      return betoken.getArray("proposals")
-  ).then(
-    (_proposals) ->
-      allPromises = []
-      if _proposals.length > 0
-        getProposal = (i) ->
-          if _proposals[i].numFor > 0
-            return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
-              (_stake) ->
-                investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
-                proposal =
-                  id: i
-                  token_symbol: _proposals[i].tokenSymbol
-                  investment: investment.toFormat(4)
-                  supporters: _proposals[i].numFor
-                proposals.push(proposal)
-            )
-        allPromises = (getProposal(i) for i in [0.._proposals.length - 1])
-      return Promise.all(allPromises)
-  ).then(
-    () ->
-      proposalList.set(proposals)
-      return
-  ).then(
-    () ->
-      #Filter out proposals the user supported
-      allPromises = []
-      filterProposal = (proposal) ->
-        betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
-          (_stake) ->
-            _stake = BigNumber(web3.utils.fromWei(_stake))
-            if _stake.greaterThan(0)
-              proposal.user_stake = _stake
-              supportedProposals.push(proposal)
-        )
-      allPromises = (filterProposal(proposal) for proposal in proposalList.get())
-      return Promise.all(allPromises)
-  ).then(
-    () ->
-      supportedProposalList.set(supportedProposals)
-      return
-  ).then(
-    () ->
-      betoken.getArray("participants").then(
-        (_array) ->
-          #Get member addresses
-          members = new Array(_array.length)
-          if _array.length > 0
-            for i in [0.._array.length - 1]
-              members[i] = new Object()
-              members[i].address = _array[i]
-          return
-      ).then(
-        () ->
-          #Get member ETH balances
-          if members.length > 0
-            setBalance = (id) ->
-              betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
-                (_eth_balance) ->
-                  members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
-                  return
-              )
-            allPromises = (setBalance(i) for i in [0..members.length - 1])
-            return Promise.all(allPromises)
-      ).then(
-        () ->
-          #Get member KRO balances
-          if members.length > 0
-            setBalance = (id) ->
-              betoken.getKairoBalance(members[id].address).then(
-                (_kro_balance) ->
-                  members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
-                  return
-              )
-            allPromises = (setBalance(i) for i in [0..members.length - 1])
-            return Promise.all(allPromises)
-      ).then(
-        () ->
-          #Get member KRO proportions
-          for member in members
-            member.kro_proportion = BigNumber(member.kro_balance).dividedBy(web3.utils.fromWei(kairoTotalSupply.get().toString())).times(100).toPrecision(4)
-          return
-      ).then(
-        () ->
-          #Update reactive_list
-          memberList.set(members)
-      )
-  ).then(
-    () ->
-      chart.data.datasets[0].data = []
-      betoken.contracts.groupFund.events.ROI(
-        fromBlock: 0
-      ).on('data', (_event) ->
-        data = _event.returnValues
-        chart.data.datasets[0].data.push(
-          x: data._cycleNumber
-          y: BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100).toString()
-        )
-        chart.data.datasets[0].data.sort(
-          (a, b) -> Number.parseInt(a.x) - Number.parseInt(b.x)
-        )
-        chart.update()
-
-        rawData = ROIRawData.get()
-        rawData.push(data)
-        rawData.sort(
-          (a, b) -> Number.parseInt(a._cycleNumber) - Number.parseInt(b._cycleNumber)
-        )
-        ROIRawData.set(rawData)
-
-        ROIList.set(chart.data.datasets[0].data)
-      )
-
-      #Example data
-      chart.data.datasets[0].data = [
-        x: "1"
-        y: "10"
-      ,
-        x: "2"
-        y: "13"
-      ,
-        x: "3"
-        y: "20"
-      ]
-      chart.update()
-  )
-
-  betoken.getPrimitiveVar('developerFeeProportion').then(
-    (_result) ->
-      devFeeProportion.set(+_result)
-  )
-
-  betoken.getPrimitiveVar('commissionRate').then(
-    (_result) ->
-      commissionRate.set(+_result)
   )
 
   #Get Network ID
@@ -331,6 +155,165 @@ loadFundData = () ->
       networkName.set(net)
       return
   )
+
+  #Get statistics
+  betoken.getPrimitiveVar("cycleNumber").then(
+    (_result) ->
+      cycleNumber.set(+_result)
+  ).then(
+    () ->
+      chart.data.datasets[0].data = []
+      betoken.contracts.groupFund.events.ROI(
+        fromBlock: 0
+      ).on("data", (_event) ->
+        data = _event.returnValues
+        ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
+
+        #Update chart data
+        chart.data.datasets[0].data.push(
+          x: data._cycleNumber
+          y: ROI.toString()
+        )
+        chart.update()
+
+        #Update previous cycle ROI
+        if +data._cycleNumber == cycleNumber.get() - 1
+          prevROI.set(ROI)
+
+        #Update average ROI
+        receivedROICount += 1
+        avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
+      )
+
+      #Example data
+      ###chart.data.datasets[0].data = [
+        x: "1"
+        y: "10"
+      ,
+        x: "2"
+        y: "13"
+      ,
+        x: "3"
+        y: "20"
+      ]
+      chart.update()###
+      betoken.contracts.groupFund.events.CommissionPaid(
+        fromBlock: 0
+      ).on("data", (_event) ->
+        commission = BigNumber(_event.returnValues._totalCommissionInWeis)
+        #Update previous cycle commission
+        if +data._cycleNumber == cycleNumber.get() - 1
+          prevCommission.set(commission)
+
+        #Update total commission
+        totalCommission.set(totalCommission.get().add(commission))
+      )
+  )
+
+  #Get proposals & participants
+  Promise.all([
+    betoken.getKairoTotalSupply().then(
+      (_kairoTotalSupply) ->
+        #Get Kairo's total supply
+        kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
+        return
+    ),
+    betoken.getPrimitiveVar("totalFundsInWeis").then(
+      #Get total funds
+      (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
+    )
+  ]).then(
+    () ->
+      Promise.all([
+        betoken.getArray("proposals").then(
+          (_proposals) ->
+            allPromises = []
+            if _proposals.length > 0
+              getProposal = (i) ->
+                if _proposals[i].numFor > 0
+                  return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
+                    (_stake) ->
+                      investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
+                      proposal =
+                        id: i
+                        token_symbol: _proposals[i].tokenSymbol
+                        investment: investment.toFormat(4)
+                        supporters: _proposals[i].numFor
+                      proposals.push(proposal)
+                  )
+              allPromises = (getProposal(i) for i in [0.._proposals.length - 1])
+            return Promise.all(allPromises)
+        ).then(
+          () ->
+            proposalList.set(proposals)
+            return
+        ).then(
+          () ->
+            #Filter out proposals the user supported
+            allPromises = []
+            filterProposal = (proposal) ->
+              betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
+                (_stake) ->
+                  _stake = BigNumber(web3.utils.fromWei(_stake))
+                  if _stake.greaterThan(0)
+                    proposal.user_stake = _stake
+                    supportedProposals.push(proposal)
+              )
+            allPromises = (filterProposal(proposal) for proposal in proposalList.get())
+            return Promise.all(allPromises)
+        ).then(
+          () ->
+            supportedProposalList.set(supportedProposals)
+            return
+        ),
+        betoken.getArray("participants").then(
+          (_array) ->
+            #Get member addresses
+            members = new Array(_array.length)
+            if _array.length > 0
+              for i in [0.._array.length - 1]
+                members[i] = new Object()
+                members[i].address = _array[i]
+            return
+        ).then(
+          () ->
+            #Get member ETH balances
+            if members.length > 0
+              setBalance = (id) ->
+                betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
+                  (_eth_balance) ->
+                    members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
+                    return
+                )
+              allPromises = (setBalance(i) for i in [0..members.length - 1])
+              return Promise.all(allPromises)
+        ).then(
+          () ->
+            #Get member KRO balances
+            if members.length > 0
+              setBalance = (id) ->
+                betoken.getKairoBalance(members[id].address).then(
+                  (_kro_balance) ->
+                    members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
+                    return
+                )
+              allPromises = (setBalance(i) for i in [0..members.length - 1])
+              return Promise.all(allPromises)
+        ).then(
+          () ->
+            #Get member KRO proportions
+            for member in members
+              member.kro_proportion = BigNumber(member.kro_balance).dividedBy(web3.utils.fromWei(kairoTotalSupply.get().toString())).times(100).toPrecision(4)
+            return
+        ).then(
+          () ->
+            #Update reactive_list
+            memberList.set(members)
+        )
+      ])
+  )
+
+  return
 
 $('document').ready(() ->
   $('.menu .item').tab()
@@ -369,7 +352,8 @@ $('document').ready(() ->
         ]
   )
 
-  loadFundData()
+  #Initialize Betoken object
+  betoken.init().then(loadFundData)
 )
 
 Template.body.helpers(
@@ -495,20 +479,10 @@ Template.stats_tab.helpers(
   member_count: () -> memberList.get().length
   cycle_length: () -> BigNumber(timeOfCycle.get()).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
-  prev_roi: () -> if ROIList.get().length then BigNumber(ROIList.get()[-1].y).toFormat(2) else '0.00'
-  avg_roi: () ->
-    avg = BigNumber(0)
-    for data in ROIList.get()
-      #avg_n = avg_n-1 + (a_n - avg_n-1) / n
-      avg = avg.add(BigNumber(data.y).minus(avg).div(data.x))
-    return avg.toFormat(2)
-  prev_commission: () -> if ROIRawData.get().length then BigNumber(ROIRawData.get()[-1]._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion).toFormat(2) else '0.00'
-  historical_commission: () ->
-    sum = BigNumber(0)
-    for data in ROIRawData.get()
-      commission = BigNumber(data._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion)
-      sum = sum.add(commission)
-    return sum.toFormat(2)
+  prev_roi: () -> prevROI.get().toFormat(2)
+  avg_roi: () -> avgROI.get().toFormat(2)
+  prev_commission: () -> prevCommission.get().toFormat(2)
+  historical_commission: () -> totalCommission.get().toFormat(2)
 )
 
 Template.proposals_tab.helpers(

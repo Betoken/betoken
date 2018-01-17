@@ -130,17 +130,18 @@ contract GroupFund is Ownable {
 
   CyclePhase public cyclePhase;
 
-  event CycleStarted(uint256 timestamp);
-  event Deposit(address _sender, uint256 _amountInWeis);
-  event Withdraw(address _sender, uint256 _amountInWeis);
-  event ChangeMakingTimeEnded(uint256 timestamp);
-  event NewProposal(uint256 _id, address _tokenAddress, string _tokenSymbol, uint256 _amountInWeis);
-  event SupportedProposal(uint256 _id, uint256 _amountInWeis);
-  event ProposalMakingTimeEnded(uint256 timestamp);
-  event CycleEnded(uint256 timestamp);
-  event CycleFinalized(uint256 timestamp);
+  event CycleStarted(uint256 _cycleNumber, uint256 _timestamp);
+  event Deposit(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
+  event Withdraw(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
+  event ChangeMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress, string _tokenSymbol, uint256 _amountInWeis);
+  event SupportedProposal(uint256 _cycleNumber, uint256 _id, uint256 _amountInWeis);
+  event ProposalMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event CycleEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event CycleFinalized(uint256 _cycleNumber, uint256 _timestamp);
   event ROI(uint256 _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
-  event PredictionResult(address _member, bool _success);
+  event PredictionResult(uint256 _cycleNumber, address _member, bool _success);
+  event CommissionPaid(uint256 _cycleNumber, uint256 _totalCommissionInWeis);
 
   // GroupFund constructor
   function GroupFund(
@@ -249,7 +250,6 @@ contract GroupFund is Ownable {
 
   //Starts a new cycle
   function startNewCycle() public during(CyclePhase.Finalized) {
-
     // Contract needs to be initialized
     // (Used to prevent function calls before initializing subcontracts)
     require(initialized);
@@ -272,7 +272,7 @@ contract GroupFund is Ownable {
     delete numProposals;
 
     // Updated the time when the cycle started
-    CycleStarted(now);
+    CycleStarted(cycleNumber, now);
   }
 
   // *******
@@ -319,6 +319,8 @@ contract GroupFund is Ownable {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
     }
+
+    Deposit(cycleNumber, msg.sender, msg.value, now);
   }
 
   // Withdraw from GroupFund
@@ -333,6 +335,8 @@ contract GroupFund is Ownable {
     balanceOf[msg.sender] = balanceOf[msg.sender].sub(_amountInWeis);
 
     msg.sender.transfer(_amountInWeis);
+
+    Withdraw(cycleNumber, msg.sender, _amountInWeis, now);
   }
 
   // End the change making time phase
@@ -341,7 +345,7 @@ contract GroupFund is Ownable {
 
     cyclePhase = CyclePhase.ProposalMaking;
 
-    ChangeMakingTimeEnded(now);
+    ChangeMakingTimeEnded(cycleNumber, now);
   }
 
   //Proposal making time functions
@@ -378,7 +382,7 @@ contract GroupFund is Ownable {
     uint256 proposalId = proposals.length - 1;
     supportProposal(proposalId, _stakeInWeis);
 
-    NewProposal(proposalId, _tokenAddress, _tokenSymbol, _stakeInWeis);
+    NewProposal(cycleNumber, proposalId, _tokenAddress, _tokenSymbol, _stakeInWeis);
   }
 
   function supportProposal(uint256 _proposalId, uint256 _stakeInWeis)
@@ -402,7 +406,7 @@ contract GroupFund is Ownable {
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
 
-    SupportedProposal(_proposalId, _stakeInWeis);
+    SupportedProposal(cycleNumber, _proposalId, _stakeInWeis);
   }
 
   function cancelProposalSupport(uint256 _proposalId)
@@ -443,7 +447,7 @@ contract GroupFund is Ownable {
     __stakeAgainstVotes();
     __makeInvestments();
 
-    ProposalMakingTimeEnded(now);
+    ProposalMakingTimeEnded(cycleNumber, now);
   }
 
   function __stakeAgainstVotes() internal {
@@ -511,7 +515,7 @@ contract GroupFund is Ownable {
       }
     }
 
-    CycleEnded(now);
+    CycleEnded(cycleNumber, now);
   }
 
   function finalizeEndCycle() public during(CyclePhase.Ended) {
@@ -534,7 +538,7 @@ contract GroupFund is Ownable {
 
     __distributeFundsAfterCycleEnd();
 
-    CycleFinalized(now);
+    CycleFinalized(cycleNumber, now);
   }
 
   //Internal use functions
@@ -566,11 +570,11 @@ contract GroupFund is Ownable {
             //Give control tokens
             cToken.transfer(participant, stake.mul(2));
             //Won bet
-            PredictionResult(participant, true);
+            PredictionResult(cycleNumber, participant, true);
           } else {
             if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
               //Lost bet
-              PredictionResult(participant, false);
+              PredictionResult(cycleNumber, participant, false);
             }
           }
         }
@@ -584,11 +588,11 @@ contract GroupFund is Ownable {
               //Give control tokens
               cToken.transfer(participant, stake.mul(2));
               //Won bet
-              PredictionResult(participant, true);
+              PredictionResult(cycleNumber, participant, true);
             } else {
               if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
                 //Lost bet
-                PredictionResult(participant, false);
+                PredictionResult(cycleNumber, participant, false);
               }
             }
           }
@@ -636,6 +640,8 @@ contract GroupFund is Ownable {
     totalFundsInWeis = newTotalFunds;
 
     developerFeeAccount.transfer(devFee);
+
+    CommissionPaid(cycleNumber, totalCommission);
   }
 
   function __addControlTokenReceipientAsParticipant(address _receipient) public {
@@ -742,7 +748,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     require(msg.sender == oraclize_cbAddress());
 
     // Require the callback response to be non-empty:
-    require(_result !== "");
+    require(keccak256(_result) != keccak256(""));
 
     groupFund = GroupFund(owner);
 

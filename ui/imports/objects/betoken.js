@@ -23,7 +23,7 @@ getDefaultAccount = function() {
  * @param {String} _address the GroupFund contract's address
  */
 export var Betoken = function(_address) {
-  var groupFundABI, self;
+  var self;
   self = this;
   self.contracts = {
     groupFund: null,
@@ -228,17 +228,22 @@ export var Betoken = function(_address) {
   /*
   Object Initialization
   */
-  //Initialize GroupFund contract
-  self.addrs.groupFund = _address;
-  groupFundABI = require("./abi/GroupFund.json").abi;
-  self.contracts.groupFund = new web3.eth.Contract(groupFundABI, self.addrs.groupFund);
-  //Get ControlToken address
-  self.contracts.groupFund.methods.controlTokenAddr().call().then(function(_controlTokenAddr) {
-    var controlTokenABI;
-    //Initialize ControlToken contract
-    self.addrs.controlToken = _controlTokenAddr;
-    controlTokenABI = require("./abi/ControlToken.json").abi;
-    return self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken);
-  });
+  self.init = function() {
+    var groupFundABI;
+    //Initialize GroupFund contract
+    self.addrs.groupFund = _address;
+    groupFundABI = require("./abi/GroupFund.json").abi;
+    self.contracts.groupFund = new web3.eth.Contract(groupFundABI, self.addrs.groupFund);
+    //Get ControlToken address
+    return self.contracts.groupFund.methods.controlTokenAddr().call().then(function(_controlTokenAddr) {
+      var controlTokenABI;
+      //Initialize ControlToken contract
+      self.addrs.controlToken = _controlTokenAddr;
+      controlTokenABI = require("./abi/ControlToken.json").abi;
+      return self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken);
+    });
+  };
   return self;
 };
+
+//# sourceMappingURL=betoken.js.map

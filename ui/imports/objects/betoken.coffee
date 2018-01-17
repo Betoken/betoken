@@ -208,18 +208,19 @@ export Betoken = (_address) ->
     Object Initialization
   ###
 
-  #Initialize GroupFund contract
-  self.addrs.groupFund = _address
-  groupFundABI = require("./abi/GroupFund.json").abi
-  self.contracts.groupFund = new web3.eth.Contract(groupFundABI, self.addrs.groupFund)
+  self.init = () ->
+    #Initialize GroupFund contract
+    self.addrs.groupFund = _address
+    groupFundABI = require("./abi/GroupFund.json").abi
+    self.contracts.groupFund = new web3.eth.Contract(groupFundABI, self.addrs.groupFund)
 
-  #Get ControlToken address
-  self.contracts.groupFund.methods.controlTokenAddr().call().then(
-    (_controlTokenAddr) ->
-      #Initialize ControlToken contract
-      self.addrs.controlToken = _controlTokenAddr
-      controlTokenABI = require("./abi/ControlToken.json").abi
-      self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken)
-  )
+    #Get ControlToken address
+    return self.contracts.groupFund.methods.controlTokenAddr().call().then(
+      (_controlTokenAddr) ->
+        #Initialize ControlToken contract
+        self.addrs.controlToken = _controlTokenAddr
+        controlTokenABI = require("./abi/ControlToken.json").abi
+        self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken)
+    )
 
   return self
