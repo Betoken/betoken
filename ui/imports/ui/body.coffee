@@ -32,6 +32,7 @@ proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
 memberList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
+commissionRate = new ReactiveVar(BigNumber(0))
 
 #Displayed variables
 kairo_addr = new ReactiveVar("")
@@ -130,6 +131,11 @@ loadFundData = () ->
   betoken.getPrimitiveVar("timeOfProposalMaking").then(
     (_time) -> timeOfProposalMaking.set(+_time)
   )
+
+  betoken.getPrimitiveVar("commissionRate").then(
+    (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
+  )
+
 
   #Get contract addresses
   kairo_addr.set(betoken.addrs.controlToken)
@@ -407,6 +413,7 @@ Template.sidebar.helpers(
   user_balance: () -> userBalance.get()
   user_kairo_balance: () -> displayedKairoBalance.get()
   kairo_unit: () -> displayedKairoUnit.get()
+  expected_commission: () -> kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get()).mul(avgROI.add(100).div(100)).mul(commissionRate.get()).toFormat(18)
 )
 
 Template.sidebar.events(
@@ -481,8 +488,8 @@ Template.stats_tab.helpers(
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
   avg_roi: () -> avgROI.get().toFormat(2)
-  prev_commission: () -> prevCommission.get().toFormat(2)
-  historical_commission: () -> totalCommission.get().toFormat(2)
+  prev_commission: () -> prevCommission.get().div(1e18).toFormat(2)
+  historical_commission: () -> totalCommission.get().div(1e18).toFormat(2)
 )
 
 Template.proposals_tab.helpers(
