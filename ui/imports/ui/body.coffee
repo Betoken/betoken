@@ -495,13 +495,14 @@ Template.stats_tab.helpers(
   member_count: () -> memberList.get().length
   cycle_length: () -> BigNumber(timeOfCycle.get()).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
-  prev_roi: () -> BigNumber(ROIList.get()[-1].y).toFormat(2)
+  prev_roi: () -> if ROIList.get().length then BigNumber(ROIList.get()[-1].y).toFormat(2) else '0.00'
   avg_roi: () ->
-    sum = 0
+    avg = BigNumber(0)
     for data in ROIList.get()
-      sum += +data.y
-    return BigNumber(sum / ROIList.get().length).toFormat(2)
-  prev_commission: () -> BigNumber(ROIRawData.get()[-1]._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion).toFormat(2)
+      #avg_n = avg_n-1 + (a_n - avg_n-1) / n
+      avg = avg.add(BigNumber(data.y).minus(avg).div(data.x))
+    return avg.toFormat(2)
+  prev_commission: () -> if ROIRawData.get().length then BigNumber(ROIRawData.get()[-1]._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion).toFormat(2) else '0.00'
   historical_commission: () ->
     sum = BigNumber(0)
     for data in ROIRawData.get()

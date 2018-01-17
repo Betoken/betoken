@@ -617,20 +617,29 @@ Template.stats_tab.helpers({
     return totalFunds.get().div("1e18").toFormat(2);
   },
   prev_roi: function() {
-    return BigNumber(ROIList.get()[-1].y).toFormat(2);
+    if (ROIList.get().length) {
+      return BigNumber(ROIList.get()[-1].y).toFormat(2);
+    } else {
+      return '0.00';
+    }
   },
   avg_roi: function() {
-    var data, j, len, ref, sum;
-    sum = 0;
+    var avg, data, j, len, ref;
+    avg = BigNumber(0);
     ref = ROIList.get();
     for (j = 0, len = ref.length; j < len; j++) {
       data = ref[j];
-      sum += +data.y;
+      //avg_n = avg_n-1 + (a_n - avg_n-1) / n
+      avg = avg.add(BigNumber(data.y).minus(avg).div(data.x));
     }
-    return BigNumber(sum / ROIList.get().length).toFormat(2);
+    return avg.toFormat(2);
   },
   prev_commission: function() {
-    return BigNumber(ROIRawData.get()[-1]._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion).toFormat(2);
+    if (ROIRawData.get().length) {
+      return BigNumber(ROIRawData.get()[-1]._afterTotalFunds).mul(commissionRate).div(1e18 - devFeeProportion).toFormat(2);
+    } else {
+      return '0.00';
+    }
   },
   historical_commission: function() {
     var commission, data, j, len, ref, sum;
