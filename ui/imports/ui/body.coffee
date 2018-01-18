@@ -5,6 +5,8 @@ import { Betoken } from '../objects/betoken.js'
 import Chart from 'chart.js'
 import BigNumber from 'bignumber.js'
 
+SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check if your inputs are valid and try again later."
+
 #Import web3
 Web3 = require 'web3'
 web3 = window.web3
@@ -52,11 +54,16 @@ avgROI = new ReactiveVar(BigNumber(0))
 prevCommission = new ReactiveVar(BigNumber(0))
 totalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
+errorMessage = new ReactiveVar("")
 
 showTransaction = (_transaction) ->
   transactionHash.set(_transaction.transactionHash)
-  $('#transaction_sent_modal').modal('show')
+  $("#transaction_sent_modal").modal("show")
   return
+
+showError = (_msg) ->
+  errorMessage.set(_msg)
+  $("#error_modal").modal("show")
 
 clock = () ->
   setInterval(
@@ -93,12 +100,28 @@ loadFundData = () ->
   members = []
   receivedROICount = 0
 
+  #Get Network ID
+  web3.eth.net.getId().then(
+    (_id) ->
+      switch _id
+        when 1
+          net = "Main Ethereum Network"
+        when 3
+          net = "Ropsten Testnet"
+        when 4
+          net = "Rinkeby Testnet"
+        when 42
+          net = "Kovan Testnet"
+        else
+          net = "Unknown Network"
+      networkName.set(net)
+      return
+  )
+
   web3.eth.getAccounts().then(
     (accounts) ->
       web3.eth.defaultAccount = accounts[0]
-  ).then(
-    () ->
-      return web3.eth.defaultAccount
+      return accounts[0]
   ).then(
     (_userAddress) ->
       #Initialize user address
@@ -176,24 +199,6 @@ loadFundData = () ->
   betoken.getPrimitiveVar("etherDeltaAddr").then(
     (_etherDeltaAddr) ->
       etherDelta_addr.set(_etherDeltaAddr)
-  )
-
-  #Get Network ID
-  web3.eth.net.getId().then(
-    (_id) ->
-      switch _id
-        when 1
-          net = "Main Ethereum Network"
-        when 3
-          net = "Ropsten Testnet"
-        when 4
-          net = "Rinkeby Testnet"
-        when 42
-          net = "Kovan Testnet"
-        else
-          net = "Unknown Network"
-      networkName.set(net)
-      return
   )
 
   #Get statistics
@@ -363,46 +368,51 @@ loadFundData = () ->
 $('document').ready(() ->
   $('.menu .item').tab()
   $('table').tablesort()
-  clock()
 
-  chart = new Chart($("#myChart"),
-    type: 'line',
-    data:
-      datasets: [
-        label: "ROI Per Cycle"
-        backgroundColor: 'rgba(0, 0, 100, 0.5)'
-        borderColor: 'rgba(0, 0, 100, 1)'
-        data: []
-      ]
-    ,
-    options:
-      scales:
-        xAxes: [
-          type: 'linear'
-          position: 'bottom'
-          scaleLabel:
-            display: true
-            labelString: 'Investment Cycle'
-          ticks:
-            stepSize: 1
-        ]
-        yAxes: [
-          type: 'linear'
-          position: 'left'
-          scaleLabel:
-            display: true
-            labelString: 'Percent'
-          ticks:
-            beginAtZero: true
-        ]
-  )
+  if typeof web3 != undefined
+    clock()
 
-  #Initialize Betoken object
-  betoken.init().then(loadFundData)
+    chart = new Chart($("#myChart"),
+      type: 'line',
+      data:
+        datasets: [
+          label: "ROI Per Cycle"
+          backgroundColor: 'rgba(0, 0, 100, 0.5)'
+          borderColor: 'rgba(0, 0, 100, 1)'
+          data: []
+        ]
+      ,
+      options:
+        scales:
+          xAxes: [
+            type: 'linear'
+            position: 'bottom'
+            scaleLabel:
+              display: true
+              labelString: 'Investment Cycle'
+            ticks:
+              stepSize: 1
+          ]
+          yAxes: [
+            type: 'linear'
+            position: 'left'
+            scaleLabel:
+              display: true
+              labelString: 'Percent'
+            ticks:
+              beginAtZero: true
+          ]
+    )
+
+    #Initialize Betoken object
+    betoken.init().then(loadFundData)
+  else
+    showError("Betoken can only be used in a Web3 enabled browser. Please install Metamask or switch to another browser that supports Web3.")
 )
 
 Template.body.helpers(
   transaction_hash: () -> transactionHash.get()
+  error_msg: () -> errorMessage.get()
 )
 
 Template.top_bar.helpers(
@@ -414,7 +424,10 @@ Template.top_bar.helpers(
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
-    betoken.endPhase().then(showTransaction)
+    try
+      betoken.endPhase().then(showTransaction)
+    catch error
+      console.log error
 
   "click .change_contract": (event) ->
     $('#change_contract_modal').modal(
