@@ -302,17 +302,13 @@
 
       <!-- Actual table rows go here -->
       <tbody>
-      <tr>
-        <td>Withdraw</td>
-        <td>10</td>
-        <td>2017/11/24 16:08:01 PST</td>
-      </tr>
-
-      <tr>
-        <td>Deposit</td>
-        <td>20</td>
-        <td>2017/11/24 17:00:01 PST</td>
-      </tr>
+        {{#each transaction_history}}
+          <tr>
+            <td>{{type}}</td>
+            <td>{{amount}}</td>
+            <td>{{timestamp}}</td>
+          </tr>
+        {{/each}}
       </tbody>
     </table>
   </div>

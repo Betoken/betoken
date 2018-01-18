@@ -14,7 +14,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0x29d016c6a7b65269b9da620bf5d28afa51ea0e50")
+betoken_addr = new ReactiveVar("0xfbcd2ce367bf3cc755b3ccbae7bbe2df1b9590f7")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -51,6 +51,7 @@ prevROI = new ReactiveVar(BigNumber(0))
 avgROI = new ReactiveVar(BigNumber(0))
 prevCommission = new ReactiveVar(BigNumber(0))
 totalCommission = new ReactiveVar(BigNumber(0))
+transactionHistory = new ReactiveVar([])
 
 showTransaction = (_transaction) ->
   transactionHash.set(_transaction.transactionHash)
@@ -102,6 +103,7 @@ loadFundData = () ->
     (_userAddress) ->
       #Initialize user address
       userAddress.set(_userAddress)
+
       betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(
         (_balance) ->
           #Get user Ether deposit balance
@@ -112,6 +114,38 @@ loadFundData = () ->
           #Get user's Kairo balance
           kairoBalance.set(BigNumber(_kairoBalance))
           displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
+      )
+
+      #Listen for transactions
+      betoken.contracts.groupFund.getPastEvents("Deposit",
+        fromBlock: 0
+      ).then(
+        (_events) ->
+          for _event in _events
+            data = _event.returnValues
+            if data._sender == _userAddress
+              tmp = transactionHistory.get()
+              tmp.push(
+                type: "Deposit"
+                amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
+                timestamp: new Date(+data._timestamp * 1e3).toString()
+              )
+              transactionHistory.set(tmp)
+      )
+      betoken.contracts.groupFund.getPastEvents("Withdraw",
+        fromBlock: 0
+      ).then(
+        (_events) ->
+          for _event in _events
+            data = _event.returnValues
+            if data._sender == _userAddress
+              tmp = transactionHistory.get()
+              tmp.push(
+                type: "Withdraw"
+                amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
+                timestamp: new Date(+data._timestamp * 1e3).toString()
+              )
+              transactionHistory.set(tmp)
       )
   )
 
@@ -169,26 +203,28 @@ loadFundData = () ->
   ).then(
     () ->
       chart.data.datasets[0].data = []
-      betoken.contracts.groupFund.events.ROI(
+      betoken.contracts.groupFund.getPastEvents("ROI",
         fromBlock: 0
-      ).on("data", (_event) ->
-        data = _event.returnValues
-        ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
+      ).then(
+        (_events) ->
+          for _event in _events
+            data = _event.returnValues
+            ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
 
-        #Update chart data
-        chart.data.datasets[0].data.push(
-          x: data._cycleNumber
-          y: ROI.toString()
-        )
-        chart.update()
+            #Update chart data
+            chart.data.datasets[0].data.push(
+              x: data._cycleNumber
+              y: ROI.toString()
+            )
+            chart.update()
 
-        #Update previous cycle ROI
-        if +data._cycleNumber == cycleNumber.get() - 1
-          prevROI.set(ROI)
+            #Update previous cycle ROI
+            if +data._cycleNumber == cycleNumber.get() - 1
+              prevROI.set(ROI)
 
-        #Update average ROI
-        receivedROICount += 1
-        avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
+            #Update average ROI
+            receivedROICount += 1
+            avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
       )
 
       #Example data
@@ -203,16 +239,19 @@ loadFundData = () ->
         y: "20"
       ]
       chart.update()###
-      betoken.contracts.groupFund.events.CommissionPaid(
-        fromBlock: 0
-      ).on("data", (_event) ->
-        commission = BigNumber(_event.returnValues._totalCommissionInWeis)
-        #Update previous cycle commission
-        if +data._cycleNumber == cycleNumber.get() - 1
-          prevCommission.set(commission)
 
-        #Update total commission
-        totalCommission.set(totalCommission.get().add(commission))
+      betoken.contracts.groupFund.getPastEvents("CommissionPaid",
+        fromBlock: 0
+      ).then(
+        (_events) ->
+          for _event in _events
+            commission = BigNumber(_event.returnValues._totalCommissionInWeis)
+            #Update previous cycle commission
+            if +data._cycleNumber == cycleNumber.get() - 1
+              prevCommission.set(commission)
+
+            #Update total commission
+            totalCommission.set(totalCommission.get().add(commission))
       )
   )
 
@@ -413,7 +452,10 @@ Template.sidebar.helpers(
   user_balance: () -> userBalance.get()
   user_kairo_balance: () -> displayedKairoBalance.get()
   kairo_unit: () -> displayedKairoUnit.get()
-  expected_commission: () -> kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get()).mul(avgROI.add(100).div(100)).mul(commissionRate.get()).toFormat(18)
+  expected_commission: () ->
+    if kairoTotalSupply.get().greaterThan(0)
+      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(avgROI.get().add(100).div(100)).mul(commissionRate.get()).toFormat(18)
+    return BigNumber(0).toFormat(18)
 )
 
 Template.sidebar.events(
@@ -448,6 +490,8 @@ Template.transact_box.helpers(
       if Template.instance().withdrawInputHasError.get()
         return "error"
     return ""
+
+  transaction_history: () -> transactionHistory.get()
 )
 
 Template.transact_box.events(
