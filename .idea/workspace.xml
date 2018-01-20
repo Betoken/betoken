@@ -20,12 +20,6 @@
       <change beforePath="$PROJECT_DIR$/eth/build/contracts/usingOraclize.json" afterPath="" />
       <change beforePath="$PROJECT_DIR$/eth/contracts/betoken.sol" afterPath="$PROJECT_DIR$/eth/contracts/betoken.sol" />
       <change beforePath="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" afterPath="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
-      <change beforePath="$PROJECT_DIR$/eth/truffle.js" afterPath="$PROJECT_DIR$/eth/truffle.js" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.coffee" afterPath="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.html" afterPath="$PROJECT_DIR$/ui/imports/ui/body.html" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -84,8 +78,8 @@
       <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="643">
-              <caret line="775" column="0" lean-forward="true" selection-start-line="775" selection-start-column="0" selection-end-line="775" selection-end-column="0" />
+            <state relative-caret-position="327">
+              <caret line="768" column="113" lean-forward="false" selection-start-line="768" selection-start-column="110" selection-end-line="768" selection-end-column="113" />
               <folding />
             </state>
           </provider>
@@ -94,8 +88,8 @@
       <file leaf-file-name="2_deploy_contracts.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="337">
-              <caret line="17" column="29" lean-forward="true" selection-start-line="17" selection-start-column="29" selection-end-line="17" selection-end-column="29" />
+            <state relative-caret-position="225">
+              <caret line="13" column="5" lean-forward="false" selection-start-line="13" selection-start-column="5" selection-end-line="13" selection-end-column="5" />
               <folding />
             </state>
           </provider>
@@ -143,6 +137,7 @@
       <find>BigNumber(&quot;0&quot;)</find>
       <find>getCurrentAccount</find>
       <find>showTransaction</find>
+      <find>div</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -157,11 +152,11 @@
         <option value="$PROJECT_DIR$/ui/client/lib/site/modules/checkbox.variables.import.less" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.js" />
         <option value="$PROJECT_DIR$/eth/truffle.js" />
-        <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
-        <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
+        <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
+        <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
       </list>
     </option>
   </component>
@@ -170,7 +165,6 @@
   <component name="JsFlowSettings">
     <service-enabled>true</service-enabled>
     <exe-path />
-    <annotation-enable>false</annotation-enable>
     <other-services-enabled>true</other-services-enabled>
     <auto-save>true</auto-save>
   </component>
@@ -214,6 +208,17 @@
             <path>
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
               <item name="betoken" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
+              <item name="betoken" type="462c0819:PsiDirectoryNode" />
+              <item name="eth" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
+              <item name="betoken" type="462c0819:PsiDirectoryNode" />
+              <item name="eth" type="462c0819:PsiDirectoryNode" />
+              <item name="build" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
@@ -263,7 +268,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="settings.editor.selected.configurable" value="watcher.settings" />
+    <property name="settings.editor.selected.configurable" value="settings.nodejs" />
     <property name="nodejs_interpreter_path" value="D:/Program Files/nodejs/node" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/../../../AppData/Roaming/npm/coffee.cmd" />
@@ -342,7 +347,7 @@
       <workItem from="1515292902238" duration="36000" />
       <workItem from="1515292978198" duration="40669000" />
       <workItem from="1516173787206" duration="2000000" />
-      <workItem from="1516176460926" duration="46837000" />
+      <workItem from="1516176460926" duration="54503000" />
     </task>
     <task id="LOCAL-00001" summary="Significantly changed the UI">
       <created>1511426762390</created>
@@ -589,11 +594,18 @@
       <option name="project" value="LOCAL" />
       <updated>1516266742322</updated>
     </task>
-    <option name="localTasksCounter" value="36" />
+    <task id="LOCAL-00036" summary="Fixed oraclize bug and buy/sell token amount bug.">
+      <created>1516417180224</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1516417180224</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="303800000" />
+    <option name="totallyTimeSpent" value="311466000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -627,7 +639,6 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Added &quot;New Proposal&quot; button" />
     <MESSAGE value="Added coinmarketcap widget in proposals" />
     <MESSAGE value="Connected phase indicator to backend" />
     <MESSAGE value="Connected sidebar to backend, except for expected commission" />
@@ -652,7 +663,8 @@
     <MESSAGE value="Added expected commission to UI" />
     <MESSAGE value="Finished transaction history box, fixed web3 event handling." />
     <MESSAGE value="Added error modal in UI" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added error modal in UI" />
+    <MESSAGE value="Fixed oraclize bug and buy/sell token amount bug." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed oraclize bug and buy/sell token amount bug." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1011,21 +1023,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="337">
-          <caret line="17" column="29" lean-forward="true" selection-start-line="17" selection-start-column="29" selection-end-line="17" selection-end-column="29" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/build/contracts/GroupFund.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="56">
           <caret line="1234" column="3" lean-forward="false" selection-start-line="2" selection-start-column="9" selection-end-line="1234" selection-end-column="3" />
-          <folding>
-            <element signature="e#42#24735#0" expanded="false" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -1105,10 +1107,18 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="13" column="5" lean-forward="false" selection-start-line="13" selection-start-column="5" selection-end-line="13" selection-end-column="5" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="643">
-          <caret line="775" column="0" lean-forward="true" selection-start-line="775" selection-start-column="0" selection-end-line="775" selection-end-column="0" />
+        <state relative-caret-position="327">
+          <caret line="768" column="113" lean-forward="false" selection-start-line="768" selection-start-column="110" selection-end-line="768" selection-end-column="113" />
           <folding />
         </state>
       </provider>

@@ -5,12 +5,7 @@ import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
 import './oraclizeAPI_0.4.sol';
 
-// The main contract that keeps track of:
-// - Who is in the fund
-// - How much the fund has
-// - Each person's Share
-// - Each person's Control
-// - The current list of Proposals
+// The main contract
 contract GroupFund is Ownable {
   using SafeMath for uint256;
 
@@ -55,11 +50,13 @@ contract GroupFund is Ownable {
   // The creator of the GroupFund
   address public creator;
 
-  // Address of the developers ^_^
+  // Address to which the developer fees will be paid
   address public developerFeeAccount;
 
+  //The number of the current cycle
   uint256 public cycleNumber;
 
+  //10^decimals used for representing fixed point decimals
   uint256 public tenToDecimals;
 
   // The total amount of funds held by the group
@@ -363,6 +360,7 @@ contract GroupFund is Ownable {
     require(numProposals < maxProposals);
     require(!isTokenAlreadyProposed[_tokenAddress]);
     require(createdProposalCount[msg.sender] < maxProposalsPerMember);
+    require(_tenToDecimals > 0);
 
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
@@ -552,7 +550,7 @@ contract GroupFund is Ownable {
     uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis).div(prop.tenToDecimals);
     uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0);
 
-    return amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum;
+    return amountFilled >= sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum;
   }
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
@@ -631,9 +629,15 @@ contract GroupFund is Ownable {
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
-      uint256 newBalance = newTotalRegularFunds.mul(balanceOf[participant]).div(totalFundsInWeis);
+      uint256 newBalance = 0;
+      //Add share
+      if (totalFundsInWeis > 0) {
+        newBalance = newBalance.add(newTotalRegularFunds.mul(balanceOf[participant]).div(totalFundsInWeis));
+      }
       //Add commission
-      newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
+      if (cToken.totalSupply() > 0) {
+        newBalance = newBalance.add(totalCommission.mul(cToken.balanceOf(participant)).div(cToken.totalSupply()));
+      }
       //Update balance
       balanceOf[participant] = newBalance;
     }
@@ -668,7 +672,7 @@ contract GroupFund is Ownable {
   }
 
   function() public payable {
-    if (msg.sender != etherDeltaAddr) {
+    if (msg.sender != etherDeltaAddr && msg.sender != oraclizeAddr) {
       revert();
     }
   }
