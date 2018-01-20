@@ -16,7 +16,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0xfbcd2ce367bf3cc755b3ccbae7bbe2df1b9590f7")
+betoken_addr = new ReactiveVar("0xe17faf34106f2043291ba6bc8078691f6069e608")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -140,6 +140,7 @@ loadFundData = () ->
       )
 
       #Listen for transactions
+      transactionHistory.set([])
       betoken.contracts.groupFund.getPastEvents("Deposit",
         fromBlock: 0
       ).then(
@@ -436,7 +437,7 @@ Template.top_bar.events(
           new_addr = $("#contract_addr_input")[0].value
           betoken_addr.set(new_addr)
           betoken = new Betoken(betoken_addr.get())
-          loadFundData()
+          betoken.init().then(loadFundData)
         catch error
           #Todo:Display error message
     ).modal('show')
@@ -577,10 +578,11 @@ Template.proposals_tab.events(
         try
           address = $("#address_input_new")[0].value
           tickerSymbol = $("#ticker_input_new")[0].value
+          decimals = +$("#decimals_input_new")[0].value
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
-          betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(showTransaction)
+          betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis).then(showTransaction)
         catch error
-          #Todo:Display error message
+          showError("There was an error in your input. Please fix it and try again.")
     ).modal('show')
 )
 

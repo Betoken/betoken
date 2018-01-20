@@ -29,7 +29,7 @@ if (typeof web3 !== void 0) {
 }
 
 //Fund object
-betoken_addr = new ReactiveVar("0xfbcd2ce367bf3cc755b3ccbae7bbe2df1b9590f7");
+betoken_addr = new ReactiveVar("0xe17faf34106f2043291ba6bc8078691f6069e608");
 
 betoken = new Betoken(betoken_addr.get());
 
@@ -186,6 +186,7 @@ loadFundData = function() {
       return displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18));
     });
     //Listen for transactions
+    transactionHistory.set([]);
     betoken.contracts.groupFund.getPastEvents("Deposit", {
       fromBlock: 0
     }).then(function(_events) {
@@ -573,7 +574,7 @@ Template.top_bar.events({
           new_addr = $("#contract_addr_input")[0].value;
           betoken_addr.set(new_addr);
           betoken = new Betoken(betoken_addr.get());
-          return loadFundData();
+          return betoken.init().then(loadFundData);
         } catch (error1) {
           error = error1;
         }
@@ -775,17 +776,18 @@ Template.proposals_tab.events({
   "click .new_proposal": function(event) {
     return $('#new_proposal_modal').modal({
       onApprove: function(e) {
-        var address, error, kairoAmountInWeis, tickerSymbol;
+        var address, decimals, error, kairoAmountInWeis, tickerSymbol;
         try {
           address = $("#address_input_new")[0].value;
           tickerSymbol = $("#ticker_input_new")[0].value;
+          decimals = +$("#decimals_input_new")[0].value;
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18");
-          return betoken.createProposal(address, tickerSymbol, kairoAmountInWeis).then(showTransaction);
+          return betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis).then(showTransaction);
         } catch (error1) {
           error = error1;
+          return showError("There was an error in your input. Please fix it and try again.");
         }
       }
-    //Todo:Display error message
     }).modal('show');
   }
 });

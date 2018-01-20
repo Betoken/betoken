@@ -166,13 +166,14 @@ export Betoken = (_address) ->
    * Creates proposal
    * @param  {String} _tokenAddress the token address
    * @param  {String} _tokenSymbol  the token symbol (ticker)
+   * @param  {Number} _decimals the number of decimals the token uses
    * @param  {BigNumber} _stakeInWeis the investment amount
    * @return {Promise}               .then(()->)
   ###
-  self.createProposal = (_tokenAddress, _tokenSymbol, _stakeInWeis) ->
+  self.createProposal = (_tokenAddress, _tokenSymbol, _decimals, _stakeInWeis) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _stakeInWeis).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, Math.pow(10, _decimals), _stakeInWeis).send({from: web3.eth.defaultAccount})
     )
 
   ###*

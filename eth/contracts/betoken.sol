@@ -19,6 +19,7 @@ contract GroupFund is Ownable {
   struct Proposal {
     address tokenAddress;
     string tokenSymbol;
+    uint256 tenToDecimals;
     uint256 buyPriceInWeis;
     uint256 sellPriceInWeis;
     uint256 buyOrderExpirationBlockNum;
@@ -82,7 +83,7 @@ contract GroupFund is Ownable {
   // The maximum number of proposals a participant can make
   uint256 public maxProposals;
 
-  // The amount of the fund that gets distributed to token holders
+  // The proportion of the fund that gets distributed to Kairo holders every cycle
   uint256 public commissionRate;
 
   uint256 public orderExpirationTimeInBlocks;
@@ -352,6 +353,7 @@ contract GroupFund is Ownable {
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
+    uint256 _tenToDecimals,
     uint256 _stakeInWeis
   )
     public
@@ -365,6 +367,7 @@ contract GroupFund is Ownable {
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
       tokenSymbol: _tokenSymbol,
+      tenToDecimals: _tenToDecimals,
       buyPriceInWeis: 0,
       sellPriceInWeis: 0,
       numFor: 0,
@@ -546,7 +549,7 @@ contract GroupFund is Ownable {
   function __sellOrderFinished(uint256 _proposalId) internal returns(bool) {
     Proposal storage prop = proposals[_proposalId];
     uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-    uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis);
+    uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis).div(prop.tenToDecimals);
     uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0);
 
     return amountFilled == sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum;
@@ -560,7 +563,7 @@ contract GroupFund is Ownable {
     uint256 j;
     address participant;
     uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cToken.totalSupply());
-    if (etherDelta.amountFilled(prop.tokenAddress, investAmount.div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
+    if (etherDelta.amountFilled(prop.tokenAddress, investAmount.mul(prop.tenToDecimals).div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceInWeis > prop.buyPriceInWeis) {
         //For wins
         for (j = 0; j < participants.length; j = j.add(1)) {
@@ -727,7 +730,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
   // Query Oraclize for the current price
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
-    require(oraclize_getPrice("URL") > this.balance);
+    require(oraclize_getPrice("URL") <= this.balance);
 
     groupFund = GroupFund(owner);
 
@@ -737,10 +740,8 @@ contract OraclizeHandler is usingOraclize, Ownable {
     string memory etherSymbol = "ETH";
     string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
 
-    string memory url = "URL";
-
     // Call Oraclize to grab the most recent price information via JSON
-    proposalIdOfQuery[oraclize_query(url, urlToQuery)] = _proposalId;
+    proposalIdOfQuery[oraclize_query("URL", urlToQuery)] = _proposalId;
   }
 
   // Callback function from Oraclize query:
@@ -756,7 +757,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     uint256 priceInWeis = parseInt(_result, 18);
 
     uint256 proposalId = proposalIdOfQuery[_myID];
-    var (tokenAddress,) = groupFund.proposals(proposalId);
+    var (tokenAddress,_,tenToDecimals,) = groupFund.proposals(proposalId);
 
     //Reset data
     delete proposalIdOfQuery[_myID];
@@ -767,14 +768,14 @@ contract OraclizeHandler is usingOraclize, Ownable {
       //Buy
       groupFund.__setBuyPriceAndExpirationBlock(proposalId, priceInWeis, expires);
 
-      uint256 buyTokenAmount = investAmount.div(priceInWeis);
+      uint256 buyTokenAmount = investAmount.mul(tenToDecimals).div(priceInWeis);
       groupFund.__makeOrder(tokenAddress, buyTokenAmount, address(0), investAmount, expires, proposalId);
     } else if (uint(groupFund.cyclePhase()) == uint(CyclePhase.Ended)) {
       //Sell
       groupFund.__setSellPriceAndExpirationBlock(proposalId, priceInWeis, expires);
 
       uint256 sellTokenAmount = etherDelta.tokens(tokenAddress, owner);
-      uint256 getWeiAmount = sellTokenAmount.mul(priceInWeis);
+      uint256 getWeiAmount = sellTokenAmount.mul(priceInWeis).div(tenToDecimals);
       groupFund.__makeOrder(address(0), getWeiAmount, tokenAddress, sellTokenAmount, expires, proposalId);
     }
   }
