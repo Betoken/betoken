@@ -74,6 +74,9 @@ contract GroupFund is Ownable {
   //Temporal length of proposal making period at start of each cycle, in seconds
   uint256 public timeOfProposalMaking;
 
+  //The time allotted for waiting for sell orders, in seconds
+  uint256 public timeOfSellOrderWaiting;
+
   //Proportion of control people who vote against a proposal have to stake
   uint256 public minStakeProportion;
 
@@ -149,6 +152,7 @@ contract GroupFund is Ownable {
     uint256 _timeOfCycle,
     uint256 _timeOfChangeMaking,
     uint256 _timeOfProposalMaking,
+    uint256 _timeOfSellOrderWaiting,
     uint256 _minStakeProportion,
     uint256 _maxProposals,
     uint256 _commissionRate,
@@ -167,6 +171,7 @@ contract GroupFund is Ownable {
     timeOfCycle = _timeOfCycle;
     timeOfChangeMaking = _timeOfChangeMaking;
     timeOfProposalMaking = _timeOfProposalMaking;
+    timeOfSellOrderWaiting = _timeOfSellOrderWaiting;
     minStakeProportion = _minStakeProportion;
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
@@ -519,13 +524,12 @@ contract GroupFund is Ownable {
   }
 
   function finalizeEndCycle() public during(CyclePhase.Ended) {
+    //require(now >= startTimeOfCycle.add(timeOfCycle).add(timeOfSellOrderWaiting));
+
     cyclePhase = CyclePhase.Finalized;
 
-    //Ensure all the sell orders are inactive
     for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
-      if (proposals[proposalId].numFor > 0) {
-        //Ensure proposal isn't a deleted one
-        require(__sellOrderFinished(proposalId));
+      if (proposals[proposalId].numFor > 0) { //Ensure proposal isn't a deleted one
         __settleBets(proposalId);
       }
     }
@@ -543,14 +547,15 @@ contract GroupFund is Ownable {
 
   //Internal use functions
 
-  function __sellOrderFinished(uint256 _proposalId) internal returns(bool) {
-    Proposal storage prop = proposals[_proposalId];
-    uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-    uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis).div(10**prop.tokenDecimals);
-    uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0);
+  //Doesn't work. Always returns false for some inexplicable reason.
+  //function __sellOrderFinished(uint256 _proposalId) internal returns(bool) {
+    //Proposal storage prop = proposals[_proposalId];
+    //uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
+    //uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis).div(10**prop.tokenDecimals);
+    //uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0);
 
-    return amountFilled >= sellTokenAmount || block.number > prop.sellOrderExpirationBlockNum;
-  }
+    //return ((amountFilled >= sellTokenAmount) || (block.number > prop.sellOrderExpirationBlockNum));
+  //}
 
   //Seperated from finalizeEndCycle() to avoid StackTooDeep error
   function __settleBets(uint256 _proposalId) internal {

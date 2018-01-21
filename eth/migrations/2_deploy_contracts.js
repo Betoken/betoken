@@ -12,6 +12,7 @@ module.exports = function(deployer, network, accounts) {
     240,//30 * 24 * 3600, //timeOfCycle
     120,//2 * 24 * 3600, //timeOfChangeMaking
     120,//2 * 24 * 3600, //timeOfProposalMaking
+    60, //timeOfSellOrderWaiting
     0.01 * Math.pow(10, 18), //minStakeProportion
     20, //maxProposals
     0.01 * Math.pow(10, 18), //commissionRate

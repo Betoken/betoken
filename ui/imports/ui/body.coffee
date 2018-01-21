@@ -29,6 +29,7 @@ startTimeOfCycle = new ReactiveVar(0)
 timeOfCycle = new ReactiveVar(0)
 timeOfChangeMaking = new ReactiveVar(0)
 timeOfProposalMaking = new ReactiveVar(0)
+timeOfSellOrderWaiting = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
@@ -77,6 +78,9 @@ clock = () ->
           target = startTimeOfCycle.get() + timeOfChangeMaking.get() + timeOfProposalMaking.get()
         when 2
           target = startTimeOfCycle.get() + timeOfCycle.get()
+        when 3
+          target = startTimeOfCycle.get() + timeOfCycle.get() + timeOfSellOrderWaiting.get()
+
       distance = target - now
 
       if distance > 0
@@ -189,7 +193,9 @@ loadFundData = () ->
   betoken.getPrimitiveVar("timeOfProposalMaking").then(
     (_time) -> timeOfProposalMaking.set(+_time)
   )
-
+  betoken.getPrimitiveVar("timeOfSellOrderWaiting").then(
+    (_time) -> timeOfSellOrderWaiting.set(+_time)
+  )
   betoken.getPrimitiveVar("commissionRate").then(
     (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
   )
