@@ -16,7 +16,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0xe17faf34106f2043291ba6bc8078691f6069e608")
+betoken_addr = new ReactiveVar("0xc1712fdfba1b5cc29deb2bc975172c44a97950dc")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -49,6 +49,7 @@ countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
 transactionHash = new ReactiveVar("")
 networkName = new ReactiveVar("")
+networkPrefix = new ReactiveVar("")
 chart = null
 prevROI = new ReactiveVar(BigNumber(0))
 avgROI = new ReactiveVar(BigNumber(0))
@@ -57,8 +58,8 @@ totalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 
-showTransaction = (_transaction) ->
-  transactionHash.set(_transaction.transactionHash)
+showTransaction = (_txHash) ->
+  transactionHash.set(_txHash)
   $("#transaction_sent_modal").modal("show")
   return
 
@@ -110,15 +111,21 @@ loadFundData = () ->
       switch _id
         when 1
           net = "Main Ethereum Network"
+          pre = ""
         when 3
           net = "Ropsten Testnet"
+          pre = "ropsten."
         when 4
           net = "Rinkeby Testnet"
+          pre = "rinkeby."
         when 42
           net = "Kovan Testnet"
+          pre = "kovan."
         else
           net = "Unknown Network"
+          pre = ""
       networkName.set(net)
+      networkPrefix.set(pre)
       return
   )
 
@@ -411,6 +418,7 @@ $('document').ready(() ->
 
 Template.body.helpers(
   transaction_hash: () -> transactionHash.get()
+  network_prefix: () -> networkPrefix.get()
   error_msg: () -> errorMessage.get()
 )
 
@@ -424,7 +432,7 @@ Template.top_bar.helpers(
 Template.top_bar.events(
   "click .next_phase": (event) ->
     try
-      betoken.endPhase().then(showTransaction)
+      betoken.endPhase(showTransaction)
     catch error
       console.log error
 
@@ -511,7 +519,7 @@ Template.transact_box.events(
     try
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
-      betoken.deposit(amount).then(showTransaction)
+      betoken.deposit(amount, showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -519,7 +527,7 @@ Template.transact_box.events(
     try
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
-      betoken.withdraw(amount).then(showTransaction)
+      betoken.withdraw(amount, showTransaction)
     catch
       Template.instance().withdrawInputHasError.set(true)
 )
@@ -535,7 +543,7 @@ Template.supported_props_box.helpers(
 
 Template.supported_props_box.events(
   "click .cancel_support_button": (event) ->
-    betoken.cancelSupport(this.id).then(showTransaction)
+    betoken.cancelSupport(this.id, showTransaction)
 )
 
 Template.stats_tab.helpers(
@@ -564,7 +572,7 @@ Template.proposals_tab.events(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
-          betoken.supportProposal(id, kairoAmountInWeis).then(showTransaction)
+          betoken.supportProposal(id, kairoAmountInWeis, showTransaction)
         catch error
           #Todo:Display error message
           console.log error
@@ -578,7 +586,7 @@ Template.proposals_tab.events(
           tickerSymbol = $("#ticker_input_new")[0].value
           decimals = +$("#decimals_input_new")[0].value
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
-          betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis).then(showTransaction)
+          betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis, showTransaction)
         catch error
           showError("There was an error in your input. Please fix it and try again.")
     ).modal('show')

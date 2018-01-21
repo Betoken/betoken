@@ -119,9 +119,10 @@ export var Betoken = function(_address) {
   */
   /**
    * Ends the current phase
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
    */
-  self.endPhase = function() {
+  self.endPhase = function(_callback) {
     var funcName;
     funcName = null;
     return self.getPrimitiveVar("cyclePhase").then(function(_cyclePhase) {
@@ -143,7 +144,7 @@ export var Betoken = function(_address) {
     }).then(function() {
       return self.contracts.groupFund.methods[funcName]().send({
         from: web3.eth.defaultAccount
-      });
+      }).on("transactionHash", _callback);
     });
   };
   /*
@@ -152,9 +153,10 @@ export var Betoken = function(_address) {
   /**
    * Allows user to deposit into the GroupFund
    * @param  {BigNumber} _amountInWeis the deposit amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.deposit = function(_amountInWeis) {
+  self.deposit = function(_amountInWeis, _callback) {
     var funcSignature;
     funcSignature = web3.eth.abi.encodeFunctionSignature("deposit()");
     return getDefaultAccount().then(function() {
@@ -163,19 +165,20 @@ export var Betoken = function(_address) {
         to: self.addrs.groupFund,
         value: _amountInWeis,
         data: funcSignature
-      });
+      }).on("transactionHash", _callback);
     });
   };
   /**
    * Allows user to withdraw from GroupFund balance
    * @param  {BigNumber} _amountInWeis the withdrawl amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.withdraw = function(_amountInWeis) {
+  self.withdraw = function(_amountInWeis, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.groupFund.methods.withdraw(_amountInWeis).send({
         from: web3.eth.defaultAccount
-      });
+      }).on("transactionHash", _callback);
     });
   };
   /*
@@ -187,38 +190,41 @@ export var Betoken = function(_address) {
    * @param  {String} _tokenSymbol  the token symbol (ticker)
    * @param  {Number} _tokenDecimals the number of decimals the token uses
    * @param  {BigNumber} _stakeInWeis the investment amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.createProposal = function(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis) {
+  self.createProposal = function(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({
         from: web3.eth.defaultAccount
-      });
+      }).on("transactionHash", _callback);
     });
   };
   /**
    * Supports proposal
    * @param  {Integer} _proposalId   the proposal ID
    * @param  {BigNumber} _stakeInWeis the investment amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.supportProposal = function(_proposalId, _stakeInWeis) {
+  self.supportProposal = function(_proposalId, _stakeInWeis, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({
         from: web3.eth.defaultAccount
-      });
+      }).on("transactionHash", _callback);
     });
   };
   /**
    * Cancels user's support of a proposal
    * @param  {Integer} _proposalId the proposal ID
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}             .then(()->)
    */
-  self.cancelSupport = function(_proposalId) {
+  self.cancelSupport = function(_proposalId, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({
         from: web3.eth.defaultAccount
-      });
+      }).on("transactionHash", _callback);
     });
   };
   self.getCurrentAccount = function() {

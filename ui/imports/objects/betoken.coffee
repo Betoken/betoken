@@ -105,9 +105,10 @@ export Betoken = (_address) ->
 
   ###*
    * Ends the current phase
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
   ###
-  self.endPhase = () ->
+  self.endPhase = (_callback) ->
     funcName = null
     return self.getPrimitiveVar("cyclePhase").then(
       (_cyclePhase) ->
@@ -128,7 +129,9 @@ export Betoken = (_address) ->
         return getDefaultAccount()
     ).then(
       () ->
-        return self.contracts.groupFund.methods[funcName]().send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods[funcName]().send({from: web3.eth.defaultAccount}).on(
+          "transactionHash", _callback
+        )
     )
 
   ###
@@ -138,24 +141,26 @@ export Betoken = (_address) ->
   ###*
    * Allows user to deposit into the GroupFund
    * @param  {BigNumber} _amountInWeis the deposit amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.deposit = (_amountInWeis) ->
+  self.deposit = (_amountInWeis, _callback) ->
     funcSignature = web3.eth.abi.encodeFunctionSignature("deposit()")
     return getDefaultAccount().then(
       () ->
-        return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.groupFund, value: _amountInWeis, data: funcSignature})
+        return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.groupFund, value: _amountInWeis, data: funcSignature}).on("transactionHash", _callback)
     )
 
   ###*
    * Allows user to withdraw from GroupFund balance
    * @param  {BigNumber} _amountInWeis the withdrawl amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.withdraw = (_amountInWeis) ->
+  self.withdraw = (_amountInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###
@@ -168,35 +173,38 @@ export Betoken = (_address) ->
    * @param  {String} _tokenSymbol  the token symbol (ticker)
    * @param  {Number} _tokenDecimals the number of decimals the token uses
    * @param  {BigNumber} _stakeInWeis the investment amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.createProposal = (_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis) ->
+  self.createProposal = (_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###*
    * Supports proposal
    * @param  {Integer} _proposalId   the proposal ID
    * @param  {BigNumber} _stakeInWeis the investment amount
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.supportProposal = (_proposalId, _stakeInWeis) ->
+  self.supportProposal = (_proposalId, _stakeInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###*
    * Cancels user's support of a proposal
    * @param  {Integer} _proposalId the proposal ID
+   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}             .then(()->)
   ###
-  self.cancelSupport = (_proposalId) ->
+  self.cancelSupport = (_proposalId, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount})
+        return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   self.getCurrentAccount = () ->
