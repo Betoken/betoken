@@ -9,15 +9,15 @@ module.exports = function(deployer, network, accounts) {
     etherDeltaAddress, //Ethdelta address
     accounts[0], //developerFeeAccount
     Math.pow(10, 18), //tenToDecimals
-    240,//30 * 24 * 3600, //timeOfCycle
-    120,//2 * 24 * 3600, //timeOfChangeMaking
-    120,//2 * 24 * 3600, //timeOfProposalMaking
-    60, //timeOfSellOrderWaiting
+    600,//30 * 24 * 3600, //timeOfCycle
+    300,//2 * 24 * 3600, //timeOfChangeMaking
+    300,//2 * 24 * 3600, //timeOfProposalMaking
+    300, //timeOfSellOrderWaiting
     0.01 * Math.pow(10, 18), //minStakeProportion
     20, //maxProposals
     0.01 * Math.pow(10, 18), //commissionRate
-    1,//3600 / 20, //orderExpirationTimeInBlocks
-    0.5 * Math.pow(10, 18), //oraclizeFeeProportion
+    180,//3600 / 20, //orderExpirationTimeInBlocks
+    0.01 * Math.pow(10, 18), //oraclizeFeeProportion
     0.01 * Math.pow(10, 18), //developerFeeProportion
     2 //maxProposalsPerMember
   ], [ControlToken]]).then(

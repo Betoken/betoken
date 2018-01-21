@@ -209,12 +209,17 @@ loadFundData = () ->
   )
 
   #Get statistics
+  prevROI.set(BigNumber(0))
+  avgROI.set(BigNumber(0))
+  prevCommission.set(BigNumber(0))
+  totalCommission.set(BigNumber(0))
   betoken.getPrimitiveVar("cycleNumber").then(
     (_result) ->
       cycleNumber.set(+_result)
   ).then(
     () ->
       chart.data.datasets[0].data = []
+      chart.update()
       betoken.contracts.groupFund.getPastEvents("ROI",
         fromBlock: 0
       ).then(
@@ -238,19 +243,6 @@ loadFundData = () ->
             receivedROICount += 1
             avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
       )
-
-      #Example data
-      ###chart.data.datasets[0].data = [
-        x: "1"
-        y: "10"
-      ,
-        x: "2"
-        y: "13"
-      ,
-        x: "3"
-        y: "20"
-      ]
-      chart.update()###
 
       betoken.contracts.groupFund.getPastEvents("CommissionPaid",
         fromBlock: 0

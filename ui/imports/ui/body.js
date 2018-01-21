@@ -265,10 +265,15 @@ loadFundData = function() {
     return etherDelta_addr.set(_etherDeltaAddr);
   });
   //Get statistics
+  prevROI.set(BigNumber(0));
+  avgROI.set(BigNumber(0));
+  prevCommission.set(BigNumber(0));
+  totalCommission.set(BigNumber(0));
   betoken.getPrimitiveVar("cycleNumber").then(function(_result) {
     return cycleNumber.set(+_result);
   }).then(function() {
     chart.data.datasets[0].data = [];
+    chart.update();
     betoken.contracts.groupFund.getPastEvents("ROI", {
       fromBlock: 0
     }).then(function(_events) {
@@ -294,18 +299,6 @@ loadFundData = function() {
       }
       return results;
     });
-    //Example data
-    /*chart.data.datasets[0].data = [
-      x: "1"
-      y: "10"
-    ,
-      x: "2"
-      y: "13"
-    ,
-      x: "3"
-      y: "20"
-    ]
-    chart.update()*/
     return betoken.contracts.groupFund.getPastEvents("CommissionPaid", {
       fromBlock: 0
     }).then(function(_events) {
