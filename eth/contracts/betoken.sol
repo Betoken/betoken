@@ -582,7 +582,7 @@ contract GroupFund is Ownable {
         for (j = 0; j < participants.length; j = j.add(1)) {
           participant = participants[j];
           stake = forStakedControlOfProposalOfUser[_proposalId][participant];
-        if (stake > 0) {
+          if (stake > 0) {
             //Give control tokens
             cToken.transfer(participant, stake.mul(2));
             //Won bet

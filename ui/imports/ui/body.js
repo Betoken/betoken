@@ -667,8 +667,8 @@ Template.transact_box.onCreated(function() {
 });
 
 Template.transact_box.helpers({
-  is_disabled: function() {
-    if (cyclePhase.get() !== 0) {
+  is_disabled: function(_type) {
+    if (cyclePhase.get() !== 0 || (cycleNumber.get() === 1 && _type === 'withdraw')) {
       return "disabled";
     }
     return "";

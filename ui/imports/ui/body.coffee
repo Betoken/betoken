@@ -497,8 +497,8 @@ Template.transact_box.onCreated(
 )
 
 Template.transact_box.helpers(
-  is_disabled: () ->
-    if cyclePhase.get() != 0
+  is_disabled: (_type) ->
+    if cyclePhase.get() != 0 || (cycleNumber.get() == 1 && _type == 'withdraw')
       return "disabled"
     return ""
 

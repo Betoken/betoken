@@ -1,4 +1,7 @@
 <body>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
+
   <div class="ui grid" style="margin-top: 0.02%;">
     <!-- Top Bar -->
     {{> top_bar}}
@@ -283,7 +286,7 @@
 
     <div class="ui horizontal divider"></div>
 
-    <button class="deposit_button {{is_disabled}} ui primary button fluid">Deposit</button>
+    <button class="deposit_button {{is_disabled 'deposit'}} ui primary button fluid">Deposit</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="second">
@@ -297,7 +300,7 @@
 
     <div class="ui horizontal divider"></div>
 
-    <button class="withdraw_button {{is_disabled}} ui primary button fluid">Withdraw</button>
+    <button class="withdraw_button {{is_disabled 'withdraw'}} ui primary button fluid">Withdraw</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="third">
