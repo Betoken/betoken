@@ -126,6 +126,9 @@ loadFundData = () ->
           pre = ""
       networkName.set(net)
       networkPrefix.set(pre)
+
+      if _id != 4
+        showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha")
       return
   )
 
@@ -376,6 +379,13 @@ $('document').ready(() ->
   $('table').tablesort()
 
   if typeof web3 != undefined
+    web3.eth.net.getId().then(
+      (_id) ->
+        if _id != 4
+          showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha")
+        return
+    )
+
     clock()
 
     chart = new Chart($("#myChart"),

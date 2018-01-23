@@ -182,6 +182,9 @@ loadFundData = function() {
     }
     networkName.set(net);
     networkPrefix.set(pre);
+    if (_id !== 4) {
+      showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha");
+    }
   });
   web3.eth.getAccounts().then(function(accounts) {
     web3.eth.defaultAccount = accounts[0];
@@ -490,6 +493,11 @@ $('document').ready(function() {
   $('.menu .item').tab();
   $('table').tablesort();
   if (typeof web3 !== void 0) {
+    web3.eth.net.getId().then(function(_id) {
+      if (_id !== 4) {
+        showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha");
+      }
+    });
     clock();
     chart = new Chart($("#myChart"), {
       type: 'line',
