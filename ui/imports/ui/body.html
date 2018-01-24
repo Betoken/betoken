@@ -1,6 +1,36 @@
 <body>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.7.1/clipboard.min.js"></script>
+
+
+
+  <script>
+    function copy(value) {
+      /* Get the text field */
+
+      if (value === 1) {
+          var copyText = document.getElementById("text1");
+      }
+      else if (value === 2) {
+        var copyText = document.getElementById("text2");
+      }
+      else {
+        var copyText = document.getElementById("text3");
+      }
+
+      /* Select the text field */
+      copyText.select();
+
+      /* Copy the text inside the text field */
+      document.execCommand("Copy");
+
+      /* Alert the copied text */
+      alert("Copied the text: " + copyText.value);
+    }
+  </script>
+
+
 
   <div class="ui grid" style="margin-top: 0.02%;">
     <!-- Top Bar -->
@@ -90,15 +120,30 @@
         <button class="circular ui icon button refresh_button" style="float: right;">
           <i class="refresh icon"></i>
         </button>
+
+
+
         <p></p>
         Smart Contract Addresses:
         <p></p>
-        Fund: {{betoken_addr}}
+        <div class="selectable">
+          Fund:
+          <input id="text1" class="no-button-style" type="text" value={{betoken_addr}} readonly onclick="copy(1)"/>
+        </div>
         <p></p>
-        Kairo: {{kairo_addr}}
+          <div class="selectable">
+            Kairo:
+            <input id="text2" class="no-button-style" type="text" value={{kairo_addr}} readonly onclick="copy(2)"/>
+          </div>
         <p></p>
-        EtherDelta: {{etherdelta_addr}}
+          <div class="selectable">
+            EtherDelta:
+            <input id="text3" class="no-button-style" type="text" value={{etherdelta_addr}} readonly onclick="copy(3)"/>
+          </div>
         <p></p>
+
+
+
       </h5>
     </div>
   </div>
