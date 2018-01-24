@@ -22,7 +22,7 @@ betoken_addr = new ReactiveVar("0xc1712fdfba1b5cc29deb2bc975172c44a97950dc")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
-userAddress = new ReactiveVar("")
+userAddress = new ReactiveVar("Not Available")
 userBalance = new ReactiveVar(BigNumber(0))
 kairoBalance = new ReactiveVar(BigNumber(0))
 kairoTotalSupply = new ReactiveVar(BigNumber(0))
@@ -188,7 +188,8 @@ loadFundData = () ->
   ).then(
     (_userAddress) ->
       #Initialize user address
-      userAddress.set(_userAddress)
+      if typeof _userAddress != "undefined"
+        userAddress.set(_userAddress)
 
       betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(
         (_balance) ->

@@ -37,7 +37,7 @@ betoken_addr = new ReactiveVar("0xc1712fdfba1b5cc29deb2bc975172c44a97950dc");
 betoken = new Betoken(betoken_addr.get());
 
 //Session data
-userAddress = new ReactiveVar("");
+userAddress = new ReactiveVar("Not Available");
 
 userBalance = new ReactiveVar(BigNumber(0));
 
@@ -237,7 +237,9 @@ loadFundData = function() {
     return accounts[0];
   }).then(function(_userAddress) {
     //Initialize user address
-    userAddress.set(_userAddress);
+    if (typeof _userAddress !== "undefined") {
+      userAddress.set(_userAddress);
+    }
     betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(function(_balance) {
       //Get user Ether deposit balance
       return userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18));
