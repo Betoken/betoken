@@ -57,6 +57,7 @@ prevCommission = new ReactiveVar(BigNumber(0))
 totalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
+successMessage = new ReactiveVar("")
 
 showTransaction = (_txHash) ->
   transactionHash.set(_txHash)
@@ -66,6 +67,52 @@ showTransaction = (_txHash) ->
 showError = (_msg) ->
   errorMessage.set(_msg)
   $("#error_modal").modal("show")
+
+showSuccess = (_msg) ->
+  successMessage.set(_msg)
+  $("#success_modal").modal("show")
+
+copyTextToClipboard = (text) ->
+  textArea = document.createElement("textarea")
+
+  # Place in top-left corner of screen regardless of scroll position.
+  textArea.style.position = 'fixed'
+  textArea.style.top = 0
+  textArea.style.left = 0
+
+  # Ensure it has a small width and height. Setting to 1px / 1em
+  # doesn't work as this gives a negative w/h on some browsers.
+  textArea.style.width = '2em'
+  textArea.style.height = '2em'
+
+  # We don't need padding, reducing the size if it does flash render.
+  textArea.style.padding = 0
+
+  # Clean up any borders.
+  textArea.style.border = 'none'
+  textArea.style.outline = 'none'
+  textArea.style.boxShadow = 'none'
+
+  # Avoid flash of white box if rendered for any reason.
+  textArea.style.background = 'transparent'
+
+  textArea.value = text
+
+  document.body.appendChild(textArea)
+
+  textArea.select()
+
+  try
+    successful = document.execCommand('copy')
+    if successful
+      showSuccess("Copied #{text} to clipboard")
+    else
+      showError('Oops, unable to copy')
+  catch err
+    showError('Oops, unable to copy')
+
+  document.body.removeChild(textArea)
+  return
 
 clock = () ->
   setInterval(
@@ -430,6 +477,12 @@ Template.body.helpers(
   transaction_hash: () -> transactionHash.get()
   network_prefix: () -> networkPrefix.get()
   error_msg: () -> errorMessage.get()
+  success_msg: () -> successMessage.get()
+)
+
+Template.body.events(
+  "click .copyable": (event) ->
+    copyTextToClipboard(event.target.innerText)
 )
 
 Template.top_bar.helpers(

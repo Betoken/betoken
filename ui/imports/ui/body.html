@@ -1,27 +1,6 @@
 <body>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.7.1/clipboard.min.js"></script>
-
-
-
-  <script>
-    function copy(value) {
-      /* Get the text field */
-      var copyText = document.getElementById("text" + value.toString());
-
-      /* Select the text field */
-      copyText.select();
-
-      /* Copy the text inside the text field */
-      document.execCommand("Copy");
-
-      /* Alert the copied text */
-      alert("Copied the text: " + copyText.value);
-    }
-  </script>
-
-
 
   <div class="ui grid" style="margin-top: 0.02%;">
     <!-- Top Bar -->
@@ -82,6 +61,18 @@
         </div>
       </div>
     </div>
+
+    <div class="ui basic modal" id="success_modal">
+      <div class="ui icon header">
+        <i class="ui green checkmark icon"></i>
+        <p>{{success_msg}}</p>
+      </div>
+      <div class="actions">
+        <div class="ui green ok inverted button fluid">
+          OK
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 
@@ -111,30 +102,15 @@
         <button class="circular ui icon button refresh_button" style="float: right;">
           <i class="refresh icon"></i>
         </button>
-
-
-
         <p></p>
         Smart Contract Addresses:
         <p></p>
-        <div class="selectable">
-          Fund:
-          <input id="text1" class="no-button-style" type="text" value={{betoken_addr}} readonly onclick="copy(1)"/>
-        </div>
+        Fund: <span class="copyable">{{betoken_addr}}</span>
         <p></p>
-          <div class="selectable">
-            Kairo:
-            <input id="text2" class="no-button-style" type="text" value={{kairo_addr}} readonly onclick="copy(2)"/>
-          </div>
+        Kairo: <span class="copyable">{{kairo_addr}}</span>
         <p></p>
-          <div class="selectable">
-            EtherDelta:
-            <input id="text3" class="no-button-style" type="text" value={{etherdelta_addr}} readonly onclick="copy(3)"/>
-          </div>
+        EtherDelta: <span class="copyable">{{etherdelta_addr}}</span>
         <p></p>
-
-
-
       </h5>
     </div>
   </div>
@@ -243,13 +219,13 @@
       </div>
       <div class="ui item">
         <div class="ui horizontal divider">Address</div>
-        <h4 style="text-align: center;">{{user_address}}</h4>
+        <h4 style="text-align: center;" class="copyable">{{user_address}}</h4>
       </div>
 
       <div class="ui item">
         <div class="ui horizontal divider">Ether Deposit Balance</div>
         <div class="ui mini horizontal statistic">
-          <div class="value">
+          <div class="value copyable">
             {{user_balance}}
           </div>
           <div class="label">
@@ -262,7 +238,7 @@
         <div class="ui horizontal divider">Kairo Balance</div>
 
         <div class="ui mini horizontal statistic">
-          <div class="value">
+          <div class="value copyable">
             {{user_kairo_balance}}
           </div>
           <div class="label">
@@ -279,7 +255,7 @@
       <div class="ui item">
         <div class="ui horizontal divider">Expected Commission</div>
         <div class="ui mini horizontal statistic">
-          <div class="value">
+          <div class="value copyable">
             {{expected_commission}}
           </div>
           <div class="label">
