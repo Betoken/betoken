@@ -10,10 +10,12 @@ SEND_TX_ERR = "There was an error during sending your transaction to the Ethereu
 #Import web3
 Web3 = require 'web3'
 web3 = window.web3
-if typeof web3 != undefined
+hasWeb3 = false
+if typeof web3 != "undefined"
   web3 = new Web3(web3.currentProvider)
+  hasWeb3 = true
 else
-  web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
+  web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
 betoken_addr = new ReactiveVar("0xc1712fdfba1b5cc29deb2bc975172c44a97950dc")
@@ -425,7 +427,7 @@ $('document').ready(() ->
   $('.menu .item').tab()
   $('table').tablesort()
 
-  if typeof web3 != undefined
+  if typeof web3 != "undefined"
     web3.eth.net.getId().then(
       (_id) ->
         if _id != 4
@@ -469,8 +471,9 @@ $('document').ready(() ->
 
     #Initialize Betoken object
     betoken.init().then(loadFundData)
-  else
-    showError("Betoken can only be used in a Web3 enabled browser. Please install Metamask or switch to another browser that supports Web3.")
+
+  if !hasWeb3
+    showError("Betoken can only be used in a Web3 enabled browser. Please install Metamask or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions.")
 )
 
 Template.body.helpers(
