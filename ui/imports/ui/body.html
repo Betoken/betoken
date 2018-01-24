@@ -8,16 +8,7 @@
   <script>
     function copy(value) {
       /* Get the text field */
-
-      if (value === 1) {
-          var copyText = document.getElementById("text1");
-      }
-      else if (value === 2) {
-        var copyText = document.getElementById("text2");
-      }
-      else {
-        var copyText = document.getElementById("text3");
-      }
+      var copyText = document.getElementById("text" + value.toString());
 
       /* Select the text field */
       copyText.select();
