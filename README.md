@@ -3,7 +3,7 @@
 
 Betoken is a decentralized hedge fund that uses its own internal prediction market to invest in ERC20 tokens.
 
-Check out our public alpha: <a href="https://gateway.ipfs.io/ipns/QmR48YwyTwQBeEwCJQLa6CzGANjm2rt75rhGr1TYK7AuHw/">Click me</a>
+# **[TRY THE PUBLIC ALPHA HERE](https://betoken.fund/betoken-ui/)**
 
  <hr>
 
