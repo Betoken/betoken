@@ -5,7 +5,7 @@ import { Betoken } from '../objects/betoken.js'
 import Chart from 'chart.js'
 import BigNumber from 'bignumber.js'
 
-SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check if your inputs are valid and try again later."
+SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 
 #Import web3
 Web3 = require 'web3'
@@ -512,7 +512,8 @@ Template.top_bar.events(
           betoken = new Betoken(betoken_addr.get())
           betoken.init().then(loadFundData)
         catch error
-          #Todo:Display error message
+          # Todo catch errors
+          showError("Oops! That wasn't a valid contract address!")
     ).modal('show')
 
   "click .refresh_button": (event) ->
@@ -586,6 +587,13 @@ Template.transact_box.events(
     try
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
+
+      # Check that account balance is > deposit amount
+      if amount > BigNumber(web3.eth.getBalance(userAddress))
+        showError("Oops! You tried to deposit more Ether than you have in your account!")
+        Template.instance().depositInputHasError.set(true)
+        return "error"
+
       betoken.deposit(amount, showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
@@ -594,6 +602,13 @@ Template.transact_box.events(
     try
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
+
+      # Check that Betoken balance is > withdraw amount
+      if amount > userBalance
+        showError("Oops! You tried to withdraw more Ether than you have in your account!")
+        Template.instance().withdrawInputHasError.set(true)
+        return "error"
+
       betoken.withdraw(amount, showTransaction)
     catch
       Template.instance().withdrawInputHasError.set(true)
