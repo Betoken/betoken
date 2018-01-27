@@ -35,6 +35,7 @@ timeOfSellOrderWaiting = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
+againstProposalList = new ReactiveVar([])
 memberList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
@@ -151,6 +152,7 @@ clock = () ->
 loadFundData = () ->
   proposals = []
   supportedProposals = []
+  againstProposals = []
   members = []
   receivedROICount = 0
 
@@ -296,7 +298,7 @@ loadFundData = () ->
             chart.update()
 
             #Update previous cycle ROI
-            if +data._cycleNumber == cycleNumber.get() - 1
+            if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
               prevROI.set(ROI)
 
             #Update average ROI
@@ -309,7 +311,8 @@ loadFundData = () ->
       ).then(
         (_events) ->
           for _event in _events
-            commission = BigNumber(_event.returnValues._totalCommissionInWeis)
+            data = _event.returnValues
+            commission = BigNumber(data._totalCommissionInWeis)
             #Update previous cycle commission
             if +data._cycleNumber == cycleNumber.get() - 1
               prevCommission.set(commission)
@@ -373,6 +376,24 @@ loadFundData = () ->
         ).then(
           () ->
             supportedProposalList.set(supportedProposals)
+            return
+        ).then(
+          () ->
+            #Filter out proposals the user is against
+            allPromises = []
+            filterProposal = (proposal) ->
+              betoken.getDoubleMapping("againstStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
+                (_stake) ->
+                  _stake = BigNumber(web3.utils.fromWei(_stake))
+                  if _stake.greaterThan(0)
+                    proposal.user_stake = _stake
+                    againstProposals.push(proposal)
+              )
+            allPromises = (filterProposal(proposal) for proposal in proposalList.get())
+            return Promise.all(allPromises)
+        ).then(
+          () ->
+            againstProposalList.set(againstProposals)
             return
         ),
         betoken.getArray("participants").then(
@@ -614,8 +635,9 @@ Template.transact_box.events(
       Template.instance().withdrawInputHasError.set(true)
 )
 
-Template.supported_props_box.helpers(
-  proposal_list: () -> supportedProposalList.get()
+Template.staked_props_box.helpers(
+  supported_proposals: () -> supportedProposalList.get()
+  against_proposals: () -> againstProposalList.get()
 
   is_disabled: () ->
     if cyclePhase.get() != 1
@@ -623,7 +645,7 @@ Template.supported_props_box.helpers(
     return ""
 )
 
-Template.supported_props_box.events(
+Template.staked_props_box.events(
   "click .cancel_support_button": (event) ->
     betoken.cancelSupport(this.id, showTransaction)
 )

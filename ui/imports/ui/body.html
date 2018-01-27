@@ -268,13 +268,12 @@
 
   <div class="ui horizontal divider"></div>
 
-  <!-- Holds the block related to the Tabbed right sidebar -->
   <div class="row">
     {{> transact_box}}
   </div>
 
   <div class="row">
-    {{> supported_props_box}}
+    {{> staked_props_box}}
   </div>
 </template>
 
@@ -341,22 +340,29 @@
   </div>
 </template>
 
-<template name="supported_props_box">
-  <h3>Supported Proposals</h3>
-  <table class="ui table celled sortable">
-    <!-- Table header -->
-    <thead>
-    <tr>
-      <th>#</th>
-      <th>Symbol</th>
-      <th>Stake/KRO</th>
-      <th>Action</th>
-    </tr>
-    </thead>
+<template name="staked_props_box">
+  <h3>My Proposals</h3>
 
-    <!-- Actual table rows go here -->
-    <tbody>
-      {{#each proposal_list}}
+  <div class="ui top attached tabular menu">
+    <a class="item active header" data-tab="for">For</a>
+    <a class="item header" data-tab="against">Against</a>
+  </div>
+
+  <div class="ui bottom attached tab segment active" data-tab="for">
+    <table class="ui table celled sortable">
+      <!-- Table header -->
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Symbol</th>
+          <th>Stake/KRO</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <!-- Actual table rows go here -->
+      <tbody>
+      {{#each supported_proposals}}
         <tr>
           <td>{{id}}</td>
           <td>{{token_symbol}}</td>
@@ -368,8 +374,34 @@
           </td>
         </tr>
       {{/each}}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ui bottom attached tab segment" data-tab="against">
+    <table class="ui table celled sortable">
+      <!-- Table header -->
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Symbol</th>
+          <th>Stake/KRO</th>
+        </tr>
+      </thead>
+
+      <!-- Actual table rows go here -->
+      <tbody>
+      {{#each against_proposals}}
+        <tr>
+          <td>{{id}}</td>
+          <td>{{token_symbol}}</td>
+          <td>{{user_stake}}</td>
+        </tr>
+      {{/each}}
+      </tbody>
+    </table>
+  </div>
+
 </template>
 
 <template name="stats_tab">
