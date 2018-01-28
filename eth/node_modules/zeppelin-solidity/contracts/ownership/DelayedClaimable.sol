@@ -1,7 +1,6 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.18;
 
-
-import './Claimable.sol';
+import "./Claimable.sol";
 
 
 /**
@@ -26,7 +25,6 @@ contract DelayedClaimable is Claimable {
     start = _start;
   }
 
-
   /**
    * @dev Allows the pendingOwner address to finalize the transfer, as long as it is called within
    * the specified start and end time.
@@ -35,7 +33,7 @@ contract DelayedClaimable is Claimable {
     require((block.number <= end) && (block.number >= start));
     OwnershipTransferred(owner, pendingOwner);
     owner = pendingOwner;
-    pendingOwner = 0x0;
+    pendingOwner = address(0);
     end = 0;
   }
 

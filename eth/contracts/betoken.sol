@@ -1,6 +1,6 @@
 pragma solidity ^0.4.18;
 
-import 'zeppelin-solidity/contracts/token/MintableToken.sol';
+import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './etherdelta.sol';
 import './oraclizeAPI_0.4.sol';
@@ -313,10 +313,8 @@ contract GroupFund is Ownable {
     }
 
     //Register investment
-    uint256 fees = msg.value.mul(oraclizeFeeProportion).div(tenToDecimals);
-    balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value).sub(fees);
-    totalFundsInWeis = totalFundsInWeis.add(msg.value).sub(fees);
-    oraclizeAddr.transfer(fees);
+    balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
+    totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
     if (isFirstCycle) {
       //Give control tokens proportional to investment
@@ -638,7 +636,8 @@ contract GroupFund is Ownable {
     //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(tenToDecimals);
     uint256 devFee = developerFeeProportion.mul(this.balance).div(tenToDecimals);
-    uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee);
+    uint256 oraclizeFee = oraclize.__oraclizeFee().mul(maxProposals.length).mul(2);
+    uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee).sub(oraclizeFee);
 
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
@@ -659,6 +658,7 @@ contract GroupFund is Ownable {
     totalFundsInWeis = newTotalFunds;
 
     developerFeeAccount.transfer(devFee);
+    oraclize.transfer(oraclizeFee);
 
     CommissionPaid(cycleNumber, totalCommission);
   }
@@ -738,6 +738,10 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
   function __returnAllFunds() public onlyOwner {
     owner.transfer(this.balance);
+  }
+
+  function __oraclizeFee() public view returns(uint256) {
+    return oraclize_getPrice("URL");
   }
 
   // *******

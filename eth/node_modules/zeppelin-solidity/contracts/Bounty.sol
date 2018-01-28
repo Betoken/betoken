@@ -1,8 +1,8 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.18;
 
 
-import './payment/PullPayment.sol';
-import './lifecycle/Destructible.sol';
+import "./payment/PullPayment.sol";
+import "./lifecycle/Destructible.sol";
 
 
 /**
@@ -18,7 +18,7 @@ contract Bounty is PullPayment, Destructible {
   /**
    * @dev Fallback function allowing the contract to receive funds, if they haven't already been claimed.
    */
-  function() payable {
+  function() external payable {
     require(!claimed);
   }
 
@@ -35,12 +35,6 @@ contract Bounty is PullPayment, Destructible {
   }
 
   /**
-   * @dev Internal function to deploy the target contract.
-   * @return A target contract address
-   */
-  function deployContract() internal returns(address);
-
-  /**
    * @dev Sends the contract funds to the researcher that proved the contract is broken.
    * @param target contract
    */
@@ -52,6 +46,12 @@ contract Bounty is PullPayment, Destructible {
     asyncSend(researcher, this.balance);
     claimed = true;
   }
+
+  /**
+   * @dev Internal function to deploy the target contract.
+   * @return A target contract address
+   */
+  function deployContract() internal returns(address);
 
 }
 
