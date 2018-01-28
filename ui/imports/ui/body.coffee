@@ -196,7 +196,7 @@ loadFundData = () ->
       betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(
         (_balance) ->
           #Get user Ether deposit balance
-          userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18))
+          userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")))
       )
       betoken.getKairoBalance(_userAddress).then(
         (_kairoBalance) ->
@@ -558,7 +558,7 @@ Template.phase_indicator.helpers(
 Template.sidebar.helpers(
   network_name: () -> networkName.get()
   user_address: () -> userAddress.get()
-  user_balance: () -> userBalance.get()
+  user_balance: () -> userBalance.get().toFormat(18)
   user_kairo_balance: () -> displayedKairoBalance.get()
   kairo_unit: () -> displayedKairoUnit.get()
   expected_commission: () ->
@@ -626,6 +626,7 @@ Template.transact_box.events(
       if amount > BigNumber(web3.eth.getBalance(userAddress))
         showError("Oops! You tried to deposit more Ether than you have in your account!")
         Template.instance().depositInputHasError.set(true)
+        return
 
       betoken.deposit(amount, showTransaction)
     catch
@@ -641,12 +642,14 @@ Template.transact_box.events(
         return
 
       # Check that Betoken balance is > withdraw amount
-      if amount > userBalance
+      if amount.greaterThan(userBalance.get().times(1e18))
         showError("Oops! You tried to withdraw more Ether than you have in your account!")
         Template.instance().withdrawInputHasError.set(true)
+        return
 
       betoken.withdraw(amount, showTransaction)
-    catch
+    catch error
+      console.log userBalance
       Template.instance().withdrawInputHasError.set(true)
 
   "click .kairo_send_button": (event) ->
@@ -657,7 +660,7 @@ Template.transact_box.events(
       amount = BigNumber(web3.utils.toWei($("#kairo_amount_input")[0].value))
       toAddress = $("#kairo_recipient_input")[0].value
 
-      if !amount.greaterThan(0)
+      if !amount.greaterThan(0) || amount.greaterThan(kairoBalance.get())
         Template.instance().kairoAmountInputHasError.set(true)
         return
 

@@ -245,7 +245,7 @@ loadFundData = function() {
     }
     betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(function(_balance) {
       //Get user Ether deposit balance
-      return userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")).toFormat(18));
+      return userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")));
     });
     betoken.getKairoBalance(_userAddress).then(function(_kairoBalance) {
       //Get user's Kairo balance
@@ -735,7 +735,7 @@ Template.sidebar.helpers({
     return userAddress.get();
   },
   user_balance: function() {
-    return userBalance.get();
+    return userBalance.get().toFormat(18);
   },
   user_kairo_balance: function() {
     return displayedKairoBalance.get();
@@ -819,6 +819,7 @@ Template.transact_box.events({
       if (amount > BigNumber(web3.eth.getBalance(userAddress))) {
         showError("Oops! You tried to deposit more Ether than you have in your account!");
         Template.instance().depositInputHasError.set(true);
+        return;
       }
       return betoken.deposit(amount, showTransaction);
     } catch (error1) {
@@ -826,7 +827,7 @@ Template.transact_box.events({
     }
   },
   "click .withdraw_button": function(event) {
-    var amount;
+    var amount, error;
     try {
       Template.instance().withdrawInputHasError.set(false);
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value));
@@ -835,12 +836,15 @@ Template.transact_box.events({
         return;
       }
       // Check that Betoken balance is > withdraw amount
-      if (amount > userBalance) {
+      if (amount.greaterThan(userBalance.get().times(1e18))) {
         showError("Oops! You tried to withdraw more Ether than you have in your account!");
         Template.instance().withdrawInputHasError.set(true);
+        return;
       }
       return betoken.withdraw(amount, showTransaction);
     } catch (error1) {
+      error = error1;
+      console.log(userBalance);
       return Template.instance().withdrawInputHasError.set(true);
     }
   },
@@ -851,7 +855,7 @@ Template.transact_box.events({
       Template.instance().kairoRecipientInputHasError.set(false);
       amount = BigNumber(web3.utils.toWei($("#kairo_amount_input")[0].value));
       toAddress = $("#kairo_recipient_input")[0].value;
-      if (!amount.greaterThan(0)) {
+      if (!amount.greaterThan(0) || amount.greaterThan(kairoBalance.get())) {
         Template.instance().kairoAmountInputHasError.set(true);
         return;
       }

@@ -3,7 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.html" afterPath="$PROJECT_DIR$/ui/imports/ui/body.html" />
+      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.coffee" afterPath="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
+      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -17,11 +18,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="body.html" pinned="false" current-in-tab="true">
+      <file leaf-file-name="body.html" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="619">
-              <caret line="334" column="36" lean-forward="false" selection-start-line="334" selection-start-column="36" selection-end-line="334" selection-end-column="36" />
+            <state relative-caret-position="-1514">
+              <caret line="62" column="10" lean-forward="true" selection-start-line="62" selection-start-column="10" selection-end-line="62" selection-end-column="10" />
               <folding>
                 <element signature="n#template#0;n#!!top" expanded="false" />
                 <element signature="n#template#1;n#!!top" expanded="false" />
@@ -40,16 +41,16 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="body.coffee" pinned="false" current-in-tab="false">
+      <file leaf-file-name="body.coffee" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="647">
-              <caret line="667" column="18" lean-forward="false" selection-start-line="667" selection-start-column="18" selection-end-line="667" selection-end-column="18" />
+            <state relative-caret-position="650">
+              <caret line="655" column="8" lean-forward="true" selection-start-line="655" selection-start-column="8" selection-end-line="655" selection-end-column="8" />
               <folding>
                 <element signature="e#2535#3615#0" expanded="false" />
                 <element signature="e#3633#4632#0" expanded="false" />
-                <element signature="e#4657#14724#0" expanded="false" />
-                <element signature="e#14754#16071#0" expanded="false" />
+                <element signature="e#4657#14711#0" expanded="false" />
+                <element signature="e#14741#16058#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -99,7 +100,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>totalFunds</find>
       <find>web3.util.</find>
       <find>cyclePhase</find>
       <find>document.getElementById</find>
@@ -129,6 +129,7 @@
       <find>tokenDecimals</find>
       <find>showTransaction</find>
       <find>data</find>
+      <find>userBalance</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -148,9 +149,9 @@
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/ControlToken.json" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/GroupFund.json" />
         <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
-        <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
+        <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
       </list>
     </option>
   </component>
@@ -471,14 +472,7 @@
       <workItem from="1516173787206" duration="2000000" />
       <workItem from="1516176460926" duration="111633000" />
       <workItem from="1516699388026" duration="25000" />
-      <workItem from="1516699449443" duration="25923000" />
-    </task>
-    <task id="LOCAL-00001" summary="Significantly changed the UI">
-      <created>1511426762390</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1511426762390</updated>
+      <workItem from="1516699449443" duration="29047000" />
     </task>
     <task id="LOCAL-00002" summary="Added some files to git">
       <created>1511426951435</created>
@@ -816,11 +810,18 @@
       <option name="project" value="LOCAL" />
       <updated>1517112922979</updated>
     </task>
-    <option name="localTasksCounter" value="50" />
+    <task id="LOCAL-00050" summary="Enabled Kairo transfer during all phases">
+      <created>1517113027959</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1517113027960</updated>
+    </task>
+    <option name="localTasksCounter" value="51" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="394544000" />
+    <option name="totallyTimeSpent" value="397668000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -859,7 +860,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Fixed bug in createNewProposal()" />
     <MESSAGE value="Fixed bug where UI can't display more than one member" />
     <MESSAGE value="Fixed #28" />
     <MESSAGE value="Fixed #33" />
@@ -884,7 +884,8 @@
     <MESSAGE value="Fixed #20. Did not fix Owen's code." />
     <MESSAGE value="Fixed #40" />
     <MESSAGE value="Changed &quot;Transfer Kairo&quot; to &quot;Send Kairo&quot;" />
-    <option name="LAST_COMMIT_MESSAGE" value="Changed &quot;Transfer Kairo&quot; to &quot;Send Kairo&quot;" />
+    <MESSAGE value="Enabled Kairo transfer during all phases" />
+    <option name="LAST_COMMIT_MESSAGE" value="Enabled Kairo transfer during all phases" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -924,8 +925,8 @@
           <folding>
             <element signature="e#2535#3615#0" expanded="false" />
             <element signature="e#3633#4632#0" expanded="false" />
-            <element signature="e#4657#14724#0" expanded="false" />
-            <element signature="e#14754#16071#0" expanded="false" />
+            <element signature="e#4657#14711#0" expanded="false" />
+            <element signature="e#14741#16058#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -966,8 +967,8 @@
           <folding>
             <element signature="e#2535#3615#0" expanded="false" />
             <element signature="e#3633#4632#0" expanded="false" />
-            <element signature="e#4657#14724#0" expanded="false" />
-            <element signature="e#14754#16071#0" expanded="false" />
+            <element signature="e#4657#14711#0" expanded="false" />
+            <element signature="e#14741#16058#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -1008,8 +1009,8 @@
           <folding>
             <element signature="e#2535#3615#0" expanded="false" />
             <element signature="e#3633#4632#0" expanded="false" />
-            <element signature="e#4657#14724#0" expanded="false" />
-            <element signature="e#14754#16071#0" expanded="false" />
+            <element signature="e#4657#14711#0" expanded="false" />
+            <element signature="e#14741#16058#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -1314,23 +1315,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="647">
-          <caret line="667" column="18" lean-forward="false" selection-start-line="667" selection-start-column="18" selection-end-line="667" selection-end-column="18" />
-          <folding>
-            <element signature="e#2535#3615#0" expanded="false" />
-            <element signature="e#3633#4632#0" expanded="false" />
-            <element signature="e#4657#14724#0" expanded="false" />
-            <element signature="e#14754#16071#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="619">
-          <caret line="334" column="36" lean-forward="false" selection-start-line="334" selection-start-column="36" selection-end-line="334" selection-end-column="36" />
+        <state relative-caret-position="-1514">
+          <caret line="62" column="10" lean-forward="true" selection-start-line="62" selection-start-column="10" selection-end-line="62" selection-end-column="10" />
           <folding>
             <element signature="n#template#0;n#!!top" expanded="false" />
             <element signature="n#template#1;n#!!top" expanded="false" />
@@ -1344,6 +1332,19 @@
             <element signature="n#template#6;n#!!top" expanded="false" />
             <element signature="n#template#7;n#!!top" expanded="false" />
             <element signature="n#template#8;n#!!top" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="650">
+          <caret line="655" column="8" lean-forward="true" selection-start-line="655" selection-start-column="8" selection-end-line="655" selection-end-column="8" />
+          <folding>
+            <element signature="e#2535#3615#0" expanded="false" />
+            <element signature="e#3633#4632#0" expanded="false" />
+            <element signature="e#4657#14711#0" expanded="false" />
+            <element signature="e#14741#16058#0" expanded="false" />
           </folding>
         </state>
       </provider>
