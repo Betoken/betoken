@@ -181,7 +181,7 @@ export var Betoken = function(_address) {
       }).on("transactionHash", _callback);
     });
   };
-  self.transferKairo = function(_to, _amountInWeis, _callback) {
+  self.sendKairo = function(_to, _amountInWeis, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.controlToken.methods.transfer(_to, _amountInWeis).send({
         from: web3.eth.defaultAccount

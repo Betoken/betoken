@@ -649,7 +649,7 @@ Template.transact_box.events(
     catch
       Template.instance().withdrawInputHasError.set(true)
 
-  "click .kairo_transfer_button": (event) ->
+  "click .kairo_send_button": (event) ->
     try 
       Template.instance().kairoAmountInputHasError.set(false)
       Template.instance().kairoRecipientInputHasError.set(false)
@@ -665,7 +665,7 @@ Template.transact_box.events(
         Template.instance().kairoRecipientInputHasError.set(true)
         return
 
-      betoken.transferKairo(toAddress, amount, showTransaction)
+      betoken.sendKairo(toAddress, amount, showTransaction)
     catch
       Template.instance().kairoAmountInputHasError.set(true)
 )

@@ -844,7 +844,7 @@ Template.transact_box.events({
       return Template.instance().withdrawInputHasError.set(true);
     }
   },
-  "click .kairo_transfer_button": function(event) {
+  "click .kairo_send_button": function(event) {
     var amount, toAddress;
     try {
       Template.instance().kairoAmountInputHasError.set(false);
@@ -859,7 +859,7 @@ Template.transact_box.events({
         Template.instance().kairoRecipientInputHasError.set(true);
         return;
       }
-      return betoken.transferKairo(toAddress, amount, showTransaction);
+      return betoken.sendKairo(toAddress, amount, showTransaction);
     } catch (error1) {
       return Template.instance().kairoAmountInputHasError.set(true);
     }

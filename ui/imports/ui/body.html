@@ -282,7 +282,7 @@
   <div class="ui top attached tabular menu">
     <a class="item active header" data-tab="deposit">Deposit</a>
     <a class="item header" data-tab="withdraw">Withdraw</a>
-    <a class="item header" data-tab="kairo">Transfer Kairo</a>
+    <a class="item header" data-tab="kairo">Send Kairo</a>
     <a class="item header" data-tab="history">History</a>
   </div>
 
@@ -318,7 +318,7 @@
   <div class="ui bottom attached tab segment" data-tab="kairo">
     <!--Amount Input-->
     <div class="{{has_error 2}} ui right labeled input fluid">
-      <input id="kairo_amount_input" placeholder="Transfer Amount..." type="text">
+      <input id="kairo_amount_input" placeholder="Send Amount..." type="text">
       <div class="ui label">
         KRO
       </div>
@@ -332,7 +332,7 @@
 
     <div class="ui horizontal divider"></div>
 
-    <button class="kairo_transfer_button {{is_disabled 'kairo'}} ui primary button fluid">Transfer</button>
+    <button class="kairo_send_button {{is_disabled 'kairo'}} ui primary button fluid">Send</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="history">
