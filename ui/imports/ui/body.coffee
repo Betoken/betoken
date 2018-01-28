@@ -583,6 +583,8 @@ Template.transact_box.onCreated(
   () ->
     Template.instance().depositInputHasError = new ReactiveVar(false)
     Template.instance().withdrawInputHasError = new ReactiveVar(false)
+    Template.instance().kairoAmountInputHasError = new ReactiveVar(false)
+    Template.instance().kairoRecipientInputHasError = new ReactiveVar(false)
 )
 
 Template.transact_box.helpers(
@@ -592,12 +594,19 @@ Template.transact_box.helpers(
     return ""
 
   has_error: (input_id) ->
-    if input_id == 0
-      if Template.instance().depositInputHasError.get()
-        return "error"
-    else
-      if Template.instance().withdrawInputHasError.get()
-        return "error"
+    hasError = false
+    switch input_id
+      when 0
+        hasError = Template.instance().depositInputHasError.get()
+      when 1
+        hasError = Template.instance().withdrawInputHasError.get()
+      when 2
+        hasError = Template.instance().kairoAmountInputHasError.get()
+      when 3
+        hasError = Template.instance().kairoRecipientInputHasError.get()
+
+    if hasError
+      return "error"
     return ""
 
   transaction_history: () -> transactionHistory.get()
@@ -609,11 +618,14 @@ Template.transact_box.events(
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
 
+      if !amount.greaterThan(0)
+        Template.instance().kairoAmountInputHasError.set(true)
+        return
+
       # Check that account balance is > deposit amount
       if amount > BigNumber(web3.eth.getBalance(userAddress))
         showError("Oops! You tried to deposit more Ether than you have in your account!")
         Template.instance().depositInputHasError.set(true)
-        return "error"
 
       betoken.deposit(amount, showTransaction)
     catch
@@ -624,15 +636,38 @@ Template.transact_box.events(
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
 
+      if !amount.greaterThan(0)
+        Template.instance().kairoAmountInputHasError.set(true)
+        return
+
       # Check that Betoken balance is > withdraw amount
       if amount > userBalance
         showError("Oops! You tried to withdraw more Ether than you have in your account!")
         Template.instance().withdrawInputHasError.set(true)
-        return "error"
 
       betoken.withdraw(amount, showTransaction)
     catch
       Template.instance().withdrawInputHasError.set(true)
+
+  "click .kairo_transfer_button": (event) ->
+    try 
+      Template.instance().kairoAmountInputHasError.set(false)
+      Template.instance().kairoRecipientInputHasError.set(false)
+
+      amount = BigNumber(web3.utils.toWei($("#kairo_amount_input")[0].value))
+      toAddress = $("#kairo_recipient_input")[0].value
+
+      if !amount.greaterThan(0)
+        Template.instance().kairoAmountInputHasError.set(true)
+        return
+
+      if !web3.utils.isAddress(toAddress)
+        Template.instance().kairoRecipientInputHasError.set(true)
+        return
+
+      betoken.transferKairo(toAddress, amount, showTransaction)
+    catch
+      Template.instance().kairoAmountInputHasError.set(true)
 )
 
 Template.staked_props_box.helpers(
@@ -678,8 +713,7 @@ Template.proposals_tab.events(
           kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
           betoken.supportProposal(id, kairoAmountInWeis, showTransaction)
         catch error
-          #Todo:Display error message
-          console.log error
+          showError("There was an error in your input. Please fix it and try again.")
     ).modal('show')
 
   "click .new_proposal": (event) ->

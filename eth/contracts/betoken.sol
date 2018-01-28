@@ -247,7 +247,7 @@ contract GroupFund is Ownable {
     commissionRate = _newProp;
   }
 
-  function topupOraclizeFees() public payable onlyOwner {
+  function topupOraclizeFees() public payable {
     oraclizeAddr.transfer(msg.value);
   }
 

@@ -280,13 +280,14 @@
 <template name="transact_box">
   <!-- Tab buttons -->
   <div class="ui top attached tabular menu">
-    <a class="item active header" data-tab="first">Deposit</a>
-    <a class="item header" data-tab="second">Withdraw</a>
-    <a class="item header" data-tab="third">History</a>
+    <a class="item active header" data-tab="deposit">Deposit</a>
+    <a class="item header" data-tab="withdraw">Withdraw</a>
+    <a class="item header" data-tab="kairo">Transfer Kairo</a>
+    <a class="item header" data-tab="history">History</a>
   </div>
 
   <!-- Actual Tab Content -->
-  <div class="ui bottom attached tab segment active" data-tab="first">
+  <div class="ui bottom attached tab segment active" data-tab="deposit">
     <!--Amount Input-->
     <div class="{{has_error 0}} ui right labeled input fluid">
       <input id="deposit_input" placeholder="Deposit Amount..." type="text">
@@ -300,7 +301,7 @@
     <button class="deposit_button {{is_disabled 'deposit'}} ui primary button fluid">Deposit</button>
   </div>
 
-  <div class="ui bottom attached tab segment" data-tab="second">
+  <div class="ui bottom attached tab segment" data-tab="withdraw">
     <!--Amount Input-->
     <div class="{{has_error 1}} ui right labeled input fluid">
       <input id="withdraw_input" placeholder="Withdraw Amount..." type="text">
@@ -314,7 +315,27 @@
     <button class="withdraw_button {{is_disabled 'withdraw'}} ui primary button fluid">Withdraw</button>
   </div>
 
-  <div class="ui bottom attached tab segment" data-tab="third">
+  <div class="ui bottom attached tab segment" data-tab="kairo">
+    <!--Amount Input-->
+    <div class="{{has_error 2}} ui right labeled input fluid">
+      <input id="kairo_amount_input" placeholder="Transfer Amount..." type="text">
+      <div class="ui label">
+        KRO
+      </div>
+    </div>
+
+    <div class="ui horizontal divider"></div>
+
+    <div class="{{has_error 3}} ui right input fluid">
+      <input id="kairo_recipient_input" placeholder="Recipient Address..." type="text">
+    </div>
+
+    <div class="ui horizontal divider"></div>
+
+    <button class="kairo_transfer_button {{is_disabled 'kairo'}} ui primary button fluid">Transfer</button>
+  </div>
+
+  <div class="ui bottom attached tab segment" data-tab="history">
     <!--History Tab-->
     <table class="ui table celled sortable">
       <!-- Table header -->

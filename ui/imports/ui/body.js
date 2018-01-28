@@ -767,7 +767,9 @@ Template.sidebar.events({
 
 Template.transact_box.onCreated(function() {
   Template.instance().depositInputHasError = new ReactiveVar(false);
-  return Template.instance().withdrawInputHasError = new ReactiveVar(false);
+  Template.instance().withdrawInputHasError = new ReactiveVar(false);
+  Template.instance().kairoAmountInputHasError = new ReactiveVar(false);
+  return Template.instance().kairoRecipientInputHasError = new ReactiveVar(false);
 });
 
 Template.transact_box.helpers({
@@ -778,14 +780,23 @@ Template.transact_box.helpers({
     return "";
   },
   has_error: function(input_id) {
-    if (input_id === 0) {
-      if (Template.instance().depositInputHasError.get()) {
-        return "error";
-      }
-    } else {
-      if (Template.instance().withdrawInputHasError.get()) {
-        return "error";
-      }
+    var hasError;
+    hasError = false;
+    switch (input_id) {
+      case 0:
+        hasError = Template.instance().depositInputHasError.get();
+        break;
+      case 1:
+        hasError = Template.instance().withdrawInputHasError.get();
+        break;
+      case 2:
+        hasError = Template.instance().kairoAmountInputHasError.get();
+        break;
+      case 3:
+        hasError = Template.instance().kairoRecipientInputHasError.get();
+    }
+    if (hasError) {
+      return "error";
     }
     return "";
   },
@@ -800,11 +811,14 @@ Template.transact_box.events({
     try {
       Template.instance().depositInputHasError.set(false);
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value));
+      if (!amount.greaterThan(0)) {
+        Template.instance().kairoAmountInputHasError.set(true);
+        return;
+      }
       // Check that account balance is > deposit amount
       if (amount > BigNumber(web3.eth.getBalance(userAddress))) {
         showError("Oops! You tried to deposit more Ether than you have in your account!");
         Template.instance().depositInputHasError.set(true);
-        return "error";
       }
       return betoken.deposit(amount, showTransaction);
     } catch (error1) {
@@ -816,15 +830,38 @@ Template.transact_box.events({
     try {
       Template.instance().withdrawInputHasError.set(false);
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value));
+      if (!amount.greaterThan(0)) {
+        Template.instance().kairoAmountInputHasError.set(true);
+        return;
+      }
       // Check that Betoken balance is > withdraw amount
       if (amount > userBalance) {
         showError("Oops! You tried to withdraw more Ether than you have in your account!");
         Template.instance().withdrawInputHasError.set(true);
-        return "error";
       }
       return betoken.withdraw(amount, showTransaction);
     } catch (error1) {
       return Template.instance().withdrawInputHasError.set(true);
+    }
+  },
+  "click .kairo_transfer_button": function(event) {
+    var amount, toAddress;
+    try {
+      Template.instance().kairoAmountInputHasError.set(false);
+      Template.instance().kairoRecipientInputHasError.set(false);
+      amount = BigNumber(web3.utils.toWei($("#kairo_amount_input")[0].value));
+      toAddress = $("#kairo_recipient_input")[0].value;
+      if (!amount.greaterThan(0)) {
+        Template.instance().kairoAmountInputHasError.set(true);
+        return;
+      }
+      if (!web3.utils.isAddress(toAddress)) {
+        Template.instance().kairoRecipientInputHasError.set(true);
+        return;
+      }
+      return betoken.transferKairo(toAddress, amount, showTransaction);
+    } catch (error1) {
+      return Template.instance().kairoAmountInputHasError.set(true);
     }
   }
 });
@@ -898,8 +935,7 @@ Template.proposals_tab.events({
           return betoken.supportProposal(id, kairoAmountInWeis, showTransaction);
         } catch (error1) {
           error = error1;
-          //Todo:Display error message
-          return console.log(error);
+          return showError("There was an error in your input. Please fix it and try again.");
         }
       }
     }).modal('show');

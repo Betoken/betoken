@@ -163,6 +163,12 @@ export Betoken = (_address) ->
         return self.contracts.groupFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
+  self.transferKairo = (_to, _amountInWeis, _callback) ->
+    return getDefaultAccount().then(
+      () ->
+        return self.contracts.controlToken.methods.transfer(_to, _amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+    )
+
   ###
     ProposalMakingTime functions
   ###
