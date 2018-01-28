@@ -622,12 +622,6 @@ Template.transact_box.events(
         Template.instance().kairoAmountInputHasError.set(true)
         return
 
-      # Check that account balance is > deposit amount
-      if amount > BigNumber(web3.eth.getBalance(userAddress))
-        showError("Oops! You tried to deposit more Ether than you have in your account!")
-        Template.instance().depositInputHasError.set(true)
-        return
-
       betoken.deposit(amount, showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
