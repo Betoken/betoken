@@ -211,6 +211,17 @@ contract BetokenFund is Pausable {
   }
 
   /**
+   * Initializes the list of participants. Used during contract upgrades.
+   * @param _participants the list of participant addresses
+   */
+  function initializeParticipants(address[] _participants) public {
+    require(msg.sender == creator);
+    require (!initialized);
+
+    participants = _participants;
+  }
+
+  /**
    * Initializes the addresses of the ControlToken and OraclizeHandler contracts.
    * @param _cTokenAddr address of ControlToken contract
    * @param _oraclizeAddr address of OraclizeHandler contract

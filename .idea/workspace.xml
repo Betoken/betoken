@@ -3,9 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" />
+      <change beforePath="$PROJECT_DIR$/eth/contracts/betoken.sol" afterPath="$PROJECT_DIR$/eth/contracts/betoken.sol" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -43,7 +41,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="body.coffee" pinned="false" current-in-tab="true">
+      <file leaf-file-name="body.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="318">
@@ -67,11 +65,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="false">
+      <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="583">
-              <caret line="269" column="5" lean-forward="true" selection-start-line="269" selection-start-column="5" selection-end-line="269" selection-end-column="5" />
+            <state relative-caret-position="307">
+              <caret line="222" column="0" lean-forward="true" selection-start-line="222" selection-start-column="0" selection-end-line="222" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -150,10 +148,10 @@
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/ControlToken.json" />
         <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-        <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
+        <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
       </list>
     </option>
   </component>
@@ -474,14 +472,7 @@
       <workItem from="1516173787206" duration="2000000" />
       <workItem from="1516176460926" duration="111633000" />
       <workItem from="1516699388026" duration="25000" />
-      <workItem from="1516699449443" duration="64031000" />
-    </task>
-    <task id="LOCAL-00012" summary="Connected sidebar to backend, except for expected commission">
-      <created>1513572797299</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1513572797299</updated>
+      <workItem from="1516699449443" duration="65986000" />
     </task>
     <task id="LOCAL-00013" summary="Connected members tab to backend, except for member prediction accuracy">
       <created>1513582263006</created>
@@ -819,11 +810,18 @@
       <option name="project" value="LOCAL" />
       <updated>1517220594851</updated>
     </task>
-    <option name="localTasksCounter" value="61" />
+    <task id="LOCAL-00061" summary="Updated comments in betoken.coffee">
+      <created>1517221817117</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1517221817117</updated>
+    </task>
+    <option name="localTasksCounter" value="62" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="432652000" />
+    <option name="totallyTimeSpent" value="434607000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -862,7 +860,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Added error modal in UI" />
     <MESSAGE value="Fixed oraclize bug and buy/sell token amount bug." />
     <MESSAGE value="Found finalizeEndCycle() bug: oraclize.returnAllFunds()" />
     <MESSAGE value="Fixed numerous bugs" />
@@ -887,7 +884,8 @@
     <MESSAGE value="Fixed #31, fixed #39" />
     <MESSAGE value="Added emergency withdraw to UI, started improving emergency handling in contract." />
     <MESSAGE value="Fixed proposal investment calculation in UI." />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixed proposal investment calculation in UI." />
+    <MESSAGE value="Updated comments in betoken.coffee" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated comments in betoken.coffee" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1247,14 +1245,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="583">
-          <caret line="269" column="5" lean-forward="true" selection-start-line="269" selection-start-column="5" selection-end-line="269" selection-end-column="5" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/build/contracts/BetokenFund.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="55">
@@ -1314,6 +1304,14 @@
             <element signature="e#3844#4818#0" expanded="false" />
             <element signature="e#15325#16642#0" expanded="false" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="307">
+          <caret line="222" column="0" lean-forward="true" selection-start-line="222" selection-start-column="0" selection-end-line="222" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
