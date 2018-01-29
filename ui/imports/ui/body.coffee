@@ -508,7 +508,7 @@ $('document').ready(() ->
     betoken.init().then(loadFundData)
 
   if !hasWeb3
-    showError("Betoken can only be used in a Web3 enabled browser. Please install Metamask or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions.")
+    showError("Betoken can only be used in a Web3 enabled browser. Please install <a href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions.")
 )
 
 Template.body.helpers(
