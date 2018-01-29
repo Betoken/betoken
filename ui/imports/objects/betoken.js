@@ -26,11 +26,11 @@ export var Betoken = function(_address) {
   var self;
   self = this;
   self.contracts = {
-    groupFund: null,
+    betokenFund: null,
     controlToken: null
   };
   self.addrs = {
-    groupFund: null,
+    betokenFund: null,
     controlToken: null
   };
   /*
@@ -42,7 +42,7 @@ export var Betoken = function(_address) {
    * @return {Promise}          .then((_value)->)
    */
   self.getPrimitiveVar = function(_varName) {
-    return self.contracts.groupFund.methods[_varName]().call();
+    return self.contracts.betokenFund.methods[_varName]().call();
   };
   /**
    * Calls a mapping or an array in GroupFund
@@ -51,7 +51,7 @@ export var Betoken = function(_address) {
    * @return {Promise}              .then((_value)->)
    */
   self.getMappingOrArrayItem = function(_name, _input) {
-    return self.contracts.groupFund.methods[_name](_input).call();
+    return self.contracts.betokenFund.methods[_name](_input).call();
   };
   /**
    * Calls a double mapping in GroupFund
@@ -61,7 +61,7 @@ export var Betoken = function(_address) {
    * @return {Promise}              .then((_value)->)
    */
   self.getDoubleMapping = function(_mappingName, _input1, _input2) {
-    return self.contracts.groupFund.methods[_mappingName](_input1, _input2).call();
+    return self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call();
   };
   /**
    * Gets the Kairo balance of an address
@@ -82,7 +82,7 @@ export var Betoken = function(_address) {
   self.getArray = function(_name) {
     var array;
     array = [];
-    return self.contracts.groupFund.methods[`${_name}Count`]().call().then(function(_count) {
+    return self.contracts.betokenFund.methods[`${_name}Count`]().call().then(function(_count) {
       var count, getAllItems, getItem, id;
       count = +_count;
       if (count === 0) {
@@ -90,7 +90,7 @@ export var Betoken = function(_address) {
       }
       array = new Array(count);
       getItem = function(id) {
-        return self.contracts.groupFund.methods[_name](id).call().then(function(_item) {
+        return self.contracts.betokenFund.methods[_name](id).call().then(function(_item) {
           return new Promise(function(fullfill, reject) {
             if (typeof _item !== null) {
               array[id] = _item;
@@ -133,16 +133,16 @@ export var Betoken = function(_address) {
         case 1:
           return funcName = "endProposalMakingTime";
         case 2:
-          return funcName = "endCycle";
+          return funcName = "endWaitingTime";
         case 3:
-          return funcName = "finalizeEndCycle";
+          return funcName = "finalizeCycle";
         case 4:
           return funcName = "startNewCycle";
       }
     }).then(function() {
       return getDefaultAccount();
     }).then(function() {
-      return self.contracts.groupFund.methods[funcName]().send({
+      return self.contracts.betokenFund.methods[funcName]().send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -162,7 +162,7 @@ export var Betoken = function(_address) {
     return getDefaultAccount().then(function() {
       return web3.eth.sendTransaction({
         from: web3.eth.defaultAccount,
-        to: self.addrs.groupFund,
+        to: self.addrs.betokenFund,
         value: _amountInWeis,
         data: funcSignature
       }).on("transactionHash", _callback);
@@ -176,7 +176,7 @@ export var Betoken = function(_address) {
    */
   self.withdraw = function(_amountInWeis, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.groupFund.methods.withdraw(_amountInWeis).send({
+      return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -202,7 +202,7 @@ export var Betoken = function(_address) {
    */
   self.createProposal = function(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({
+      return self.contracts.betokenFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -216,7 +216,7 @@ export var Betoken = function(_address) {
    */
   self.supportProposal = function(_proposalId, _stakeInWeis, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({
+      return self.contracts.betokenFund.methods.supportProposal(_proposalId, _stakeInWeis).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -229,7 +229,7 @@ export var Betoken = function(_address) {
    */
   self.cancelSupport = function(_proposalId, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({
+      return self.contracts.betokenFund.methods.cancelProposalSupport(_proposalId).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -243,13 +243,13 @@ export var Betoken = function(_address) {
   Object Initialization
   */
   self.init = function() {
-    var groupFundABI;
+    var betokenFundABI;
     //Initialize GroupFund contract
-    self.addrs.groupFund = _address;
-    groupFundABI = require("./abi/GroupFund.json").abi;
-    self.contracts.groupFund = new web3.eth.Contract(groupFundABI, self.addrs.groupFund);
+    self.addrs.betokenFund = _address;
+    betokenFundABI = require("./abi/BetokenFund.json").abi;
+    self.contracts.betokenFund = new web3.eth.Contract(betokenFundABI, self.addrs.betokenFund);
     //Get ControlToken address
-    return self.contracts.groupFund.methods.controlTokenAddr().call().then(function(_controlTokenAddr) {
+    return self.contracts.betokenFund.methods.controlTokenAddr().call().then(function(_controlTokenAddr) {
       var controlTokenABI;
       //Initialize ControlToken contract
       self.addrs.controlToken = _controlTokenAddr;

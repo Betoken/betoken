@@ -19,10 +19,10 @@ getDefaultAccount = () ->
 export Betoken = (_address) ->
   self = this
   self.contracts =
-    groupFund: null
+    betokenFund: null
     controlToken: null
   self.addrs =
-    groupFund: null
+    betokenFund: null
     controlToken: null
 
   ###
@@ -35,7 +35,7 @@ export Betoken = (_address) ->
    * @return {Promise}          .then((_value)->)
   ###
   self.getPrimitiveVar = (_varName) ->
-    return self.contracts.groupFund.methods[_varName]().call()
+    return self.contracts.betokenFund.methods[_varName]().call()
 
   ###*
    * Calls a mapping or an array in GroupFund
@@ -44,7 +44,7 @@ export Betoken = (_address) ->
    * @return {Promise}              .then((_value)->)
   ###
   self.getMappingOrArrayItem = (_name, _input) ->
-    return self.contracts.groupFund.methods[_name](_input).call()
+    return self.contracts.betokenFund.methods[_name](_input).call()
 
   ###*
    * Calls a double mapping in GroupFund
@@ -54,7 +54,7 @@ export Betoken = (_address) ->
    * @return {Promise}              .then((_value)->)
   ###
   self.getDoubleMapping = (_mappingName, _input1, _input2) ->
-    return self.contracts.groupFund.methods[_mappingName](_input1, _input2).call()
+    return self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call()
 
   ###*
    * Gets the Kairo balance of an address
@@ -74,14 +74,14 @@ export Betoken = (_address) ->
   ###
   self.getArray = (_name) ->
     array = []
-    return self.contracts.groupFund.methods["#{_name}Count"]().call().then(
+    return self.contracts.betokenFund.methods["#{_name}Count"]().call().then(
       (_count) ->
         count = +_count
         if count == 0
           return []
         array = new Array(count)
         getItem = (id) ->
-          return self.contracts.groupFund.methods[_name](id).call().then(
+          return self.contracts.betokenFund.methods[_name](id).call().then(
             (_item) ->
               return new Promise((fullfill, reject) ->
                 if typeof _item != null
@@ -119,9 +119,9 @@ export Betoken = (_address) ->
           when 1
             funcName = "endProposalMakingTime"
           when 2
-            funcName = "endCycle"
+            funcName = "endWaitingTime"
           when 3
-            funcName = "finalizeEndCycle"
+            funcName = "finalizeCycle"
           when 4
             funcName = "startNewCycle"
     ).then(
@@ -129,7 +129,7 @@ export Betoken = (_address) ->
         return getDefaultAccount()
     ).then(
       () ->
-        return self.contracts.groupFund.methods[funcName]().send({from: web3.eth.defaultAccount}).on(
+        return self.contracts.betokenFund.methods[funcName]().send({from: web3.eth.defaultAccount}).on(
           "transactionHash", _callback
         )
     )
@@ -148,7 +148,7 @@ export Betoken = (_address) ->
     funcSignature = web3.eth.abi.encodeFunctionSignature("deposit()")
     return getDefaultAccount().then(
       () ->
-        return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.groupFund, value: _amountInWeis, data: funcSignature}).on("transactionHash", _callback)
+        return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.betokenFund, value: _amountInWeis, data: funcSignature}).on("transactionHash", _callback)
     )
 
   ###*
@@ -160,7 +160,7 @@ export Betoken = (_address) ->
   self.withdraw = (_amountInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   self.sendKairo = (_to, _amountInWeis, _callback) ->
@@ -185,7 +185,7 @@ export Betoken = (_address) ->
   self.createProposal = (_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###*
@@ -198,7 +198,7 @@ export Betoken = (_address) ->
   self.supportProposal = (_proposalId, _stakeInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.supportProposal(_proposalId, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.supportProposal(_proposalId, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###*
@@ -210,7 +210,7 @@ export Betoken = (_address) ->
   self.cancelSupport = (_proposalId, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.groupFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   self.getCurrentAccount = () ->
@@ -225,12 +225,12 @@ export Betoken = (_address) ->
 
   self.init = () ->
     #Initialize GroupFund contract
-    self.addrs.groupFund = _address
-    groupFundABI = require("./abi/GroupFund.json").abi
-    self.contracts.groupFund = new web3.eth.Contract(groupFundABI, self.addrs.groupFund)
+    self.addrs.betokenFund = _address
+    betokenFundABI = require("./abi/BetokenFund.json").abi
+    self.contracts.betokenFund = new web3.eth.Contract(betokenFundABI, self.addrs.betokenFund)
 
     #Get ControlToken address
-    return self.contracts.groupFund.methods.controlTokenAddr().call().then(
+    return self.contracts.betokenFund.methods.controlTokenAddr().call().then(
       (_controlTokenAddr) ->
         #Initialize ControlToken contract
         self.addrs.controlToken = _controlTokenAddr

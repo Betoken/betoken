@@ -2,11 +2,14 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
+import 'zeppelin-solidity/contracts/lifecycle/pausable.sol';
 import './etherdelta.sol';
-import './oraclizeAPI_0.4.sol';
+import './oraclizeAPI_0.5.sol';
 
-// The main contract
-contract GroupFund is Ownable {
+/**
+ * The main contract of the Betoken hedge fund
+ */
+contract BetokenFund is Pausable {
   using SafeMath for uint256;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
@@ -23,112 +26,125 @@ contract GroupFund is Ownable {
     uint256 numAgainst;
   }
 
+  /**
+   * Executes function only during the given cycle phase.
+   * @param phase the cycle phase during which the function may be called
+   */
   modifier during(CyclePhase phase) {
     require(cyclePhase == phase);
     _;
   }
 
+  /**
+   * Executes function only when msg.sender is a participant of the fund.
+   */
   modifier onlyParticipant {
     require(isParticipant[msg.sender]);
     _;
   }
 
+  /**
+   * Exucutes function only when msg.sender is the fund's OraclizeHandler.
+   */
   modifier onlyOraclize {
     require(msg.sender == oraclizeAddr);
     _;
   }
 
-  // Address of the control token
+  //Address of the control token contract.
   address public controlTokenAddr;
 
-  // Address of the etherDelta decentralized exchange's address
+  //Address of the EtherDelta contract
   address public etherDeltaAddr;
 
-  // Address of the helper contract that calls Oraclize
+  //Address of the fund's OraclizeHandler contract.
   address public oraclizeAddr;
 
-  // The creator of the GroupFund
+  //The creator of the BetokenFund contract. Only used in initializeSubcontracts().
   address public creator;
 
-  // Address to which the developer fees will be paid
+  //Address to which the developer fees will be paid.
   address public developerFeeAccount;
 
-  //The number of the current cycle
+  //The number of the current investment cycle.
   uint256 public cycleNumber;
 
-  //10^decimals used for representing fixed point decimals
+  //10^{decimals} used for representing fixed point numbers with {decimals} decimals.
   uint256 public tenToDecimals;
 
-  // The total amount of funds held by the group
+  //The amount of funds held by the fund.
   uint256 public totalFundsInWeis;
 
-  //The start time for the current investment cycle, in seconds since Unix epoch
-  uint256 public startTimeOfCycle;
+  //The start time for the current investment cycle phase, in seconds since Unix epoch.
+  uint256 public startTimeOfCyclePhase;
 
-  //Temporal length of each investment cycle, in seconds
-  uint256 public timeOfCycle;
-
-  //Temporal length of change making period at start of each cycle, in seconds
+  //Temporal length of change making period at start of each cycle, in seconds.
   uint256 public timeOfChangeMaking;
 
-  //Temporal length of proposal making period at start of each cycle, in seconds
+  //Temporal length of proposal making period at start of each cycle, in seconds.
   uint256 public timeOfProposalMaking;
 
-  //The time allotted for waiting for sell orders, in seconds
+  //Temporal length of waiting period, after which the bets will be settled, in seconds.
+  uint256 public timeOfWaiting;
+
+  //The time allotted for waiting for sell orders, in seconds.
   uint256 public timeOfSellOrderWaiting;
 
-  //Proportion of control people who vote against a proposal have to stake
+  //Minimum proportion of Kairo balance people have to stake in support of a proposal. Fixed point decimal.
   uint256 public minStakeProportion;
 
-  // The maximum number of proposals a participant can make
+  //The maximum number of proposals each cycle.
   uint256 public maxProposals;
 
-  // The proportion of the fund that gets distributed to Kairo holders every cycle
+  //The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
   uint256 public commissionRate;
 
+  //The expiration time for buy and sell orders made on EtherDelta.
   uint256 public orderExpirationTimeInBlocks;
 
-  //The proportion of contract balance reserved for Oraclize fees
-  uint256 public oraclizeFeeProportion;
-
-  // The proportion of contract balance that goes the the devs
+  //The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
   uint256 public developerFeeProportion;
 
-  //The max number of proposals a member can create
+  //The max number of proposals each member can create.
   uint256 public maxProposalsPerMember;
 
+  //Number of proposals already made in this cycle. Excludes deleted proposals.
   uint256 public numProposals;
 
-  bool public isFirstCycle;
-
+  //Flag for whether the contract has been initialized with subcontracts' addresses.
   bool public initialized;
 
+  //Returns true for an address if it's in the participants array, false otherwise.
   mapping(address => bool) public isParticipant;
 
-  // Mapping from Participant address to their balance
+  //Mapping from a participant's address to their Ether balance, in weis.
   mapping(address => uint256) public balanceOf;
 
-  // Mapping from Proposal to total amount of Control Tokens being staked by supporters
+  //Mapping from Proposal to total amount of Control Tokens being staked by supporters.
   mapping(uint256 => uint256) public forStakedControlOfProposal;
 
-  //Records the number of proposals a user has made in the current cycle
+  //Records the number of proposals a user has created in the current cycle. Canceling support does not decrease this number.
   mapping(address => uint256) public createdProposalCount;
 
-  // Mapping from Proposal to Participant to number of Control Tokens being staked
+  //mapping(proposalId => mapping(participantAddress => stakedTokensInWeis))
   mapping(uint256 => mapping(address => uint256)) public forStakedControlOfProposalOfUser;
   mapping(uint256 => mapping(address => uint256)) public againstStakedControlOfProposalOfUser;
 
-  // Mapping to check if a proposal for a token has already been made
+  //Mapping to check if a proposal for a token has already been made.
   mapping(address => bool) public isTokenAlreadyProposed;
 
-  address[] public participants; // A list of everyone who is participating in the GroupFund
+  //A list of everyone who is participating in the fund.
+  address[] public participants;
+
+  //List of proposals in the current cycle.
   Proposal[] public proposals;
 
-  // Referrents to other contracts
+  //References to subcontracts and EtherDelta contract.
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
   OraclizeHandler internal oraclize;
 
+  //The current cycle phase.
   CyclePhase public cyclePhase;
 
   event CycleStarted(uint256 _cycleNumber, uint256 _timestamp);
@@ -144,53 +160,58 @@ contract GroupFund is Ownable {
   event PredictionResult(uint256 _cycleNumber, address _member, bool _success);
   event CommissionPaid(uint256 _cycleNumber, uint256 _totalCommissionInWeis);
 
-  // GroupFund constructor
-  function GroupFund(
+  /**
+   * Contract initialization functions
+   */
+
+  //Constructor
+  function BetokenFund(
     address _etherDeltaAddr,
     address _developerFeeAccount,
     uint256 _tenToDecimals,
-    uint256 _timeOfCycle,
     uint256 _timeOfChangeMaking,
     uint256 _timeOfProposalMaking,
+    uint256 _timeOfWaiting,
     uint256 _timeOfSellOrderWaiting,
     uint256 _minStakeProportion,
     uint256 _maxProposals,
     uint256 _commissionRate,
     uint256 _orderExpirationTimeInBlocks,
-    uint256 _oraclizeFeeProportion,
     uint256 _developerFeeProportion,
     uint256 _maxProposalsPerMember
   )
     public
   {
-    require(_timeOfChangeMaking.add(_timeOfProposalMaking) <= _timeOfCycle);
+    require(_tenToDecimals > 0);
+    require(_minStakeProportion < _tenToDecimals);
+    require(_commissionRate.add(_developerFeeProportion) < _tenToDecimals);
 
     etherDeltaAddr = _etherDeltaAddr;
     developerFeeAccount = _developerFeeAccount;
     tenToDecimals = _tenToDecimals;
-    timeOfCycle = _timeOfCycle;
     timeOfChangeMaking = _timeOfChangeMaking;
     timeOfProposalMaking = _timeOfProposalMaking;
+    timeOfWaiting = _timeOfWaiting;
     timeOfSellOrderWaiting = _timeOfSellOrderWaiting;
     minStakeProportion = _minStakeProportion;
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
     orderExpirationTimeInBlocks = _orderExpirationTimeInBlocks;
-    oraclizeFeeProportion = _oraclizeFeeProportion;
     developerFeeProportion = _developerFeeProportion;
     maxProposalsPerMember = _maxProposalsPerMember;
-    startTimeOfCycle = 0;
-    isFirstCycle = true;
+    startTimeOfCyclePhase = 0;
     cyclePhase = CyclePhase.Finalized;
     creator = msg.sender;
     numProposals = 0;
     cycleNumber = 0;
-
-    //Initialize etherDelta contract
     etherDelta = EtherDelta(etherDeltaAddr);
   }
 
-  // Constructor for the Control Token and Oraclize contracts
+  /**
+   * Initializes the addresses of the ControlToken and OraclizeHandler contracts.
+   * @param _cTokenAddr address of ControlToken contract
+   * @param _oraclizeAddr address of OraclizeHandler contract
+   */
   function initializeSubcontracts(address _cTokenAddr, address _oraclizeAddr) public {
     require(msg.sender == creator);
     require(!initialized);
@@ -204,69 +225,113 @@ contract GroupFund is Ownable {
     oraclize = OraclizeHandler(oraclizeAddr);
   }
 
-  // Allow updating of the exchange's address
-  function changeEtherDeltaAddress(address _newAddr) public onlyOwner {
-    etherDeltaAddr = _newAddr;
+  /**
+   * Getters
+   */
 
-    // Creates new EtherDelta API contract with the new address
-    etherDelta = EtherDelta(_newAddr);
-    oraclize.__changeEtherDeltaAddress(_newAddr);
-  }
-
-  // Allow the developer's address to change
-  function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
-    developerFeeAccount = _newAddr;
-  }
-
-  // *******
-  // Getters
-  // *******
+  /**
+   * Returns the length of the participants array.
+   * @return length of participants array
+   */
   function participantsCount() public view returns(uint256 _count) {
     return participants.length;
   }
 
+  /**
+   * Returns the length of the proposals array.
+   * @return length of proposals array
+   */
   function proposalsCount() public view returns(uint256 _count) {
     return proposals.length;
   }
 
-  // *******
-  // Fee Proportion setters
-  // *******
-  function changeOraclizeFeeProportion(uint256 _newProp) public onlyOwner {
-    require(_newProp < oraclizeFeeProportion);
-    oraclizeFeeProportion = _newProp;
+  /**
+   * Meta functions
+   */
+
+  /**
+   * Changes the address of the EtherDelta contract used in the contract. Only callable by owner.
+   * @param _newAddr new address of EtherDelta contract
+   */
+  function changeEtherDeltaAddress(address _newAddr) public onlyOwner {
+    require(_newAddr != address(0));
+    etherDeltaAddr = _newAddr;
+    etherDelta = EtherDelta(_newAddr);
+    oraclize.__changeEtherDeltaAddress(_newAddr);
   }
 
+  /**
+   * Changes the address of the OraclizeHandler contract used in the contract. Only callable by owner.
+   * @param _newAddr new address of OraclizeHandler contract
+   */
+  function changeOraclizeAddress(address _newAddr) public onlyOwner {
+    require(_newAddr != address(0));
+    oraclizeAddr = _newAddr;
+    oraclize = OraclizeHandler(_newAddr);
+  }
+
+  /**
+   * Changes the address to which the developer fees will be sent. Only callable by owner.
+   * @param _newAddr new developer fee address
+   */
+  function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
+    require(_newAddr != address(0));
+    developerFeeAccount = _newAddr;
+  }
+
+  /**
+   * Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
+   * @param _newProp the new proportion, fixed point decimal
+   */
   function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
     require(_newProp < developerFeeProportion);
     developerFeeProportion = _newProp;
   }
 
-  // Modify the commission that gets distributed to token holders
+  /**
+   * Changes the proportion of fund balance given to Kairo holders each cycle. Only callable by owner.
+   * @param _newProp the new proportion, fixed point decimal
+   */
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
     commissionRate = _newProp;
   }
 
+  /**
+   * Sends Ether to the OraclizeHandler contract.
+   */
   function topupOraclizeFees() public payable {
     oraclizeAddr.transfer(msg.value);
   }
 
-  //Starts a new cycle
-  function startNewCycle() public during(CyclePhase.Finalized) {
-    // Contract needs to be initialized
-    // (Used to prevent function calls before initializing subcontracts)
+  function changeOraclizeOwner(address _newOwner) public onlyOwner {
+    require(_newOwner != address(0));
+    oraclize.transferOwnership(_newOwner);
+  }
+
+  function changeControlTokenOwner(address _newOwner) public onlyOwner {
+    require(_newOwner != address(0));
+    cToken.transferOwnership(_newOwner);
+  }
+
+  /**
+   * Start cycle functions
+   */
+
+  /**
+   * Starts a new investment cycle.
+   */
+  function startNewCycle() public during(CyclePhase.Finalized) whenNotPaused {
     require(initialized);
 
-    // Update the Cycles
+    //Update values
     cyclePhase = CyclePhase.ChangeMaking;
-    startTimeOfCycle = now;
+    startTimeOfCyclePhase = now;
     cycleNumber = cycleNumber.add(1);
 
     //Reset data
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       __resetMemberData(participants[i]);
     }
-
     for (i = 0; i < proposals.length; i = i.add(1)) {
       __resetProposalData(i);
     }
@@ -274,39 +339,47 @@ contract GroupFund is Ownable {
     delete proposals;
     delete numProposals;
 
-    // Updated the time when the cycle started
+    //Emit event
     CycleStarted(cycleNumber, now);
   }
 
-  // *******
-  // Reset functions
-  // *******
+  /**
+   * Resets cycle specific data for a given participant.
+   * @param _addr the participant whose data will be reset
+   */
   function __resetMemberData(address _addr) internal {
     delete createdProposalCount[_addr];
 
-    // Remove the associated corresponding control staked for/against for each proposal
+    //Remove the associated corresponding control staked for/against  each proposal
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       delete forStakedControlOfProposalOfUser[i][_addr];
       delete againstStakedControlOfProposalOfUser[i][_addr];
     }
   }
 
+  /**
+   * Resets cycle specific data for a give proposal
+   * @param _proposalId ID of proposal whose data will be reset
+   */
   function __resetProposalData(uint256 _proposalId) internal {
     delete isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
     delete forStakedControlOfProposal[_proposalId];
   }
 
-  // *******
-  // Change making time functions
-  // *******
+  /**
+   * ChangeMakingTime functions
+   */
 
-  // Deposit into GroupFund
+  /**
+   * Deposit Ether into the fund.
+   */
   function deposit()
     public
     payable
     during(CyclePhase.ChangeMaking)
+    whenNotPaused
   {
-    // If caller is not a participant, add them onto the participants list
+    //If caller is not a participant, add them to the participants list
     if (!isParticipant[msg.sender]) {
       participants.push(msg.sender);
       isParticipant[msg.sender] = true;
@@ -316,40 +389,82 @@ contract GroupFund is Ownable {
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
-    if (isFirstCycle) {
+    if (cycleNumber == 1) {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
     }
 
+    //Emit event
     Deposit(cycleNumber, msg.sender, msg.value, now);
   }
 
-  // Withdraw from GroupFund
+  /**
+   * Withdraws a certain amount of Ether from the user's account. Cannot be called during the first cycle.
+   * @param _amountInWeis amount of Ether to be withdrawn
+   */
   function withdraw(uint256 _amountInWeis)
     public
     during(CyclePhase.ChangeMaking)
     onlyParticipant
+    whenNotPaused
   {
-    require(!isFirstCycle);
+    require(cycleNumber != 1);
 
+    //Subtract from account
     totalFundsInWeis = totalFundsInWeis.sub(_amountInWeis);
     balanceOf[msg.sender] = balanceOf[msg.sender].sub(_amountInWeis);
 
+    //Transfer Ether to user
     msg.sender.transfer(_amountInWeis);
 
+    //Emit event
     Withdraw(cycleNumber, msg.sender, _amountInWeis, now);
   }
 
-  // End the change making time phase
-  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) {
-    require(now >= startTimeOfCycle.add(timeOfChangeMaking));
+  /**
+   * Function for withdrawing all funds in times of emergency. Only callable when fund is paused.
+   */
+  function emergencyWithdraw()
+    public
+    onlyParticipant
+    whenPaused
+  {
+    uint256 amountInWeis = balanceOf[msg.sender];
 
+    //Subtract from account
+    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
+    balanceOf[msg.sender] = 0;
+
+    //Transfer
+    msg.sender.transfer(amountInWeis);
+
+    //Emit event
+    Withdraw(cycleNumber, msg.sender, amountInWeis, now);
+  }
+
+  /**
+   * Ends the ChangeMaking phase.
+   */
+  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused {
+    require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
+
+    startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.ProposalMaking;
 
     ChangeMakingTimeEnded(cycleNumber, now);
   }
 
-  //Proposal making time functions
+  /**
+   * ProposalMakingTime functions
+   */
+
+  /**
+   * Creates a new investment proposal for an ERC20 token.
+   * @param _tokenAddress address of the ERC20 token contract
+   * @param _tokenSymbol  ticker/symbol of the token
+   * @param _tokenDecimals number of decimals that the token uses
+   * @param _stakeInWeis amount of Kairos to be staked in support of the proposal
+   */
   function createProposal(
     address _tokenAddress,
     string _tokenSymbol,
@@ -359,11 +474,13 @@ contract GroupFund is Ownable {
     public
     during(CyclePhase.ProposalMaking)
     onlyParticipant
+    whenNotPaused
   {
     require(numProposals < maxProposals);
     require(!isTokenAlreadyProposed[_tokenAddress]);
     require(createdProposalCount[msg.sender] < maxProposalsPerMember);
 
+    //Add proposal to list
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
       tokenSymbol: _tokenSymbol,
@@ -376,6 +493,7 @@ contract GroupFund is Ownable {
       sellOrderExpirationBlockNum: 0
     }));
 
+    //Update values about proposal
     isTokenAlreadyProposed[_tokenAddress] = true;
     oraclize.__pushTokenSymbolOfProposal(_tokenSymbol);
     createdProposalCount[msg.sender] = createdProposalCount[msg.sender].add(1);
@@ -385,22 +503,30 @@ contract GroupFund is Ownable {
     uint256 proposalId = proposals.length - 1;
     supportProposal(proposalId, _stakeInWeis);
 
+    //Emit event
     NewProposal(cycleNumber, proposalId, _tokenAddress, _tokenSymbol, _stakeInWeis);
   }
 
+  /**
+   * Supports an investment proposal.
+   * @param _proposalId ID of the proposal the user wants to support
+   * @param _stakeInWeis amount of Kairo to be staked in support of the proposal
+   */
   function supportProposal(uint256 _proposalId, uint256 _stakeInWeis)
     public
     during(CyclePhase.ProposalMaking)
     onlyParticipant
+    whenNotPaused
   {
-    require(_proposalId < proposals.length);
+    require(_proposalId < proposals.length); //Valid ID
     require(isTokenAlreadyProposed[proposals[_proposalId].tokenAddress]); //Non-empty proposal
 
-    //Stake control tokens
-
+    /**
+     * Stake Kairos
+     */
     //Ensure stake is larger than the minimum proportion of Kairo balance
     require(_stakeInWeis.mul(tenToDecimals) >= minStakeProportion.mul(cToken.balanceOf(msg.sender)));
-    //Collect staked control tokens
+    //Collect Kairos as stake
     cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
     //Update stake data
     if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
@@ -409,18 +535,24 @@ contract GroupFund is Ownable {
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
 
+    //Emit event
     SupportedProposal(cycleNumber, _proposalId, _stakeInWeis);
   }
 
+  /**
+   * Cancels support of a proposal.
+   * @param _proposalId ID of the proposal
+   */
   function cancelProposalSupport(uint256 _proposalId)
     public
     during(CyclePhase.ProposalMaking)
     onlyParticipant
+    whenNotPaused
   {
-    require(_proposalId < proposals.length);
+    require(_proposalId < proposals.length); //Valid ID
     require(proposals[_proposalId].numFor > 0); //Non-empty proposal
 
-    //Remove stake
+    //Remove stake data
     uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
@@ -436,16 +568,20 @@ contract GroupFund is Ownable {
       __resetProposalData(_proposalId);
       numProposals = numProposals.sub(1);
       delete proposals[_proposalId];
-      //Maybe subtract 1 from createdProposalCount[creator]
     }
   }
 
+  /**
+   * Ends the ProposalMaking phase.
+   */
   function endProposalMakingTime()
     public
     during(CyclePhase.ProposalMaking)
+    whenNotPaused
   {
-    require(now >= startTimeOfCycle.add(timeOfChangeMaking).add(timeOfProposalMaking));
+    require(now >= startTimeOfCyclePhase.add(timeOfProposalMaking));
 
+    startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Waiting;
 
     __stakeAgainstVotes();
@@ -454,8 +590,10 @@ contract GroupFund is Ownable {
     ProposalMakingTimeEnded(cycleNumber, now);
   }
 
+  /**
+   * Stakes the Kairos of the against side into proposals.
+   */
   function __stakeAgainstVotes() internal {
-    //Stake against votes
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
         //Calculate total Kairo balance of users against the proposal
@@ -493,6 +631,9 @@ contract GroupFund is Ownable {
     }
   }
 
+  /**
+   * Turns the investment proposals into EtherDelta orders.
+   */
   function __makeInvestments() internal {
     //Invest in tokens using etherdelta
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
@@ -505,34 +646,44 @@ contract GroupFund is Ownable {
     }
   }
 
-  function endCycle() public during(CyclePhase.Waiting) {
-    require(now >= startTimeOfCycle.add(timeOfCycle));
+  /**
+   * Ends the Waiting phase.
+   */
+  function endWaitingTime() public during(CyclePhase.Waiting) whenNotPaused {
+    require(now >= startTimeOfCyclePhase.add(timeOfWaiting));
 
+    //Update values
+    startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Ended;
-    isFirstCycle = false;
 
     //Sell all invested tokens
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) {
-        //Ensure proposal isn't a deleted one
+      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
         oraclize.__grabCurrentPriceFromOraclize(i);
       }
     }
 
+    //Emit event
     CycleEnded(cycleNumber, now);
   }
 
-  function finalizeEndCycle() public during(CyclePhase.Ended) {
-    require(now >= startTimeOfCycle.add(timeOfCycle).add(timeOfSellOrderWaiting));
+  /**
+   * Finalize the cycle by redistributing user balances and settling investment proposals.
+   */
+  function finalizeCycle() public during(CyclePhase.Ended) whenNotPaused {
+    require(now >= startTimeOfCyclePhase.add(timeOfSellOrderWaiting));
 
+    //Update cycle values
+    startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Finalized;
 
+    //Settle investment proposal results
     for (uint256 proposalId = 0; proposalId < proposals.length; proposalId = proposalId.add(1)) {
       if (proposals[proposalId].numFor > 0) { //Ensure proposal isn't a deleted one
         __settleBets(proposalId);
       }
     }
-    //Burn any Kairo left in GroupFund's account
+    //Burn any Kairo left in BetokenFund's account
     cToken.burnOwnerBalance();
 
     //Withdraw from etherdelta
@@ -542,24 +693,17 @@ contract GroupFund is Ownable {
     //Get all remaining funds from OraclizeHandler
     oraclize.__returnAllFunds();
 
+    //Distribute funds
     __distributeFundsAfterCycleEnd();
 
+    //Emit event
     CycleFinalized(cycleNumber, now);
   }
 
-  //Internal use functions
-
-  //Doesn't work. Always returns false for some inexplicable reason.
-  //function __sellOrderFinished(uint256 _proposalId) internal returns(bool) {
-    //Proposal storage prop = proposals[_proposalId];
-    //uint256 sellTokenAmount = etherDelta.tokens(prop.tokenAddress, address(this));
-    //uint256 getWeiAmount = sellTokenAmount.mul(prop.sellPriceInWeis).div(10**prop.tokenDecimals);
-    //uint256 amountFilled = etherDelta.amountFilled(address(0), getWeiAmount, prop.tokenAddress, sellTokenAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0);
-
-    //return ((amountFilled >= sellTokenAmount) || (block.number > prop.sellOrderExpirationBlockNum));
-  //}
-
-  //Seperated from finalizeEndCycle() to avoid StackTooDeep error
+  /**
+   * Settles an investment proposal in terms of profitability.
+   * @param _proposalId ID of the proposal
+   */
   function __settleBets(uint256 _proposalId) internal {
     Proposal storage prop = proposals[_proposalId];
 
@@ -574,6 +718,7 @@ contract GroupFund is Ownable {
     address participant;
     uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cToken.totalSupply());
 
+    //Check if sell order has been partially or completely filled
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.mul(10**prop.tokenDecimals).div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
       if (prop.sellPriceInWeis > prop.buyPriceInWeis) {
         //For wins
@@ -583,11 +728,12 @@ contract GroupFund is Ownable {
           if (stake > 0) {
             //Give control tokens
             cToken.transfer(participant, stake.mul(2));
-            //Won bet
+            //Emit event
             PredictionResult(cycleNumber, participant, true);
           } else {
+            //Check if participant staked against
             if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
-              //Lost bet
+              //Emit event
               PredictionResult(cycleNumber, participant, false);
             }
           }
@@ -601,11 +747,12 @@ contract GroupFund is Ownable {
             if (stake > 0) {
               //Give control tokens
               cToken.transfer(participant, stake.mul(2));
-              //Won bet
+              //Emit event
               PredictionResult(cycleNumber, participant, true);
             } else {
+              //Check if participant staked for
               if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
-                //Lost bet
+                //Emit event
                 PredictionResult(cycleNumber, participant, false);
               }
             }
@@ -621,24 +768,34 @@ contract GroupFund is Ownable {
     }
   }
 
-  function __returnStakes(uint256 proposalId) internal {
+  /**
+   * Returns all stakes of a proposal
+   * @param _proposalId ID of a proposal
+   */
+  function __returnStakes(uint256 _proposalId) internal {
     for (uint256 j = 0; j < participants.length; j = j.add(1)) {
       address participant = participants[j];
-      uint256 stake = forStakedControlOfProposalOfUser[proposalId][participant].add(againstStakedControlOfProposalOfUser[proposalId][participant]);
+      uint256 stake = forStakedControlOfProposalOfUser[_proposalId][participant].add(againstStakedControlOfProposalOfUser[_proposalId][participant]);
       if (stake != 0) {
         cToken.transfer(participant, stake);
       }
     }
   }
 
-  //Seperated from finalizeEndCycle() to avoid StackTooDeep error
+  /**
+   * Distributes the funds accourding to previously held proportions. Pays commission to Kairo holders,
+   * developer fees to developers, and oraclize fee to OraclizeHandler.
+   */
   function __distributeFundsAfterCycleEnd() internal {
-    //Distribute funds
     uint256 totalCommission = commissionRate.mul(this.balance).div(tenToDecimals);
     uint256 devFee = developerFeeProportion.mul(this.balance).div(tenToDecimals);
-    uint256 oraclizeFee = oraclize.__oraclizeFee().mul(maxProposals.length).mul(2);
-    uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee).sub(oraclizeFee);
+    uint256 oraclizeFee = oraclize.__oraclizeFee().mul(maxProposals).mul(2);
+    uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee);
+    if (oraclizeFee <= newTotalRegularFunds) {
+      newTotalRegularFunds = newTotalRegularFunds.sub(oraclizeFee);
+    }
 
+    //Distributes funds to participants
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
       uint256 newBalance = 0;
@@ -653,15 +810,22 @@ contract GroupFund is Ownable {
       balanceOf[participant] = newBalance;
     }
 
+    //Update values
     uint256 newTotalFunds = newTotalRegularFunds.add(totalCommission);
     ROI(cycleNumber, totalFundsInWeis, newTotalFunds);
     totalFundsInWeis = newTotalFunds;
 
+    //Transfer fees
     developerFeeAccount.transfer(devFee);
     oraclize.transfer(oraclizeFee);
 
+    //Emit event
     CommissionPaid(cycleNumber, totalCommission);
   }
+
+  /**
+   * Internal use functions
+   */
 
   function __addControlTokenReceipientAsParticipant(address _receipient) public {
     require(msg.sender == controlTokenAddr);
@@ -669,7 +833,7 @@ contract GroupFund is Ownable {
     participants.push(_receipient);
   }
 
-  function __makeOrder(address _tokenGet, uint _amountGet, address _tokenGive, uint _amountGive, uint _expires, uint _nonce) public onlyOraclize {
+  function __makeOrder(address _tokenGet, uint _amountGet, address _tokenGive, uint _amountGive, uint _expires, uint _nonce) public onlyOraclize whenNotPaused {
     etherDelta.order(_tokenGet, _amountGet, _tokenGive, _amountGive, _expires, _nonce);
   }
 
@@ -690,37 +854,49 @@ contract GroupFund is Ownable {
   }
 }
 
+/**
+ * Contract that handles all Oraclize related operations.
+ */
 contract OraclizeHandler is usingOraclize, Ownable {
   using SafeMath for uint256;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
 
-  // URL for querying prices, default is set to cryptocompare
-  // Later on, modify this to be more flexible for additional queries, etc.
+  //URL parts used for Oraclize queries.
   string public priceCheckURL1;
   string public priceCheckURL2;
-  string public priceCheckURL3;
+  string public currencySymbol;
 
+  //Addresses of other contracts.
   address public controlTokenAddr;
   address public etherDeltaAddr;
 
+  //mapping(queryHash => proposalId)
   mapping(bytes32 => uint256) public proposalIdOfQuery;
 
-  GroupFund internal groupFund;
+  //References to other contracts.
+  BetokenFund internal betokenFund;
   ControlToken internal cToken;
   EtherDelta internal etherDelta;
 
+  //Stores the token symbols of each proposal.
   string[] public tokenSymbolOfProposal;
 
-  function OraclizeHandler(address _controlTokenAddr, address _etherDeltaAddr) public {
+  function OraclizeHandler(
+    address _controlTokenAddr,
+    address _etherDeltaAddr,
+    string _priceCheckURL1,
+    string _priceCheckURL2
+  )
+    public
+  {
     controlTokenAddr = _controlTokenAddr;
     etherDeltaAddr = _etherDeltaAddr;
     cToken = ControlToken(_controlTokenAddr);
     etherDelta = EtherDelta(_etherDeltaAddr);
-    // Initialize cryptocompare URLs:
-    priceCheckURL1 = "json(https://min-api.cryptocompare.com/data/price?fsym=";
-    priceCheckURL2 = "&tsyms=";
-    priceCheckURL3 = ").ETH";
+
+    priceCheckURL1 = _priceCheckURL1;
+    priceCheckURL2 = _priceCheckURL2;
   }
 
   function __changeEtherDeltaAddress(address _newAddr) public onlyOwner {
@@ -744,56 +920,59 @@ contract OraclizeHandler is usingOraclize, Ownable {
     return oraclize_getPrice("URL");
   }
 
-  // *******
-  //Oraclize functions
-  // *******
+  /**
+   * Oraclize functions
+   */
 
-  // Query Oraclize for the current price
+  /**
+   * Queries the price of a proposal's token using Oraclize.
+   * @param _proposalId ID of the proposal
+   */
   function __grabCurrentPriceFromOraclize(uint _proposalId) public payable onlyOwner {
     require(oraclize_getPrice("URL") <= this.balance);
 
-    groupFund = GroupFund(owner);
+    betokenFund = BetokenFund(owner);
 
+    //Generate query
     string storage tokenSymbol = tokenSymbolOfProposal[_proposalId];
+    string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2);
 
-    // Grab the cryptocompare URL that is the price in ETH of the token to purchase
-    string memory etherSymbol = "ETH";
-    string memory urlToQuery = strConcat(priceCheckURL1, tokenSymbol, priceCheckURL2, etherSymbol, priceCheckURL3);
-
-    // Call Oraclize to grab the most recent price information via JSON
+    //Call Oraclize to grab the most recent price information
     proposalIdOfQuery[oraclize_query("URL", urlToQuery)] = _proposalId;
   }
 
-  // Callback function from Oraclize query:
+  /**
+   * Callback function for Oraclize queries.
+   * @param _myID query ID
+   * @param _result  result of query
+   */
   function __callback(bytes32 _myID, string _result) public {
     require(msg.sender == oraclize_cbAddress());
-
-    // Require the callback response to be non-empty:
     require(keccak256(_result) != keccak256(""));
 
-    groupFund = GroupFund(owner);
+    //Update BetokenFund contract in case owner has changed
+    betokenFund = BetokenFund(owner);
 
-    // Grab ETH price in Weis
+    //Grab ETH price in Weis
     uint256 priceInWeis = parseInt(_result, 18);
 
+    //Get proposal data
     uint256 proposalId = proposalIdOfQuery[_myID];
-    var (tokenAddress, _, decimals,) = groupFund.proposals(proposalId);
+    var (tokenAddress, _, decimals,) = betokenFund.proposals(proposalId);
 
-    uint256 investAmount = groupFund.totalFundsInWeis().mul(groupFund.forStakedControlOfProposal(proposalId)).div(cToken.totalSupply());
-    uint256 expires = block.number.add(groupFund.orderExpirationTimeInBlocks());
-    if (uint(groupFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
-      //Buy
-      groupFund.__setBuyPriceAndExpirationBlock(proposalId, priceInWeis, expires);
-
+    uint256 investAmount = betokenFund.totalFundsInWeis().mul(betokenFund.forStakedControlOfProposal(proposalId)).div(cToken.totalSupply());
+    uint256 expires = block.number.add(betokenFund.orderExpirationTimeInBlocks());
+    if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
+      //Make buy orders
+      betokenFund.__setBuyPriceAndExpirationBlock(proposalId, priceInWeis, expires);
       uint256 buyTokenAmount = investAmount.mul(10**decimals).div(priceInWeis);
-      groupFund.__makeOrder(tokenAddress, buyTokenAmount, address(0), investAmount, expires, proposalId);
-    } else if (uint(groupFund.cyclePhase()) == uint(CyclePhase.Ended)) {
-      //Sell
-      groupFund.__setSellPriceAndExpirationBlock(proposalId, priceInWeis, expires);
-
+      betokenFund.__makeOrder(tokenAddress, buyTokenAmount, address(0), investAmount, expires, proposalId);
+    } else if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Ended)) {
+      //Make sell orders
+      betokenFund.__setSellPriceAndExpirationBlock(proposalId, priceInWeis, expires);
       uint256 sellTokenAmount = etherDelta.tokens(tokenAddress, owner);
       uint256 getWeiAmount = sellTokenAmount.mul(priceInWeis).div(10**decimals);
-      groupFund.__makeOrder(address(0), getWeiAmount, tokenAddress, sellTokenAmount, expires, proposalId);
+      betokenFund.__makeOrder(address(0), getWeiAmount, tokenAddress, sellTokenAmount, expires, proposalId);
     }
 
     //Reset data
@@ -807,7 +986,9 @@ contract OraclizeHandler is usingOraclize, Ownable {
   }
 }
 
-//Proportional to Wei when minted
+/**
+ * ERC20 token contract for Kairo.
+ */
 contract ControlToken is MintableToken {
   using SafeMath for uint256;
 
@@ -817,6 +998,11 @@ contract ControlToken is MintableToken {
 
   event OwnerCollectFrom(address _from, uint256 _value);
 
+  /**
+   * Transfer token for a specified address
+   * @param _to The address to transfer to.
+   * @param _value The amount to be transferred.
+   */
   function transfer(address _to, uint256 _value) public returns(bool) {
     require(_to != address(0));
     require(_value <= balances[msg.sender]);
@@ -831,6 +1017,12 @@ contract ControlToken is MintableToken {
     return true;
   }
 
+  /**
+   * Transfer tokens from one address to another
+   * @param _from The address which you want to send tokens from
+   * @param _to The address which you want to transfer to
+   * @param _value the amount of tokens to be transferred
+   */
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
     require(_value <= balances[_from]);
@@ -846,6 +1038,12 @@ contract ControlToken is MintableToken {
     return true;
   }
 
+  /**
+   * Collects tokens for the owner.
+   * @param _from The address which you want to send tokens from
+   * @param _value the amount of tokens to be transferred
+   * @return true if succeeded, false otherwise
+   */
   function ownerCollectFrom(address _from, uint256 _value) public onlyOwner returns(bool) {
     require(_from != address(0));
     require(_value <= balances[_from]);
@@ -857,15 +1055,22 @@ contract ControlToken is MintableToken {
     return true;
   }
 
+  /**
+   * Adds an address as a BetokenFund participant.
+   * @param  _to the address to be added
+   */
   function addParticipant(address _to) internal {
-    GroupFund groupFund = GroupFund(owner);
+    BetokenFund groupFund = BetokenFund(owner);
     if (!groupFund.isParticipant(_to)) {
       groupFund.__addControlTokenReceipientAsParticipant(_to);
     }
   }
 
+  /**
+   * Burns the owner's token balance.
+   */
   function burnOwnerBalance() public onlyOwner {
-    totalSupply = totalSupply.sub(balances[owner]);
+    totalSupply_ = totalSupply_.sub(balances[owner]);
     balances[owner] = 0;
   }
 

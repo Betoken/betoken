@@ -9,20 +9,25 @@ module.exports = function(deployer, network, accounts) {
     etherDeltaAddress, //Ethdelta address
     accounts[0], //developerFeeAccount
     Math.pow(10, 18), //tenToDecimals
-    600,//30 * 24 * 3600, //timeOfCycle
     300,//2 * 24 * 3600, //timeOfChangeMaking
     300,//2 * 24 * 3600, //timeOfProposalMaking
+    300, //timeOfWaiting
     300, //timeOfSellOrderWaiting
     0.01 * Math.pow(10, 18), //minStakeProportion
     20, //maxProposals
     0.01 * Math.pow(10, 18), //commissionRate
     180,//3600 / 20, //orderExpirationTimeInBlocks
-    0.01 * Math.pow(10, 18), //oraclizeFeeProportion
     0.01 * Math.pow(10, 18), //developerFeeProportion
     2 //maxProposalsPerMember
   ], [ControlToken]]).then(
     () => {
-      return deployer.deploy(OraclizeHandler, ControlToken.address, etherDeltaAddress);
+      return deployer.deploy(
+        OraclizeHandler,
+        ControlToken.address,
+        etherDeltaAddress,
+        "json(https://min-api.cryptocompare.com/data/price?fsym=",
+        "&tsyms=ETH).ETH"
+      );
     }
   ).then(
     () => {

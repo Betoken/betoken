@@ -11,7 +11,7 @@ Betoken is a decentralized hedge fund that uses a one-of-a-kind Prediction Merit
 Betoken consists of roughly 4 parts:
 
 
-1) The actual <b>Betoken</b> smart contract, which holds all the funds for each group.
+1) The <b>BetokenFund</b> smart contract, which holds all the funds for each group.
 
 
 2) The <b>Oraclize</b> smart contract, which allows Betoken to access current token prices from an external source.
@@ -20,14 +20,14 @@ Betoken consists of roughly 4 parts:
 3) The <b>EtherDelta</b> smart contract, which allows Betoken to make trades on a decentralized platform.
 
 
-4) The <b>Control Token</b> contract, an internal token unique to each group fund. Control Tokens dictate what proportion of the total pool each participant can invest, and also provide holders with commissions proportional to their holdings.
+4) The <b>Control Token</b> contract, defining the Kairo token used in the fund. Kairos dictate what proportion of the total pool each participant can invest, and also provide holders with commissions proportional to their holdings.
 
 ![Betoken Diagram](https://i.imgur.com/zvuHS9r.png)
 
 <hr>
 
 ## Using Betoken:
-Anyone can call the Betoken smart contract to create a new group fund. Each group fund goes through investment cycles, which are split into 5 stages: <b>ChangeMaking</b>, <b>ProposalMaking</b>, <b>Waiting</b>, <b>Ended</b>, and <b>Finalized</b>.
+The Betoken hedge fund goes through investment cycles, which are split into 5 stages: <b>ChangeMaking</b>, <b>ProposalMaking</b>, <b>Waiting</b>, <b>Ended</b>, and <b>Finalized</b>.
 
 <b>ChangeMaking</b> is when new participants can be added, and it is also when new withdrawals and deposits can be made.
 
@@ -35,10 +35,10 @@ Anyone can call the Betoken smart contract to create a new group fund. Each grou
 
 <b>Waiting</b> is the investment period, where the tokens are bought and held.
 
-<b>Ended</b> is when the tokens are sold.
+<b>Ended</b> is when the tokens are sold and everyone waits for the orders to go through.
 
-<b>Finalized</b> is when ControlTokens are resdistributed depending on whether or not the investment proved to be profitable. The group's pool is then updated.
+<b>Finalized</b> is when Kairos are resdistributed depending on whether or not the investment proved to be profitable. The group's pool is then updated.
 
 After each investment cycle, a new ChangeMaking period begins.
 
-Control Tokens can be traded at any time, and the commissions attached provide additional incentive for investors to make good trades.
+Kairos can be traded at any time, and the commissions attached provide additional incentive for investors to make good trades.

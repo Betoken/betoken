@@ -207,7 +207,7 @@ loadFundData = () ->
 
       #Listen for transactions
       transactionHistory.set([])
-      betoken.contracts.groupFund.getPastEvents("Deposit",
+      betoken.contracts.betokenFund.getPastEvents("Deposit",
         fromBlock: 0
       ).then(
         (_events) ->
@@ -222,7 +222,7 @@ loadFundData = () ->
               )
               transactionHistory.set(tmp)
       )
-      betoken.contracts.groupFund.getPastEvents("Withdraw",
+      betoken.contracts.betokenFund.getPastEvents("Withdraw",
         fromBlock: 0
       ).then(
         (_events) ->
@@ -282,7 +282,7 @@ loadFundData = () ->
     () ->
       chart.data.datasets[0].data = []
       chart.update()
-      betoken.contracts.groupFund.getPastEvents("ROI",
+      betoken.contracts.betokenFund.getPastEvents("ROI",
         fromBlock: 0
       ).then(
         (_events) ->
@@ -306,7 +306,7 @@ loadFundData = () ->
             avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
       )
 
-      betoken.contracts.groupFund.getPastEvents("CommissionPaid",
+      betoken.contracts.betokenFund.getPastEvents("CommissionPaid",
         fromBlock: 0
       ).then(
         (_events) ->
@@ -647,7 +647,7 @@ Template.transact_box.events(
       Template.instance().withdrawInputHasError.set(true)
 
   "click .kairo_send_button": (event) ->
-    try 
+    try
       Template.instance().kairoAmountInputHasError.set(false)
       Template.instance().kairoRecipientInputHasError.set(false)
 

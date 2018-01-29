@@ -254,7 +254,7 @@ loadFundData = function() {
     });
     //Listen for transactions
     transactionHistory.set([]);
-    betoken.contracts.groupFund.getPastEvents("Deposit", {
+    betoken.contracts.betokenFund.getPastEvents("Deposit", {
       fromBlock: 0
     }).then(function(_events) {
       var _event, data, j, len, results, tmp;
@@ -276,7 +276,7 @@ loadFundData = function() {
       }
       return results;
     });
-    return betoken.contracts.groupFund.getPastEvents("Withdraw", {
+    return betoken.contracts.betokenFund.getPastEvents("Withdraw", {
       fromBlock: 0
     }).then(function(_events) {
       var _event, data, j, len, results, tmp;
@@ -336,7 +336,7 @@ loadFundData = function() {
   }).then(function() {
     chart.data.datasets[0].data = [];
     chart.update();
-    betoken.contracts.groupFund.getPastEvents("ROI", {
+    betoken.contracts.betokenFund.getPastEvents("ROI", {
       fromBlock: 0
     }).then(function(_events) {
       var ROI, _event, data, j, len, results;
@@ -361,7 +361,7 @@ loadFundData = function() {
       }
       return results;
     });
-    return betoken.contracts.groupFund.getPastEvents("CommissionPaid", {
+    return betoken.contracts.betokenFund.getPastEvents("CommissionPaid", {
       fromBlock: 0
     }).then(function(_events) {
       var _event, commission, data, j, len, results;
