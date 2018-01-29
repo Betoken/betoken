@@ -6,6 +6,7 @@ import Chart from 'chart.js'
 import BigNumber from 'bignumber.js'
 
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
+INPUT_ERR = "There was an error in your input. Please fix it and try again."
 
 #Import web3
 Web3 = require 'web3'
@@ -39,6 +40,7 @@ againstProposalList = new ReactiveVar([])
 memberList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
+minStakeProportion = new ReactiveVar(BigNumber(0))
 
 #Displayed variables
 kairo_addr = new ReactiveVar("")
@@ -261,6 +263,9 @@ loadFundData = () ->
   betoken.getPrimitiveVar("commissionRate").then(
     (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
   )
+  betoken.getPrimitiveVar("minStakeProportion").then(
+    (_result) -> minStakeProportion.set(BigNumber(_result).div(1e18))
+  )
 
 
   #Get contract addresses
@@ -349,6 +354,7 @@ loadFundData = () ->
                       proposal =
                         id: i
                         token_symbol: _proposals[i].tokenSymbol
+                        address: _proposals[i].tokenAddress
                         investment: investment.toFormat(4)
                         supporters: _proposals[i].numFor
                       proposals.push(proposal)
@@ -529,11 +535,12 @@ Template.top_bar.events(
       onApprove: (e) ->
         try
           new_addr = $("#contract_addr_input")[0].value
+          if !web3.utils.isAddress(new_addr)
+            throw ""
           betoken_addr.set(new_addr)
           betoken = new Betoken(betoken_addr.get())
           betoken.init().then(loadFundData)
         catch error
-          # Todo catch errors
           showError("Oops! That wasn't a valid contract address!")
     ).modal('show')
 
@@ -708,9 +715,10 @@ Template.proposals_tab.events(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
+          checkKairoAmountError(kairoAmountInWeis)
           betoken.supportProposal(id, kairoAmountInWeis, showTransaction)
         catch error
-          showError("There was an error in your input. Please fix it and try again.")
+          showError(error.toString() || INPUT_ERR)
     ).modal('show')
 
   "click .new_proposal": (event) ->
@@ -718,14 +726,31 @@ Template.proposals_tab.events(
       onApprove: (e) ->
         try
           address = $("#address_input_new")[0].value
+          if (!web3.utils.isAddress(address))
+            throw "Invalid token address."
+
           tickerSymbol = $("#ticker_input_new")[0].value
+
           decimals = +$("#decimals_input_new")[0].value
+          if (decimals % 1 > 0 || decimals <= 0)
+            throw "Token decimals should be a positive integer."
+
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
+          checkKairoAmountError(kairoAmountInWeis)
+
           betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis, showTransaction)
         catch error
-          showError("There was an error in your input. Please fix it and try again.")
+          showError(error.toString() || INPUT_ERR)
     ).modal('show')
 )
+
+checkKairoAmountError = (kairoAmountInWeis) ->
+  if !kairoAmountInWeis.greaterThan(0)
+    throw "Stake amount should be positive."
+  if kairoAmountInWeis.greaterThan(kairoBalance.get())
+    throw "You can't stake more Kairos than you have!"
+  if kairoAmountInWeis.dividedBy(kairoBalance.get()).lessThan(minStakeProportion.get())
+    throw "You need to stake at least #{minStakeProportion.get().mul(100)}% of you Kairo balance (#{kairoBalance.get().times(minStakeProportion.get()).dividedBy(1e18)} KRO)!"
 
 Template.members_tab.helpers(
   member_list: () -> memberList.get()
