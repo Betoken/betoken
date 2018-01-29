@@ -6,6 +6,10 @@ if typeof web3 != "undefined"
 else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
+###*
+ * Sets the first account as defaultAccount
+ * @return {Promise} .then(()->)
+###
 getDefaultAccount = () ->
   return web3.eth.getAccounts().then(
     (accounts) ->
@@ -163,12 +167,24 @@ export Betoken = (_address) ->
         return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
+  ###*
+   * Withdraws all of user's balance in cases of emergency
+   * @param  {Function} _callback will be called after tx hash is generated
+   * @return {Promise}           .then(()->)
+  ###
   self.emergencyWithdraw = (_callback) ->
     return getDefaultAccount().then(
       () ->
         return self.contracts.betokenFund.methods.emergencyWithdraw().send({from: web3.eth.defaultAccount}).on("transactionhash", _callback)
     )
 
+  ###*
+   * Sends Kairo to another address
+   * @param  {String} _to           the recipient address
+   * @param  {BigNumber} _amountInWeis the withdrawl amount
+   * @param  {Function} _callback     will be called after tx hash is generated
+   * @return {Promise}               .then(()->)
+  ###
   self.sendKairo = (_to, _amountInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
@@ -217,12 +233,6 @@ export Betoken = (_address) ->
     return getDefaultAccount().then(
       () ->
         return self.contracts.betokenFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
-
-  self.getCurrentAccount = () ->
-    return getDefaultAccount().then(
-      () ->
-        return web3.eth.defaultAccount
     )
 
   ###

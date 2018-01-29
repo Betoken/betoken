@@ -3,10 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" afterPath="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.coffee" afterPath="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js.map" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js.map" />
+      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
+      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js" />
+      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -23,8 +22,8 @@
       <file leaf-file-name="body.html" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="507">
-              <caret line="91" column="28" lean-forward="false" selection-start-line="91" selection-start-column="28" selection-end-line="91" selection-end-column="28" />
+            <state relative-caret-position="311">
+              <caret line="84" column="10" lean-forward="true" selection-start-line="84" selection-start-column="10" selection-end-line="84" selection-end-column="10" />
               <folding>
                 <element signature="n#template#1;n#!!top" expanded="false" />
                 <element signature="n#template#2;n#!!top" expanded="false" />
@@ -47,8 +46,8 @@
       <file leaf-file-name="body.coffee" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="791">
-              <caret line="359" column="79" lean-forward="false" selection-start-line="359" selection-start-column="79" selection-end-line="359" selection-end-column="79" />
+            <state relative-caret-position="318">
+              <caret line="199" column="16" lean-forward="false" selection-start-line="199" selection-start-column="6" selection-end-line="199" selection-end-column="16" />
               <folding>
                 <element signature="e#2746#3826#0" expanded="false" />
                 <element signature="e#3844#4818#0" expanded="false" />
@@ -61,8 +60,8 @@
       <file leaf-file-name="betoken.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="511">
-              <caret line="168" column="139" lean-forward="false" selection-start-line="168" selection-start-column="139" selection-end-line="168" selection-end-column="139" />
+            <state relative-caret-position="763">
+              <caret line="177" column="139" lean-forward="false" selection-start-line="177" selection-start-column="139" selection-end-line="177" selection-end-column="139" />
               <folding />
             </state>
           </provider>
@@ -102,8 +101,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>times</find>
-      <find>dividedBy</find>
       <find>toFormat(</find>
       <find>BN</find>
       <find>commissionProportion</find>
@@ -132,6 +129,8 @@
       <find>&quot;There was an error in your input. Please fix it and try again.&quot;</find>
       <find>minstake</find>
       <find>emer</find>
+      <find>sendKai</find>
+      <find>betoken.ge</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -151,10 +150,10 @@
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/ControlToken.json" />
         <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-        <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
+        <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
       </list>
     </option>
   </component>
@@ -475,14 +474,7 @@
       <workItem from="1516173787206" duration="2000000" />
       <workItem from="1516176460926" duration="111633000" />
       <workItem from="1516699388026" duration="25000" />
-      <workItem from="1516699449443" duration="63065000" />
-    </task>
-    <task id="LOCAL-00011" summary="Connected phase indicator to backend">
-      <created>1513556849134</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1513556849134</updated>
+      <workItem from="1516699449443" duration="64031000" />
     </task>
     <task id="LOCAL-00012" summary="Connected sidebar to backend, except for expected commission">
       <created>1513572797299</created>
@@ -820,11 +812,18 @@
       <option name="project" value="LOCAL" />
       <updated>1517219335786</updated>
     </task>
-    <option name="localTasksCounter" value="60" />
+    <task id="LOCAL-00060" summary="Fixed proposal investment calculation in UI.">
+      <created>1517220594851</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1517220594851</updated>
+    </task>
+    <option name="localTasksCounter" value="61" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="431686000" />
+    <option name="totallyTimeSpent" value="432652000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -863,7 +862,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Finished transaction history box, fixed web3 event handling." />
     <MESSAGE value="Added error modal in UI" />
     <MESSAGE value="Fixed oraclize bug and buy/sell token amount bug." />
     <MESSAGE value="Found finalizeEndCycle() bug: oraclize.returnAllFunds()" />
@@ -888,7 +886,8 @@
     <MESSAGE value="Updated incentive model. Fixed #42, fixed #43, fixed #38." />
     <MESSAGE value="Fixed #31, fixed #39" />
     <MESSAGE value="Added emergency withdraw to UI, started improving emergency handling in contract." />
-    <option name="LAST_COMMIT_MESSAGE" value="Added emergency withdraw to UI, started improving emergency handling in contract." />
+    <MESSAGE value="Fixed proposal investment calculation in UI." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed proposal investment calculation in UI." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1248,40 +1247,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="507">
-          <caret line="91" column="28" lean-forward="false" selection-start-line="91" selection-start-column="28" selection-end-line="91" selection-end-column="28" />
-          <folding>
-            <element signature="n#template#1;n#!!top" expanded="false" />
-            <element signature="n#template#2;n#!!top" expanded="false" />
-            <element signature="n#template#3;n#!!top" expanded="false" />
-            <element signature="n#style#0;n#h4#0;n#div#1;n#div#0;n#div#0;n#template#3;n#!!top" expanded="true" />
-            <element signature="n#template#4;n#!!top" expanded="false" />
-            <element signature="n#template#5;n#!!top" expanded="false" />
-            <element signature="n#div#1;n#template#5;n#!!top" expanded="false" />
-            <element signature="n#style#0;n#i#0;n#button#0;n#td#3;n#tr#0;n#tbody#0;n#table#0;n#div#1;n#template#5;n#!!top" expanded="true" />
-            <element signature="n#div#2;n#template#5;n#!!top" expanded="false" />
-            <element signature="n#template#6;n#!!top" expanded="false" />
-            <element signature="n#template#7;n#!!top" expanded="false" />
-            <element signature="n#style#0;n#h5#0;n#td#1;n#tr#0;n#tbody#0;n#table#0;n#template#7;n#!!top" expanded="true" />
-            <element signature="n#template#8;n#!!top" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="583">
           <caret line="269" column="5" lean-forward="true" selection-start-line="269" selection-start-column="5" selection-end-line="269" selection-end-column="5" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="511">
-          <caret line="168" column="139" lean-forward="false" selection-start-line="168" selection-start-column="139" selection-end-line="168" selection-end-column="139" />
           <folding />
         </state>
       </provider>
@@ -1306,10 +1275,40 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="311">
+          <caret line="84" column="10" lean-forward="true" selection-start-line="84" selection-start-column="10" selection-end-line="84" selection-end-column="10" />
+          <folding>
+            <element signature="n#template#1;n#!!top" expanded="false" />
+            <element signature="n#template#2;n#!!top" expanded="false" />
+            <element signature="n#template#3;n#!!top" expanded="false" />
+            <element signature="n#style#0;n#h4#0;n#div#1;n#div#0;n#div#0;n#template#3;n#!!top" expanded="true" />
+            <element signature="n#template#4;n#!!top" expanded="false" />
+            <element signature="n#template#5;n#!!top" expanded="false" />
+            <element signature="n#div#1;n#template#5;n#!!top" expanded="false" />
+            <element signature="n#style#0;n#i#0;n#button#0;n#td#3;n#tr#0;n#tbody#0;n#table#0;n#div#1;n#template#5;n#!!top" expanded="true" />
+            <element signature="n#div#2;n#template#5;n#!!top" expanded="false" />
+            <element signature="n#template#6;n#!!top" expanded="false" />
+            <element signature="n#template#7;n#!!top" expanded="false" />
+            <element signature="n#style#0;n#h5#0;n#td#1;n#tr#0;n#tbody#0;n#table#0;n#template#7;n#!!top" expanded="true" />
+            <element signature="n#template#8;n#!!top" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="763">
+          <caret line="177" column="139" lean-forward="false" selection-start-line="177" selection-start-column="139" selection-end-line="177" selection-end-column="139" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="791">
-          <caret line="359" column="79" lean-forward="false" selection-start-line="359" selection-start-column="79" selection-end-line="359" selection-end-column="79" />
+        <state relative-caret-position="318">
+          <caret line="199" column="16" lean-forward="false" selection-start-line="199" selection-start-column="6" selection-end-line="199" selection-end-column="16" />
           <folding>
             <element signature="e#2746#3826#0" expanded="false" />
             <element signature="e#3844#4818#0" expanded="false" />
