@@ -18,7 +18,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0xc1712fdfba1b5cc29deb2bc975172c44a97950dc")
+betoken_addr = new ReactiveVar("0x7053e8d6d84ccab18ced63c38d7b83f25715625f")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -27,10 +27,10 @@ userBalance = new ReactiveVar(BigNumber(0))
 kairoBalance = new ReactiveVar(BigNumber(0))
 kairoTotalSupply = new ReactiveVar(BigNumber(0))
 cyclePhase = new ReactiveVar(0)
-startTimeOfCycle = new ReactiveVar(0)
-timeOfCycle = new ReactiveVar(0)
+startTimeOfCyclePhase = new ReactiveVar(0)
 timeOfChangeMaking = new ReactiveVar(0)
 timeOfProposalMaking = new ReactiveVar(0)
+timeOfWaiting = new ReactiveVar(0)
 timeOfSellOrderWaiting = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
@@ -124,13 +124,13 @@ clock = () ->
       target = 0
       switch cyclePhase.get()
         when 0
-          target = startTimeOfCycle.get() + timeOfChangeMaking.get()
+          target = startTimeOfCyclePhase.get() + timeOfChangeMaking.get()
         when 1
-          target = startTimeOfCycle.get() + timeOfChangeMaking.get() + timeOfProposalMaking.get()
+          target = startTimeOfCyclePhase.get() + timeOfProposalMaking.get()
         when 2
-          target = startTimeOfCycle.get() + timeOfCycle.get()
+          target = startTimeOfCyclePhase.get() + timeOfWaiting.get()
         when 3
-          target = startTimeOfCycle.get() + timeOfCycle.get() + timeOfSellOrderWaiting.get()
+          target = startTimeOfCyclePhase.get() + timeOfSellOrderWaiting.get()
 
       distance = target - now
 
@@ -243,17 +243,17 @@ loadFundData = () ->
   betoken.getPrimitiveVar("cyclePhase").then(
     (_cyclePhase) -> cyclePhase.set(+_cyclePhase)
   )
-  betoken.getPrimitiveVar("startTimeOfCycle").then(
+  betoken.getPrimitiveVar("startTimeOfCyclePhase").then(
     (_startTime) -> startTimeOfCycle.set(+_startTime)
-  )
-  betoken.getPrimitiveVar("timeOfCycle").then(
-    (_time) -> timeOfCycle.set(+_time)
   )
   betoken.getPrimitiveVar("timeOfChangeMaking").then(
     (_time) -> timeOfChangeMaking.set(+_time)
   )
   betoken.getPrimitiveVar("timeOfProposalMaking").then(
     (_time) -> timeOfProposalMaking.set(+_time)
+  )
+  betoken.getPrimitiveVar("timeOfWaiting").then(
+    (_time) -> timeOfWaiting.set(+_time)
   )
   betoken.getPrimitiveVar("timeOfSellOrderWaiting").then(
     (_time) -> timeOfSellOrderWaiting.set(+_time)

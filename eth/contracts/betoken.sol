@@ -303,11 +303,19 @@ contract BetokenFund is Pausable {
     oraclizeAddr.transfer(msg.value);
   }
 
+  /**
+   * Changes the owner of the OraclizeHandler contract.
+   * @param  _newOwner the new owner address
+   */
   function changeOraclizeOwner(address _newOwner) public onlyOwner {
     require(_newOwner != address(0));
     oraclize.transferOwnership(_newOwner);
   }
 
+  /**
+   * Changes the owner of the ControlToken contract.
+   * @param  _newOwner the new owner address
+   */
   function changeControlTokenOwner(address _newOwner) public onlyOwner {
     require(_newOwner != address(0));
     cToken.transferOwnership(_newOwner);

@@ -5,7 +5,7 @@ module.exports = {
     development: {
       host: "localhost",
       port: 8545,
-      gas: 70000000,
+      gas: 8000000,
       gasPrice: Math.pow(10, 8),
       network_id: "*" // match any network
     },
@@ -16,5 +16,11 @@ module.exports = {
       gasPrice: 20 * Math.pow(10, 9),
       network_id: 4
     }
+  },
+  solc: {
+      optimizer: {
+          enabled: true,
+          runs: 200
+      }
   }
 };

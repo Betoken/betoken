@@ -1,11 +1,11 @@
-let GroupFund = artifacts.require("GroupFund");
+let BetokenFund = artifacts.require("BetokenFund");
 let ControlToken = artifacts.require("ControlToken");
 let OraclizeHandler = artifacts.require("OraclizeHandler");
 
 module.exports = function(deployer, network, accounts) {
   let etherDeltaAddress = "0x4e10d1807608994489355d873edb6dc09b151776";
   deployer.deploy([[
-    GroupFund,
+    BetokenFund,
     etherDeltaAddress, //Ethdelta address
     accounts[0], //developerFeeAccount
     Math.pow(10, 18), //tenToDecimals
@@ -33,7 +33,7 @@ module.exports = function(deployer, network, accounts) {
     () => {
       return ControlToken.deployed().then(
         (instance) => {
-          instance.transferOwnership(GroupFund.address);
+          instance.transferOwnership(BetokenFund.address);
         }
       );
     }
@@ -41,13 +41,13 @@ module.exports = function(deployer, network, accounts) {
     () => {
       return OraclizeHandler.deployed().then(
         (instance) => {
-          instance.transferOwnership(GroupFund.address);
+          instance.transferOwnership(BetokenFund.address);
         }
       );
     }
   ).then(
     () => {
-      return GroupFund.deployed().then(
+      return BetokenFund.deployed().then(
         (instance) => {
           instance.initializeSubcontracts(ControlToken.address, OraclizeHandler.address);
         }
