@@ -304,7 +304,7 @@ loadFundData = function() {
     return cyclePhase.set(+_cyclePhase);
   });
   betoken.getPrimitiveVar("startTimeOfCyclePhase").then(function(_startTime) {
-    return startTimeOfCycle.set(+_startTime);
+    return startTimeOfCyclePhase.set(+_startTime);
   });
   betoken.getPrimitiveVar("timeOfChangeMaking").then(function(_time) {
     return timeOfChangeMaking.set(+_time);
@@ -890,7 +890,7 @@ Template.stats_tab.helpers({
     return memberList.get().length;
   },
   cycle_length: function() {
-    return BigNumber(timeOfCycle.get()).div(24 * 60 * 60).toDigits(3);
+    return BigNumber(timeOfChangeMaking.get() + timeOfProposalMaking.get() + timeOfWaiting.get() + timeOfSellOrderWaiting.get()).div(24 * 60 * 60).toDigits(3);
   },
   total_funds: function() {
     return totalFunds.get().div("1e18").toFormat(2);

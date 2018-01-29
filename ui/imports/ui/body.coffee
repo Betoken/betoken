@@ -244,7 +244,7 @@ loadFundData = () ->
     (_cyclePhase) -> cyclePhase.set(+_cyclePhase)
   )
   betoken.getPrimitiveVar("startTimeOfCyclePhase").then(
-    (_startTime) -> startTimeOfCycle.set(+_startTime)
+    (_startTime) -> startTimeOfCyclePhase.set(+_startTime)
   )
   betoken.getPrimitiveVar("timeOfChangeMaking").then(
     (_time) -> timeOfChangeMaking.set(+_time)
@@ -684,7 +684,7 @@ Template.staked_props_box.events(
 
 Template.stats_tab.helpers(
   member_count: () -> memberList.get().length
-  cycle_length: () -> BigNumber(timeOfCycle.get()).div(24 * 60 * 60).toDigits(3)
+  cycle_length: () -> BigNumber(timeOfChangeMaking.get() + timeOfProposalMaking.get() + timeOfWaiting.get() + timeOfSellOrderWaiting.get()).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
   avg_roi: () -> avgROI.get().toFormat(2)

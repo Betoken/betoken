@@ -2,7 +2,7 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
-import 'zeppelin-solidity/contracts/lifecycle/pausable.sol';
+import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
 import './etherdelta.sol';
 import './oraclizeAPI_0.5.sol';
 
