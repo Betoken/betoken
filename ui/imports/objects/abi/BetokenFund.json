@@ -66,15 +66,6 @@
       "type": "function"
     },
     {
-      "constant": false,
-      "inputs": [],
-      "name": "endCycle",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
       "constant": true,
       "inputs": [],
       "name": "proposalsCount",
@@ -105,20 +96,6 @@
         {
           "name": "",
           "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "isFirstCycle",
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool"
         }
       ],
       "payable": false,
@@ -171,6 +148,20 @@
       "constant": true,
       "inputs": [],
       "name": "tenToDecimals",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "startTimeOfCyclePhase",
       "outputs": [
         {
           "name": "",
@@ -261,6 +252,20 @@
       "type": "function"
     },
     {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_newAddr",
+          "type": "address"
+        }
+      ],
+      "name": "changeOraclizeAddress",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "constant": true,
       "inputs": [
         {
@@ -277,6 +282,15 @@
       ],
       "payable": false,
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "unpause",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -313,12 +327,40 @@
       "type": "function"
     },
     {
+      "constant": true,
+      "inputs": [],
+      "name": "timeOfWaiting",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "constant": false,
       "inputs": [],
       "name": "topupOraclizeFees",
       "outputs": [],
       "payable": true,
       "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "paused",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -452,20 +494,6 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "timeOfCycle",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
       "name": "maxProposalsPerMember",
       "outputs": [
         {
@@ -493,6 +521,15 @@
     },
     {
       "constant": false,
+      "inputs": [],
+      "name": "pause",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
       "inputs": [
         {
           "name": "_cTokenAddr",
@@ -512,7 +549,7 @@
     {
       "constant": false,
       "inputs": [],
-      "name": "finalizeEndCycle",
+      "name": "endWaitingTime",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -568,20 +605,6 @@
         {
           "name": "",
           "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "startTimeOfCycle",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
         }
       ],
       "payable": false,
@@ -650,20 +673,6 @@
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "oraclizeFeeProportion",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -771,11 +780,11 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_newProp",
-          "type": "uint256"
+          "name": "_newOwner",
+          "type": "address"
         }
       ],
-      "name": "changeOraclizeFeeProportion",
+      "name": "changeOraclizeOwner",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -793,6 +802,15 @@
       ],
       "payable": false,
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "emergencyWithdraw",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -824,6 +842,20 @@
       "type": "function"
     },
     {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "changeControlTokenOwner",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "constant": true,
       "inputs": [
         {
@@ -840,6 +872,15 @@
       ],
       "payable": false,
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "finalizeCycle",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -933,15 +974,15 @@
           "type": "uint256"
         },
         {
-          "name": "_timeOfCycle",
-          "type": "uint256"
-        },
-        {
           "name": "_timeOfChangeMaking",
           "type": "uint256"
         },
         {
           "name": "_timeOfProposalMaking",
+          "type": "uint256"
+        },
+        {
+          "name": "_timeOfWaiting",
           "type": "uint256"
         },
         {
@@ -962,10 +1003,6 @@
         },
         {
           "name": "_orderExpirationTimeInBlocks",
-          "type": "uint256"
-        },
-        {
-          "name": "_oraclizeFeeProportion",
           "type": "uint256"
         },
         {
@@ -1238,6 +1275,18 @@
         }
       ],
       "name": "CommissionPaid",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [],
+      "name": "Pause",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [],
+      "name": "Unpause",
       "type": "event"
     },
     {
