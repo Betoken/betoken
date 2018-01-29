@@ -32,7 +32,7 @@ if (typeof web3 !== "undefined") {
 }
 
 //Fund object
-betoken_addr = new ReactiveVar("0x7053e8d6d84ccab18ced63c38d7b83f25715625f");
+betoken_addr = new ReactiveVar("0x5b5e47461d7ad2911f84fba458f8af5b312c1c84");
 
 betoken = new Betoken(betoken_addr.get());
 

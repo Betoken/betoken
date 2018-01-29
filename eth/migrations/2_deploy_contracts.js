@@ -15,7 +15,7 @@ module.exports = function(deployer, network, accounts) {
     300, //timeOfSellOrderWaiting
     0.01 * Math.pow(10, 18), //minStakeProportion
     20, //maxProposals
-    0.01 * Math.pow(10, 18), //commissionRate
+    0.20 * Math.pow(10, 18), //commissionRate
     180,//3600 / 20, //orderExpirationTimeInBlocks
     0.01 * Math.pow(10, 18), //developerFeeProportion
     2 //maxProposalsPerMember

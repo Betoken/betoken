@@ -111,6 +111,9 @@ contract BetokenFund is Pausable {
   //Number of proposals already made in this cycle. Excludes deleted proposals.
   uint256 public numProposals;
 
+  //Total Kairo staked this cycle.
+  uint256 public totalStaked;
+
   //Flag for whether the contract has been initialized with subcontracts' addresses.
   bool public initialized;
 
@@ -346,6 +349,7 @@ contract BetokenFund is Pausable {
     oraclize.__deleteTokenSymbolOfProposal();
     delete proposals;
     delete numProposals;
+    totalStaked = 0;
 
     //Emit event
     CycleStarted(cycleNumber, now);
@@ -542,6 +546,7 @@ contract BetokenFund is Pausable {
     }
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
     forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
+    totalStaked = totalStaked.add(_stakeInWeis);
 
     //Emit event
     SupportedProposal(cycleNumber, _proposalId, _stakeInWeis);
@@ -564,6 +569,7 @@ contract BetokenFund is Pausable {
     uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
+    totalStaked = totalStaked.sub(stake);
 
     //Remove support
     proposals[_proposalId].numFor = proposals[_proposalId].numFor.sub(1);
@@ -647,7 +653,7 @@ contract BetokenFund is Pausable {
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
         //Deposit ether
-        uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cToken.totalSupply());
+        uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(totalStaked);
         etherDelta.deposit.value(investAmount)();
         oraclize.__grabCurrentPriceFromOraclize(i);
       }
@@ -716,7 +722,7 @@ contract BetokenFund is Pausable {
     Proposal storage prop = proposals[_proposalId];
 
     //Prevent divide by zero errors
-    if (prop.buyPriceInWeis == 0 || cToken.totalSupply() == 0) {
+    if (prop.buyPriceInWeis == 0 || totalStaked == 0) {
       __returnStakes(_proposalId);
       return;
     }
@@ -724,7 +730,7 @@ contract BetokenFund is Pausable {
     uint256 stake;
     uint256 j;
     address participant;
-    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cToken.totalSupply());
+    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(totalStaked);
 
     //Check if sell order has been partially or completely filled
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.mul(10**prop.tokenDecimals).div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
@@ -795,7 +801,11 @@ contract BetokenFund is Pausable {
    * developer fees to developers, and oraclize fee to OraclizeHandler.
    */
   function __distributeFundsAfterCycleEnd() internal {
-    uint256 totalCommission = commissionRate.mul(this.balance).div(tenToDecimals);
+    uint256 profit = 0;
+    if (this.balance > totalFundsInWeis) {
+      profit = this.balance - totalFundsInWeis;
+    }
+    uint256 totalCommission = commissionRate.mul(profit).div(tenToDecimals);
     uint256 devFee = developerFeeProportion.mul(this.balance).div(tenToDecimals);
     uint256 oraclizeFee = oraclize.__oraclizeFee().mul(maxProposals).mul(2);
     uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee);
@@ -968,7 +978,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     uint256 proposalId = proposalIdOfQuery[_myID];
     var (tokenAddress, _, decimals,) = betokenFund.proposals(proposalId);
 
-    uint256 investAmount = betokenFund.totalFundsInWeis().mul(betokenFund.forStakedControlOfProposal(proposalId)).div(cToken.totalSupply());
+    uint256 investAmount = betokenFund.totalFundsInWeis().mul(betokenFund.forStakedControlOfProposal(proposalId)).div(betokenFund.totalStaked());
     uint256 expires = block.number.add(betokenFund.orderExpirationTimeInBlocks());
     if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
       //Make buy orders
