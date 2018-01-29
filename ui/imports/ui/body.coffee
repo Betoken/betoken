@@ -42,6 +42,7 @@ cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
 minStakeProportion = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
+totalStaked = new ReactiveVar(BigNumber(0))
 
 #Displayed variables
 kairo_addr = new ReactiveVar("")
@@ -341,6 +342,9 @@ loadFundData = () ->
     betoken.getPrimitiveVar("totalFundsInWeis").then(
       #Get total funds
       (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
+    ),
+    betoken.getPrimitiveVar("totalStaked").then(
+      (_result) -> totalStaked.set(BigNumber(_result))
     )
   ]).then(
     () ->
@@ -353,7 +357,7 @@ loadFundData = () ->
                 if _proposals[i].numFor > 0
                   return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
                     (_stake) ->
-                      investment = BigNumber(_stake).dividedBy(kairoTotalSupply.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
+                      investment = BigNumber(_stake).dividedBy(totalStaked.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
                       proposal =
                         id: i
                         token_symbol: _proposals[i].tokenSymbol

@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="Added emergency withdraw to UI, started improving emergency handling in contract.">
+    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/betoken.sol" afterPath="$PROJECT_DIR$/eth/contracts/betoken.sol" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" />
+      <change beforePath="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" afterPath="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
       <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.coffee" afterPath="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.html" afterPath="$PROJECT_DIR$/ui/imports/ui/body.html" />
       <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js" />
       <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js.map" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js.map" />
     </list>
@@ -51,13 +47,12 @@
       <file leaf-file-name="body.coffee" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="443">
-              <caret line="537" column="46" lean-forward="false" selection-start-line="537" selection-start-column="46" selection-end-line="537" selection-end-column="46" />
+            <state relative-caret-position="791">
+              <caret line="359" column="79" lean-forward="false" selection-start-line="359" selection-start-column="79" selection-end-line="359" selection-end-column="79" />
               <folding>
-                <element signature="e#2702#3782#0" expanded="false" />
-                <element signature="e#3800#4774#0" expanded="false" />
-                <element signature="e#4799#15145#0" expanded="false" />
-                <element signature="e#15175#16492#0" expanded="false" />
+                <element signature="e#2746#3826#0" expanded="false" />
+                <element signature="e#3844#4818#0" expanded="false" />
+                <element signature="e#15325#16642#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -154,12 +149,12 @@
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/GroupFund.json" />
         <option value="$PROJECT_DIR$/eth/truffle.js" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/ControlToken.json" />
-        <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
         <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-        <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
+        <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
+        <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
       </list>
     </option>
   </component>
@@ -239,6 +234,14 @@
               <item name="ui" type="462c0819:PsiDirectoryNode" />
               <item name="imports" type="462c0819:PsiDirectoryNode" />
               <item name="objects" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
+              <item name="betoken" type="462c0819:PsiDirectoryNode" />
+              <item name="ui" type="462c0819:PsiDirectoryNode" />
+              <item name="imports" type="462c0819:PsiDirectoryNode" />
+              <item name="objects" type="462c0819:PsiDirectoryNode" />
+              <item name="abi" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
@@ -472,14 +475,7 @@
       <workItem from="1516173787206" duration="2000000" />
       <workItem from="1516176460926" duration="111633000" />
       <workItem from="1516699388026" duration="25000" />
-      <workItem from="1516699449443" duration="62161000" />
-    </task>
-    <task id="LOCAL-00010" summary="Added coinmarketcap widget in proposals">
-      <created>1511637724987</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1511637724987</updated>
+      <workItem from="1516699449443" duration="63065000" />
     </task>
     <task id="LOCAL-00011" summary="Connected phase indicator to backend">
       <created>1513556849134</created>
@@ -817,16 +813,24 @@
       <option name="project" value="LOCAL" />
       <updated>1517218048182</updated>
     </task>
-    <option name="localTasksCounter" value="59" />
+    <task id="LOCAL-00059" summary="Added emergency withdraw to UI, started improving emergency handling in contract.">
+      <created>1517219335786</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1517219335786</updated>
+    </task>
+    <option name="localTasksCounter" value="60" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="430782000" />
+    <option name="totallyTimeSpent" value="431686000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16226216" sideWeight="0.49544418" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16226216" sideWeight="0.49544418" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5021142" order="7" side_tool="true" content_ui="tabs" />
@@ -859,7 +863,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Added expected commission to UI" />
     <MESSAGE value="Finished transaction history box, fixed web3 event handling." />
     <MESSAGE value="Added error modal in UI" />
     <MESSAGE value="Fixed oraclize bug and buy/sell token amount bug." />
@@ -884,7 +887,8 @@
     <MESSAGE value="Debugged UI" />
     <MESSAGE value="Updated incentive model. Fixed #42, fixed #43, fixed #38." />
     <MESSAGE value="Fixed #31, fixed #39" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixed #31, fixed #39" />
+    <MESSAGE value="Added emergency withdraw to UI, started improving emergency handling in contract." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added emergency withdraw to UI, started improving emergency handling in contract." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1236,16 +1240,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/build/contracts/BetokenFund.json">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="55">
-          <caret line="1323" column="3" lean-forward="true" selection-start-line="2" selection-start-column="9" selection-end-line="1323" selection-end-column="3" />
-          <folding>
-            <element signature="e#44#26552#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/lifecycle/Pausable.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="366">
@@ -1292,23 +1286,34 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/eth/build/contracts/BetokenFund.json">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="55">
+          <caret line="1323" column="3" lean-forward="true" selection-start-line="2" selection-start-column="2" selection-end-line="1323" selection-end-column="3" />
+          <folding>
+            <element signature="e#44#26552#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="276">
-          <caret line="809" column="19" lean-forward="false" selection-start-line="809" selection-start-column="15" selection-end-line="809" selection-end-column="19" />
-          <folding />
+        <state relative-caret-position="28">
+          <caret line="1322" column="3" lean-forward="false" selection-start-line="1322" selection-start-column="3" selection-end-line="1322" selection-end-column="3" />
+          <folding>
+            <element signature="e#11#26519#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="443">
-          <caret line="537" column="46" lean-forward="false" selection-start-line="537" selection-start-column="46" selection-end-line="537" selection-end-column="46" />
+        <state relative-caret-position="791">
+          <caret line="359" column="79" lean-forward="false" selection-start-line="359" selection-start-column="79" selection-end-line="359" selection-end-column="79" />
           <folding>
-            <element signature="e#2702#3782#0" expanded="false" />
-            <element signature="e#3800#4774#0" expanded="false" />
-            <element signature="e#4799#15145#0" expanded="false" />
-            <element signature="e#15175#16492#0" expanded="false" />
+            <element signature="e#2746#3826#0" expanded="false" />
+            <element signature="e#3844#4818#0" expanded="false" />
+            <element signature="e#15325#16642#0" expanded="false" />
           </folding>
         </state>
       </provider>
