@@ -41,6 +41,7 @@ memberList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
 minStakeProportion = new ReactiveVar(BigNumber(0))
+paused = new ReactiveVar(false)
 
 #Displayed variables
 kairo_addr = new ReactiveVar("")
@@ -266,7 +267,9 @@ loadFundData = () ->
   betoken.getPrimitiveVar("minStakeProportion").then(
     (_result) -> minStakeProportion.set(BigNumber(_result).div(1e18))
   )
-
+  betoken.getPrimitiveVar("paused").then(
+    (_result) -> paused.set(_result)
+  )
 
   #Get contract addresses
   kairo_addr.set(betoken.addrs.controlToken)
@@ -518,6 +521,7 @@ Template.body.events(
 
 Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
+  paused: () -> paused.get()
   betoken_addr: () -> betoken_addr.get()
   kairo_addr: () -> kairo_addr.get()
   etherdelta_addr: () -> etherDelta_addr.get()
@@ -529,6 +533,9 @@ Template.top_bar.events(
       betoken.endPhase(showTransaction)
     catch error
       console.log error
+
+  "click .emergency_withdraw": (event) ->
+    betoken.emergencyWithdraw(showTransaction)
 
   "click .change_contract": (event) ->
     $('#change_contract_modal').modal(

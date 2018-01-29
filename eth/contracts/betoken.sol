@@ -253,6 +253,24 @@ contract BetokenFund is Pausable {
    */
 
   /**
+   * Called by the owner to pause, triggers stopped state
+   */
+  function pause() onlyOwner whenNotPaused public {
+    super.pause();
+
+    //Withdraw from EtherDelta
+    uint256 balance = etherDelta.tokens(address(0), address(this));
+    etherDelta.withdraw(balance);
+
+    //Return all stakes
+    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
+      if (proposals[i].numFor > 0) {
+        __returnStakes(i);
+      }
+    }
+  }
+
+  /**
    * Changes the address of the EtherDelta contract used in the contract. Only callable by owner.
    * @param _newAddr new address of EtherDelta contract
    */

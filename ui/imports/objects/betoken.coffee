@@ -163,6 +163,12 @@ export Betoken = (_address) ->
         return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
+  self.emergencyWithdraw = (_callback) ->
+    return getDefaultAccount().then(
+      () ->
+        return self.contracts.betokenFund.methods.emergencyWithdraw().send({from: web3.eth.defaultAccount}).on("transactionhash", _callback)
+    )
+
   self.sendKairo = (_to, _amountInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
