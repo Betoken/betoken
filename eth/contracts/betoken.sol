@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
+import 'zeppelin-solidity/contracts/math/Math.sol';
 import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
 import './etherdelta.sol';
 import './oraclizeAPI_0.5.sol';
@@ -11,6 +12,7 @@ import './oraclizeAPI_0.5.sol';
  */
 contract BetokenFund is Pausable {
   using SafeMath for uint256;
+  using Math for uint256;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
 
@@ -160,7 +162,6 @@ contract BetokenFund is Pausable {
   event CycleEnded(uint256 _cycleNumber, uint256 _timestamp);
   event CycleFinalized(uint256 _cycleNumber, uint256 _timestamp);
   event ROI(uint256 _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
-  event PredictionResult(uint256 _cycleNumber, address _member, bool _success);
   event CommissionPaid(uint256 _cycleNumber, uint256 _totalCommissionInWeis);
 
   /**
@@ -756,54 +757,26 @@ contract BetokenFund is Pausable {
       return;
     }
 
-    uint256 stake;
-    uint256 j;
-    address participant;
-    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(totalStaked);
-
     //Check if sell order has been partially or completely filled
+    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(totalStaked);
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.mul(10**prop.tokenDecimals).div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
-      if (prop.sellPriceInWeis > prop.buyPriceInWeis) {
-        //For wins
-        for (j = 0; j < participants.length; j = j.add(1)) {
-          participant = participants[j];
+      uint256 forMultiplier = prop.sellPriceInWeis.mul(tenToDecimals).div(prop.buyPriceInWeis).min(tenToDecimals);
+      uint256 againstMultiplier = 0;
+      if (prop.sellPriceInWeis < prop.buyPriceInWeis.mul(2)) {
+        loseMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(tenToDecimals).div(prop.buyPriceInWeis);
+      }
+      for (uint256 j = 0; j < participants.length; j = j.add(1)) {
+        address participant = participants[j];
+        uint256 multiplier = 0;
+        uint256 stake = 0;
+        if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
           stake = forStakedControlOfProposalOfUser[_proposalId][participant];
-          if (stake > 0) {
-            //Give control tokens
-            cToken.transfer(participant, stake.mul(2));
-            //Emit event
-            PredictionResult(cycleNumber, participant, true);
-          } else {
-            //Check if participant staked against
-            if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
-              //Emit event
-              PredictionResult(cycleNumber, participant, false);
-            }
-          }
+          multiplier = forMultiplier;
+        } else if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
+          stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
+          multiplier = againstMultiplier;
         }
-      } else {
-        //Against wins
-        if (prop.numAgainst > 0) {
-          for (j = 0; j < participants.length; j = j.add(1)) {
-            participant = participants[j];
-            stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
-            if (stake > 0) {
-              //Give control tokens
-              cToken.transfer(participant, stake.mul(2));
-              //Emit event
-              PredictionResult(cycleNumber, participant, true);
-            } else {
-              //Check if participant staked for
-              if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
-                //Emit event
-                PredictionResult(cycleNumber, participant, false);
-              }
-            }
-          }
-        } else {
-          //Everyone f'ed up somehow. No point in punishing. Return stakes.
-          __returnStakes(_proposalId);
-        }
+        cToken.transfer(participant, stake.mul(multiplier).div(tenToDecimals));
       }
     } else {
       //Buy order failed completely. Give back stakes.
