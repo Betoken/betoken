@@ -427,6 +427,7 @@ loadFundData = function() {
                   token_symbol: _proposals[i].tokenSymbol,
                   address: _proposals[i].tokenAddress,
                   investment: investment.toFormat(4),
+                  stake: BigNumber(_stake).div(1e18).toFormat(4),
                   supporters: _proposals[i].numFor
                 };
                 return proposals.push(proposal);
@@ -1006,6 +1007,9 @@ checkKairoAmountError = function(kairoAmountInWeis) {
 Template.members_tab.helpers({
   member_list: function() {
     return memberList.get();
+  },
+  network_prefix: function() {
+    return networkPrefix.get();
   }
 });
 

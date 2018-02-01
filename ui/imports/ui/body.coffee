@@ -363,6 +363,7 @@ loadFundData = () ->
                         token_symbol: _proposals[i].tokenSymbol
                         address: _proposals[i].tokenAddress
                         investment: investment.toFormat(4)
+                        stake: BigNumber(_stake).div(1e18).toFormat(4)
                         supporters: _proposals[i].numFor
                       proposals.push(proposal)
                   )
@@ -765,4 +766,5 @@ checkKairoAmountError = (kairoAmountInWeis) ->
 
 Template.members_tab.helpers(
   member_list: () -> memberList.get()
+  network_prefix: () -> networkPrefix.get()
 )

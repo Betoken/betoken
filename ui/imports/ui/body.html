@@ -520,7 +520,7 @@
     <tr>
       <th>#</th>
       <th>Token</th>
-      <th>Current Investment/ETH</th>
+      <th>Current Investment</th>
       <th>Supporters</th>
       <th>Action</th>
     </tr>
@@ -551,7 +551,7 @@
               })();
             </script>
           </td>
-          <td>{{investment}}</td>
+          <td>{{investment}} ETH / {{stake}} KRO</td>
           <td>{{supporters}}</td>
           <td>
             <div class="ui positive icon button {{is_disabled}} support_proposal">
@@ -631,7 +631,9 @@
     <tbody>
       {{#each member_list}}
         <tr>
-          <td>{{address}}</td>
+          <td>
+            <a href="https://{{network_prefix}}etherscan.io/address/{{address}}">{{address}}</a>
+          </td>
           <td>{{eth_balance}} ETH</td>
           <td>{{kro_balance}} KRO</td>
           <td>{{kro_proportion}}%</td>
