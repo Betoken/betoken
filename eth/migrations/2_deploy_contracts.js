@@ -8,7 +8,7 @@ module.exports = function(deployer, network, accounts) {
     BetokenFund,
     etherDeltaAddress, //Ethdelta address
     accounts[0], //developerFeeAccount
-    Math.pow(10, 18), //tenToDecimals
+    Math.pow(10, 18), //precision
     300,//2 * 24 * 3600, //timeOfChangeMaking
     300,//2 * 24 * 3600, //timeOfProposalMaking
     300, //timeOfWaiting

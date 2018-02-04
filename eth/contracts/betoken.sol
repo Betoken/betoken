@@ -122,7 +122,7 @@ contract BetokenFund is Pausable {
   mapping(address => bool) public isParticipant;
 
   //Returns the amount participant staked into all proposals in the current cycle.
-  mapping(address => uint256) public userStakeThisCycle;
+  mapping(address => uint256) public userStakedProposalCount;
 
   //Mapping from a participant's address to their Ether balance, in weis.
   mapping(address => uint256) public balanceOf;
@@ -394,7 +394,7 @@ contract BetokenFund is Pausable {
    */
   function __resetMemberData(address _addr) internal {
     delete createdProposalCount[_addr];
-    delete userStakeThisCycle[_addr];
+    delete userStakedProposalCount[_addr];
 
     //Remove the associated corresponding control staked for/against  each proposal
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
@@ -597,7 +597,7 @@ contract BetokenFund is Pausable {
     } else {
       revert();
     }
-    userStakeThisCycle[msg.sender] = userStakeThisCycle[msg.sender].add(_stakeInWeis);
+    userStakedProposalCount[msg.sender] = userStakedProposalCount[msg.sender].add(1);
 
     //Emit event
     StakedProposal(cycleNumber, _proposalId, _stakeInWeis, _support);
@@ -630,7 +630,7 @@ contract BetokenFund is Pausable {
     } else {
       return;
     }
-    userStakeThisCycle[msg.sender] = userStakeThisCycle[msg.sender].sub(stake);
+    userStakedProposalCount[msg.sender] = userStakedProposalCount[msg.sender].sub(1);
 
     delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
@@ -639,7 +639,7 @@ contract BetokenFund is Pausable {
     cToken.transfer(msg.sender, stake);
 
     //Delete proposal if necessary
-    if (forStakedControlOfProposal[_proposalId] == 0) {
+    if (proposals[_proposalId].numFor == 0) {
       __returnStakes(_proposalId);
       __resetProposalData(_proposalId);
       numProposals = numProposals.sub(1);
@@ -673,7 +673,7 @@ contract BetokenFund is Pausable {
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
       uint256 kairoBalance = cToken.balanceOf(participant);
-      if (userStakeThisCycle[participant] == 0 && kairoBalance > 0) {
+      if (userStakedProposalCount[participant] == 0 && kairoBalance > 0) {
         uint256 stakeIntoEachProposal = kairoBalance.mul(minStakeProportion).div(precision.mul(numProposals));
         for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
           stakeProposal(j, stakeIntoEachProposal, false);
@@ -773,32 +773,32 @@ contract BetokenFund is Pausable {
         againstMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(precision).div(prop.buyPriceInWeis);
       }
 
-      //Mint new tokens to accommodate needs.
-      //There will certainly be leftover tokens, but it's alright since we burn them right after.
-      cToken.mint(address(this), forMultiplier.mul(forStakedControlOfProposal[_proposalId]).add(againstMultiplier.mul(againstStakedControlOfProposal[_proposalId])));
-
       for (uint256 j = 0; j < participants.length; j = j.add(1)) {
         address participant = participants[j];
         uint256 stake = 0;
         if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
           //User supports proposal
           stake = forStakedControlOfProposalOfUser[_proposalId][participant];
-          cToken.transfer(participant, stake.mul(forMultiplier).div(precision));
+          //Mint instead of transfer. Ensures that there are always enough tokens.
+          //Extra will be burned right after so no problem there.
+          cToken.mint(participant, stake.mul(forMultiplier).div(precision));
         } else if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
           //User is against proposal
           stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
-          cToken.transfer(participant, stake.mul(againstMultiplier).div(precision));
+          //Mint instead of transfer. Ensures that there are always enough tokens.
+          //Extra will be burned right after so no problem there.
+          cToken.mint(participant, stake.mul(againstMultiplier).div(precision));
         }
       }
     } else {
-      //Buy order failed completely. Give back stakes.
+      //Buy order failed completely. Return stakes.
       __returnStakes(_proposalId);
     }
   }
 
   /**
    * Returns all stakes of a proposal
-   * @param _proposalId ID of a proposal
+   * @param _proposalId ID of the proposal
    */
   function __returnStakes(uint256 _proposalId) internal {
     for (uint256 j = 0; j < participants.length; j = j.add(1)) {
