@@ -12,7 +12,6 @@ import './oraclizeAPI_0.5.sol';
  */
 contract BetokenFund is Pausable {
   using SafeMath for uint256;
-  using Math for uint256;
 
   enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Ended, Finalized }
 
@@ -72,7 +71,7 @@ contract BetokenFund is Pausable {
   uint256 public cycleNumber;
 
   //10^{decimals} used for representing fixed point numbers with {decimals} decimals.
-  uint256 public tenToDecimals;
+  uint256 public precision;
 
   //The amount of funds held by the fund.
   uint256 public totalFundsInWeis;
@@ -113,8 +112,8 @@ contract BetokenFund is Pausable {
   //Number of proposals already made in this cycle. Excludes deleted proposals.
   uint256 public numProposals;
 
-  //Total Kairo staked this cycle.
-  uint256 public totalStaked;
+  //Total Kairo staked in support of proposals this cycle.
+  uint256 public cycleTotalForStake;
 
   //Flag for whether the contract has been initialized with subcontracts' addresses.
   bool public initialized;
@@ -122,11 +121,15 @@ contract BetokenFund is Pausable {
   //Returns true for an address if it's in the participants array, false otherwise.
   mapping(address => bool) public isParticipant;
 
+  //Returns the amount participant staked into all proposals in the current cycle.
+  mapping(address => uint256) public userStakeThisCycle;
+
   //Mapping from a participant's address to their Ether balance, in weis.
   mapping(address => uint256) public balanceOf;
 
   //Mapping from Proposal to total amount of Control Tokens being staked by supporters.
   mapping(uint256 => uint256) public forStakedControlOfProposal;
+  mapping(uint256 => uint256) public againstStakedControlOfProposal;
 
   //Records the number of proposals a user has created in the current cycle. Canceling support does not decrease this number.
   mapping(address => uint256) public createdProposalCount;
@@ -157,7 +160,7 @@ contract BetokenFund is Pausable {
   event Withdraw(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
   event ChangeMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
   event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress, string _tokenSymbol, uint256 _amountInWeis);
-  event SupportedProposal(uint256 _cycleNumber, uint256 _id, uint256 _amountInWeis);
+  event StakedProposal(uint256 _cycleNumber, uint256 _id, uint256 _amountInWeis, bool _support);
   event ProposalMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
   event CycleEnded(uint256 _cycleNumber, uint256 _timestamp);
   event CycleFinalized(uint256 _cycleNumber, uint256 _timestamp);
@@ -172,7 +175,7 @@ contract BetokenFund is Pausable {
   function BetokenFund(
     address _etherDeltaAddr,
     address _developerFeeAccount,
-    uint256 _tenToDecimals,
+    uint256 _precision,
     uint256 _timeOfChangeMaking,
     uint256 _timeOfProposalMaking,
     uint256 _timeOfWaiting,
@@ -186,13 +189,13 @@ contract BetokenFund is Pausable {
   )
     public
   {
-    require(_tenToDecimals > 0);
-    require(_minStakeProportion < _tenToDecimals);
-    require(_commissionRate.add(_developerFeeProportion) < _tenToDecimals);
+    require(_precision > 0);
+    require(_minStakeProportion < _precision);
+    require(_commissionRate.add(_developerFeeProportion) < _precision);
 
     etherDeltaAddr = _etherDeltaAddr;
     developerFeeAccount = _developerFeeAccount;
-    tenToDecimals = _tenToDecimals;
+    precision = _precision;
     timeOfChangeMaking = _timeOfChangeMaking;
     timeOfProposalMaking = _timeOfProposalMaking;
     timeOfWaiting = _timeOfWaiting;
@@ -379,7 +382,7 @@ contract BetokenFund is Pausable {
     oraclize.__deleteTokenSymbolOfProposal();
     delete proposals;
     delete numProposals;
-    totalStaked = 0;
+    delete cycleTotalForStake;
 
     //Emit event
     CycleStarted(cycleNumber, now);
@@ -391,6 +394,7 @@ contract BetokenFund is Pausable {
    */
   function __resetMemberData(address _addr) internal {
     delete createdProposalCount[_addr];
+    delete userStakeThisCycle[_addr];
 
     //Remove the associated corresponding control staked for/against  each proposal
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
@@ -406,6 +410,7 @@ contract BetokenFund is Pausable {
   function __resetProposalData(uint256 _proposalId) internal {
     delete isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
     delete forStakedControlOfProposal[_proposalId];
+    delete againstStakedControlOfProposal[_proposalId];
   }
 
   /**
@@ -543,7 +548,7 @@ contract BetokenFund is Pausable {
 
     //Stake control tokens
     uint256 proposalId = proposals.length - 1;
-    supportProposal(proposalId, _stakeInWeis);
+    stakeProposal(proposalId, _stakeInWeis, true);
 
     //Emit event
     NewProposal(cycleNumber, proposalId, _tokenAddress, _tokenSymbol, _stakeInWeis);
@@ -554,7 +559,7 @@ contract BetokenFund is Pausable {
    * @param _proposalId ID of the proposal the user wants to support
    * @param _stakeInWeis amount of Kairo to be staked in support of the proposal
    */
-  function supportProposal(uint256 _proposalId, uint256 _stakeInWeis)
+  function stakeProposal(uint256 _proposalId, uint256 _stakeInWeis, bool _support)
     public
     during(CyclePhase.ProposalMaking)
     onlyParticipant
@@ -567,19 +572,35 @@ contract BetokenFund is Pausable {
      * Stake Kairos
      */
     //Ensure stake is larger than the minimum proportion of Kairo balance
-    require(_stakeInWeis.mul(tenToDecimals) >= minStakeProportion.mul(cToken.balanceOf(msg.sender)));
+    require(_stakeInWeis.mul(precision) >= minStakeProportion.mul(cToken.balanceOf(msg.sender)));
+    require(_stakeInWeis > 0); //Ensure positive stake amount
+
     //Collect Kairos as stake
     cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
+
     //Update stake data
-    if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
-      proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+    if (_support && againstStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
+      //Support proposal, hasn't staked against it
+      if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
+        proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
+      }
+      forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
+      forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
+      cycleTotalForStake = cycleTotalForStake.add(_stakeInWeis);
+    } else if (!_support && forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
+      //Against proposal, hasn't staked for it
+      if (againstStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
+        proposals[_proposalId].numAgainst = proposals[_proposalId].numAgainst.add(1);
+      }
+      againstStakedControlOfProposal[_proposalId] = againstStakedControlOfProposal[_proposalId].add(_stakeInWeis);
+      againstStakedControlOfProposalOfUser[_proposalId][msg.sender] = againstStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
+    } else {
+      revert();
     }
-    forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
-    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
-    totalStaked = totalStaked.add(_stakeInWeis);
+    userStakeThisCycle[msg.sender] = userStakeThisCycle[msg.sender].add(_stakeInWeis);
 
     //Emit event
-    SupportedProposal(cycleNumber, _proposalId, _stakeInWeis);
+    StakedProposal(cycleNumber, _proposalId, _stakeInWeis, _support);
   }
 
   /**
@@ -596,19 +617,30 @@ contract BetokenFund is Pausable {
     require(proposals[_proposalId].numFor > 0); //Non-empty proposal
 
     //Remove stake data
-    uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
-    totalStaked = totalStaked.sub(stake);
+    uint256 forStake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    uint256 againstStake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    uint256 stake = forStake.add(againstStake);
+    if (forStake > 0) {
+      forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
+      cycleTotalForStake = cycleTotalForStake.sub(stake);
+      proposals[_proposalId].numFor = proposals[_proposalId].numFor.sub(1);
+    } else if (againstStake > 0) {
+      againstStakedControlOfProposal[_proposalId] = againstStakedControlOfProposal[_proposalId].sub(stake);
+      proposals[_proposalId].numAgainst = proposals[_proposalId].numAgainst.sub(1);
+    } else {
+      return;
+    }
+    userStakeThisCycle[msg.sender] = userStakeThisCycle[msg.sender].sub(stake);
 
-    //Remove support
-    proposals[_proposalId].numFor = proposals[_proposalId].numFor.sub(1);
+    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
 
     //Return stake
     cToken.transfer(msg.sender, stake);
 
     //Delete proposal if necessary
     if (forStakedControlOfProposal[_proposalId] == 0) {
+      __returnStakes(_proposalId);
       __resetProposalData(_proposalId);
       numProposals = numProposals.sub(1);
       delete proposals[_proposalId];
@@ -628,48 +660,23 @@ contract BetokenFund is Pausable {
     startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Waiting;
 
-    __stakeAgainstVotes();
+    __autoStakeAgainst();
     __makeInvestments();
 
     ProposalMakingTimeEnded(cycleNumber, now);
   }
 
   /**
-   * Stakes the Kairos of the against side into proposals.
+   * Automatically stake equally into all proposals for Kairo holders who didn't stake anything.
    */
-  function __stakeAgainstVotes() internal {
-    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
-        //Calculate total Kairo balance of users against the proposal
-        uint256 againstTotalBalance = 0;
-        for (uint256 j = 0; j < participants.length; j = j.add(1)) {
-          bool isFor = forStakedControlOfProposalOfUser[i][participants[j]] != 0;
-          if (!isFor) {
-            againstTotalBalance = againstTotalBalance.add(cToken.balanceOf(participants[j]));
-          }
-        }
-        //Calculate the proportion of Kairo each user against the proposal have to stake
-        uint256 stakeProportion = tenToDecimals;
-        if (forStakedControlOfProposal[i] < againstTotalBalance) {
-          stakeProportion = forStakedControlOfProposal[i].mul(tenToDecimals).div(againstTotalBalance);
-        } else {
-          //Mint new Kairo to fill the gap
-          uint256 mintAmount = forStakedControlOfProposal[i] - againstTotalBalance;
-          if (mintAmount > 0) {
-            cToken.mint(address(this), mintAmount);
-          }
-        }
-        //Collect stakes
-        for (j = 0; j < participants.length; j = j.add(1)) {
-          address participant = participants[j];
-          isFor = forStakedControlOfProposalOfUser[i][participant] != 0;
-          uint256 userBalance = cToken.balanceOf(participant);
-          if (!isFor && userBalance > 0) {
-            uint256 stake = stakeProportion.mul(userBalance).div(tenToDecimals);
-            cToken.ownerCollectFrom(participant, stake);
-            proposals[i].numAgainst = proposals[i].numAgainst.add(1);
-            againstStakedControlOfProposalOfUser[i][participant] = againstStakedControlOfProposalOfUser[i][participant].add(stake);
-          }
+  function __autoStakeAgainst() internal {
+    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
+      address participant = participants[i];
+      uint256 kairoBalance = cToken.balanceOf(participant);
+      if (userStakeThisCycle[participant] == 0 && kairoBalance > 0) {
+        uint256 stakeIntoEachProposal = kairoBalance.mul(minStakeProportion).div(precision.mul(numProposals));
+        for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
+          stakeProposal(j, stakeIntoEachProposal, false);
         }
       }
     }
@@ -683,7 +690,7 @@ contract BetokenFund is Pausable {
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
         //Deposit ether
-        uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(totalStaked);
+        uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[i]).div(cycleTotalForStake);
         etherDelta.deposit.value(investAmount)();
         oraclize.__grabCurrentPriceFromOraclize(i);
       }
@@ -752,31 +759,36 @@ contract BetokenFund is Pausable {
     Proposal storage prop = proposals[_proposalId];
 
     //Prevent divide by zero errors
-    if (prop.buyPriceInWeis == 0 || totalStaked == 0) {
+    if (prop.buyPriceInWeis == 0 || cycleTotalForStake == 0) {
       __returnStakes(_proposalId);
       return;
     }
 
     //Check if sell order has been partially or completely filled
-    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(totalStaked);
+    uint256 investAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cycleTotalForStake);
     if (etherDelta.amountFilled(prop.tokenAddress, investAmount.mul(10**prop.tokenDecimals).div(prop.buyPriceInWeis), address(0), investAmount, prop.sellOrderExpirationBlockNum, _proposalId, address(this), 0, 0, 0) != 0) {
-      uint256 forMultiplier = prop.sellPriceInWeis.mul(tenToDecimals).div(prop.buyPriceInWeis).min(tenToDecimals);
+      uint256 forMultiplier = prop.sellPriceInWeis.mul(precision).div(prop.buyPriceInWeis);
       uint256 againstMultiplier = 0;
       if (prop.sellPriceInWeis < prop.buyPriceInWeis.mul(2)) {
-        loseMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(tenToDecimals).div(prop.buyPriceInWeis);
+        againstMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(precision).div(prop.buyPriceInWeis);
       }
+
+      //Mint new tokens to accommodate needs.
+      //There will certainly be leftover tokens, but it's alright since we burn them right after.
+      cToken.mint(address(this), forMultiplier.mul(forStakedControlOfProposal[_proposalId]).add(againstMultiplier.mul(againstStakedControlOfProposal[_proposalId])));
+
       for (uint256 j = 0; j < participants.length; j = j.add(1)) {
         address participant = participants[j];
-        uint256 multiplier = 0;
         uint256 stake = 0;
         if (forStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
+          //User supports proposal
           stake = forStakedControlOfProposalOfUser[_proposalId][participant];
-          multiplier = forMultiplier;
+          cToken.transfer(participant, stake.mul(forMultiplier).div(precision));
         } else if (againstStakedControlOfProposalOfUser[_proposalId][participant] > 0) {
+          //User is against proposal
           stake = againstStakedControlOfProposalOfUser[_proposalId][participant];
-          multiplier = againstMultiplier;
+          cToken.transfer(participant, stake.mul(againstMultiplier).div(precision));
         }
-        cToken.transfer(participant, stake.mul(multiplier).div(tenToDecimals));
       }
     } else {
       //Buy order failed completely. Give back stakes.
@@ -807,8 +819,8 @@ contract BetokenFund is Pausable {
     if (this.balance > totalFundsInWeis) {
       profit = this.balance - totalFundsInWeis;
     }
-    uint256 totalCommission = commissionRate.mul(profit).div(tenToDecimals);
-    uint256 devFee = developerFeeProportion.mul(this.balance).div(tenToDecimals);
+    uint256 totalCommission = commissionRate.mul(profit).div(precision);
+    uint256 devFee = developerFeeProportion.mul(this.balance).div(precision);
     uint256 oraclizeFee = oraclize.__oraclizeFee().mul(maxProposals).mul(2);
     uint256 newTotalRegularFunds = this.balance.sub(totalCommission).sub(devFee);
     if (oraclizeFee <= newTotalRegularFunds) {
@@ -980,7 +992,7 @@ contract OraclizeHandler is usingOraclize, Ownable {
     uint256 proposalId = proposalIdOfQuery[_myID];
     var (tokenAddress, _, decimals,) = betokenFund.proposals(proposalId);
 
-    uint256 investAmount = betokenFund.totalFundsInWeis().mul(betokenFund.forStakedControlOfProposal(proposalId)).div(betokenFund.totalStaked());
+    uint256 investAmount = betokenFund.totalFundsInWeis().mul(betokenFund.forStakedControlOfProposal(proposalId)).div(betokenFund.cycleTotalForStake());
     uint256 expires = block.number.add(betokenFund.orderExpirationTimeInBlocks());
     if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
       //Make buy orders
