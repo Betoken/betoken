@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="Added script for automating upgrading contracts.">
+    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/libraries/Generated_files.xml" afterPath="$PROJECT_DIR$/.idea/libraries/Generated_files.xml" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change beforePath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" afterPath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" />
       <change beforePath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" afterPath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" />
       <change beforePath="$PROJECT_DIR$/eth/build/contracts/Migrations.json" afterPath="$PROJECT_DIR$/eth/build/contracts/Migrations.json" />
       <change beforePath="$PROJECT_DIR$/eth/build/contracts/OraclizeHandler.json" afterPath="$PROJECT_DIR$/eth/build/contracts/OraclizeHandler.json" />
-      <change beforePath="$PROJECT_DIR$/eth/truffle.js" afterPath="$PROJECT_DIR$/eth/truffle.js" />
+      <change beforePath="$PROJECT_DIR$/eth/contracts/betoken.sol" afterPath="$PROJECT_DIR$/eth/contracts/betoken.sol" />
+      <change beforePath="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" afterPath="" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -65,31 +66,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="false">
+      <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2857">
-              <caret line="432" column="5" lean-forward="false" selection-start-line="432" selection-start-column="5" selection-end-line="432" selection-end-column="5" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="upgrade_retain_kairo_oraclize.coffee" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="448">
-              <caret line="16" column="9" lean-forward="true" selection-start-line="16" selection-start-column="9" selection-end-line="16" selection-end-column="9" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="2_deploy_contracts.js" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="140">
-              <caret line="5" column="70" lean-forward="true" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="70" />
+            <state relative-caret-position="354">
+              <caret line="337" column="47" lean-forward="true" selection-start-line="337" selection-start-column="47" selection-end-line="337" selection-end-column="47" />
               <folding />
             </state>
           </provider>
@@ -116,12 +97,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>CycleStarted</find>
-      <find>Withdraw</find>
-      <find>ChangeMakingTimeEnded</find>
-      <find>NewProposal</find>
-      <find>SupportedProposal</find>
-      <find>ProposalMakingTimeEnded</find>
       <find>CycleEnded</find>
       <find>CycleFinalized</find>
       <find>CommissionPaid</find>
@@ -145,6 +120,12 @@
       <find>tenToDecimals</find>
       <find>totalStaked</find>
       <find>stakeProposal</find>
+      <find>#</find>
+      <find>let</find>
+      <find>;</find>
+      <find>{</find>
+      <find>}</find>
+      <find>=&gt;</find>
       <find>//</find>
     </findStrings>
   </component>
@@ -162,15 +143,17 @@
         <option value="$PROJECT_DIR$/README.md" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/GroupFund.json" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/ControlToken.json" />
-        <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
-        <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/eth/truffle.js" />
         <option value="$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo.coffee" />
+        <option value="$PROJECT_DIR$/eth/deployment_configs/testnet.json" />
+        <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
+        <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.coffee" />
         <option value="$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee" />
+        <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
       </list>
     </option>
   </component>
@@ -226,18 +209,6 @@
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
               <item name="betoken" type="462c0819:PsiDirectoryNode" />
               <item name="eth" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
-              <item name="betoken" type="462c0819:PsiDirectoryNode" />
-              <item name="eth" type="462c0819:PsiDirectoryNode" />
-              <item name="migrations" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
-              <item name="betoken" type="462c0819:PsiDirectoryNode" />
-              <item name="eth" type="462c0819:PsiDirectoryNode" />
-              <item name="scripts" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
@@ -311,7 +282,7 @@
     <property name="ignore_missing_gitignore" value="true" />
     <property name="javascript.nodejs.core.library.configured.version" value="8.9.1" />
     <property name="JavaScriptWeakerCompletionTypeGuess" value="true" />
-    <property name="SearchEverywhereHistoryKey" value="stakePr&#9;null&#9;null&#10;numProposals&#9;null&#9;null&#10;stakeP&#9;null&#9;null&#10;__returnS&#9;null&#9;null&#10;stakeProposal&#9;null&#9;null&#10;file wa&#9;ACTION&#9;FileWatcher.runForFiles&#10;tenTo&#9;null&#9;null&#10;pricef&#9;null&#9;null&#10;tokenSymbo&#9;null&#9;null&#10;commissionr&#9;null&#9;null&#10;makeIn&#9;null&#9;null&#10;__reset&#9;null&#9;null" />
+    <property name="SearchEverywhereHistoryKey" value="file wa&#9;ACTION&#9;FileWatcher.runForFiles&#10;stakePr&#9;null&#9;null&#10;numProposals&#9;null&#9;null&#10;stakeP&#9;null&#9;null&#10;__returnS&#9;null&#9;null&#10;stakeProposal&#9;null&#9;null&#10;tenTo&#9;null&#9;null&#10;pricef&#9;null&#9;null&#10;tokenSymbo&#9;null&#9;null&#10;commissionr&#9;null&#9;null&#10;makeIn&#9;null&#9;null&#10;__reset&#9;null&#9;null" />
     <property name="add_unversioned_files" value="true" />
   </component>
   <component name="RecentsManager">
@@ -396,14 +367,7 @@
       <workItem from="1516699449443" duration="73487000" />
       <workItem from="1517521415693" duration="9000" />
       <workItem from="1517521455834" duration="14580000" />
-      <workItem from="1517733543672" duration="20821000" />
-    </task>
-    <task id="LOCAL-00022" summary="Updated styling">
-      <created>1514011173414</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1514011173414</updated>
+      <workItem from="1517733543672" duration="24198000" />
     </task>
     <task id="LOCAL-00023" summary="Fixed bug in startNewCycle()">
       <created>1514076208838</created>
@@ -741,11 +705,18 @@
       <option name="project" value="LOCAL" />
       <updated>1517795101885</updated>
     </task>
-    <option name="localTasksCounter" value="71" />
+    <task id="LOCAL-00071" summary="Added script for automating upgrading contracts.">
+      <created>1517859938677</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1517859938677</updated>
+    </task>
+    <option name="localTasksCounter" value="72" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="477518000" />
+    <option name="totallyTimeSpent" value="480895000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -784,7 +755,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Address is now &quot;Not available&quot; if web3 isn't present" />
     <MESSAGE value="Fixed #20. Did not fix Owen's code." />
     <MESSAGE value="Fixed #40" />
     <MESSAGE value="Changed &quot;Transfer Kairo&quot; to &quot;Send Kairo&quot;" />
@@ -809,7 +779,8 @@
     <MESSAGE value="Added corresponding features in the UI. Debugged contracts." />
     <MESSAGE value="npm fix" />
     <MESSAGE value="Added error checkers in UI for creating more than maxProposalsPerMember proposals and for staking on both sides of a proposal. Updated expected commission formula." />
-    <option name="LAST_COMMIT_MESSAGE" value="Added error checkers in UI for creating more than maxProposalsPerMember proposals and for staking on both sides of a proposal. Updated expected commission formula." />
+    <MESSAGE value="Added script for automating upgrading contracts." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added script for automating upgrading contracts." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -818,20 +789,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/ui/client/lib/site/globals/site.variables.import.less">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/audit/ZeppelinAudit.md">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2016">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/package.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -1036,13 +993,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/lifecycle/Pausable.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="366">
-          <caret line="33" column="2" lean-forward="true" selection-start-line="33" selection-start-column="2" selection-end-line="35" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/math/Math.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="476">
@@ -1115,22 +1065,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/truffle.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="196">
-          <caret line="7" column="12" lean-forward="false" selection-start-line="7" selection-start-column="12" selection-end-line="7" selection-end-column="12" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="140">
-          <caret line="5" column="70" lean-forward="true" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="70" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/ownership/Ownable.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-168">
@@ -1139,18 +1073,58 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
+    <entry file="file://$PROJECT_DIR$/eth/truffle.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2857">
-          <caret line="432" column="5" lean-forward="false" selection-start-line="432" selection-start-column="5" selection-end-line="432" selection-end-column="5" />
+        <state relative-caret-position="196">
+          <caret line="7" column="12" lean-forward="false" selection-start-line="7" selection-start-column="12" selection-end-line="7" selection-end-column="12" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/lifecycle/Pausable.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="534">
+          <caret line="39" column="3" lean-forward="true" selection-start-line="39" selection-start-column="3" selection-end-line="39" selection-end-column="3" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/deployment_configs/testnet.json">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="308">
+          <caret line="11" column="46" lean-forward="false" selection-start-line="11" selection-start-column="46" selection-end-line="11" selection-end-column="46" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-641">
+          <caret line="4" column="14" lean-forward="true" selection-start-line="4" selection-start-column="14" selection-end-line="4" selection-end-column="14" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="308">
+          <caret line="11" column="32" lean-forward="false" selection-start-line="11" selection-start-column="32" selection-end-line="11" selection-end-column="32" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="448">
-          <caret line="16" column="9" lean-forward="true" selection-start-line="16" selection-start-column="9" selection-end-line="16" selection-end-column="9" />
+        <state relative-caret-position="-1201">
+          <caret line="16" column="75" lean-forward="false" selection-start-line="16" selection-start-column="75" selection-end-line="16" selection-end-column="75" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="354">
+          <caret line="337" column="47" lean-forward="true" selection-start-line="337" selection-start-column="47" selection-end-line="337" selection-end-column="47" />
           <folding />
         </state>
       </provider>

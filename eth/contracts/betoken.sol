@@ -289,7 +289,7 @@ contract BetokenFund is Pausable {
    * Changes the address of the EtherDelta contract used in the contract. Only callable by owner.
    * @param _newAddr new address of EtherDelta contract
    */
-  function changeEtherDeltaAddress(address _newAddr) public onlyOwner {
+  function changeEtherDeltaAddress(address _newAddr) public onlyOwner whenPaused {
     require(_newAddr != address(0));
     etherDeltaAddr = _newAddr;
     etherDelta = EtherDelta(_newAddr);
@@ -300,7 +300,7 @@ contract BetokenFund is Pausable {
    * Changes the address of the OraclizeHandler contract used in the contract. Only callable by owner.
    * @param _newAddr new address of OraclizeHandler contract
    */
-  function changeOraclizeAddress(address _newAddr) public onlyOwner {
+  function changeOraclizeAddress(address _newAddr) public onlyOwner whenPaused {
     require(_newAddr != address(0));
     oraclizeAddr = _newAddr;
     oraclize = OraclizeHandler(_newAddr);
@@ -343,7 +343,7 @@ contract BetokenFund is Pausable {
    * Changes the owner of the OraclizeHandler contract.
    * @param  _newOwner the new owner address
    */
-  function changeOraclizeOwner(address _newOwner) public onlyOwner {
+  function changeOraclizeOwner(address _newOwner) public onlyOwner whenPaused {
     require(_newOwner != address(0));
     oraclize.transferOwnership(_newOwner);
   }
@@ -352,7 +352,7 @@ contract BetokenFund is Pausable {
    * Changes the owner of the ControlToken contract.
    * @param  _newOwner the new owner address
    */
-  function changeControlTokenOwner(address _newOwner) public onlyOwner {
+  function changeControlTokenOwner(address _newOwner) public onlyOwner whenPaused {
     require(_newOwner != address(0));
     cToken.transferOwnership(_newOwner);
   }
