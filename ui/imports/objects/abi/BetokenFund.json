@@ -104,6 +104,25 @@
     },
     {
       "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "userStakedProposalCount",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
       "inputs": [],
       "name": "initialized",
       "outputs": [
@@ -145,17 +164,17 @@
       "type": "function"
     },
     {
-      "constant": true,
-      "inputs": [],
-      "name": "tenToDecimals",
-      "outputs": [
+      "constant": false,
+      "inputs": [
         {
-          "name": "",
+          "name": "_proposalId",
           "type": "uint256"
         }
       ],
+      "name": "cancelProposalStake",
+      "outputs": [],
       "payable": false,
-      "stateMutability": "view",
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -451,24 +470,6 @@
       "type": "function"
     },
     {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_proposalId",
-          "type": "uint256"
-        },
-        {
-          "name": "_stakeInWeis",
-          "type": "uint256"
-        }
-      ],
-      "name": "supportProposal",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
       "constant": true,
       "inputs": [],
       "name": "totalFundsInWeis",
@@ -489,20 +490,6 @@
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "totalStaked",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -585,20 +572,6 @@
     },
     {
       "constant": false,
-      "inputs": [
-        {
-          "name": "_proposalId",
-          "type": "uint256"
-        }
-      ],
-      "name": "cancelProposalSupport",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
       "inputs": [],
       "name": "endProposalMakingTime",
       "outputs": [],
@@ -661,6 +634,25 @@
         {
           "name": "",
           "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "againstStakedControlOfProposal",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
         }
       ],
       "payable": false,
@@ -783,6 +775,20 @@
     },
     {
       "constant": false,
+      "inputs": [
+        {
+          "name": "_participants",
+          "type": "address[]"
+        }
+      ],
+      "name": "initializeParticipants",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
       "inputs": [],
       "name": "deposit",
       "outputs": [],
@@ -802,6 +808,20 @@
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "precision",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -864,6 +884,28 @@
         }
       ],
       "name": "changeControlTokenOwner",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_proposalId",
+          "type": "uint256"
+        },
+        {
+          "name": "_stakeInWeis",
+          "type": "uint256"
+        },
+        {
+          "name": "_support",
+          "type": "bool"
+        }
+      ],
+      "name": "stakeProposal",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -974,6 +1016,20 @@
       "type": "function"
     },
     {
+      "constant": true,
+      "inputs": [],
+      "name": "cycleTotalForStake",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "name": "_etherDeltaAddr",
@@ -984,7 +1040,7 @@
           "type": "address"
         },
         {
-          "name": "_tenToDecimals",
+          "name": "_precision",
           "type": "uint256"
         },
         {
@@ -1174,9 +1230,14 @@
           "indexed": false,
           "name": "_amountInWeis",
           "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_support",
+          "type": "bool"
         }
       ],
-      "name": "SupportedProposal",
+      "name": "StakedProposal",
       "type": "event"
     },
     {
@@ -1250,28 +1311,6 @@
         }
       ],
       "name": "ROI",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_member",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_success",
-          "type": "bool"
-        }
-      ],
-      "name": "PredictionResult",
       "type": "event"
     },
     {

@@ -19,7 +19,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0x5b5e47461d7ad2911f84fba458f8af5b312c1c84")
+betoken_addr = new ReactiveVar("0xd918fcb0f12a730e1c3ec32b889f46f1fbdf753a")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -42,7 +42,7 @@ cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
 minStakeProportion = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
-totalStaked = new ReactiveVar(BigNumber(0))
+cycleTotalForStake = new ReactiveVar(BigNumber(0))
 
 #Displayed variables
 kairo_addr = new ReactiveVar("")
@@ -343,8 +343,8 @@ loadFundData = () ->
       #Get total funds
       (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
     ),
-    betoken.getPrimitiveVar("totalStaked").then(
-      (_result) -> totalStaked.set(BigNumber(_result))
+    betoken.getPrimitiveVar("cycleTotalForStake").then(
+      (_result) -> cycleTotalForStake.set(BigNumber(_result))
     )
   ]).then(
     () ->
@@ -355,18 +355,23 @@ loadFundData = () ->
             if _proposals.length > 0
               getProposal = (i) ->
                 if _proposals[i].numFor > 0
+                  proposal = null
                   return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
                     (_stake) ->
-                      investment = BigNumber(_stake).dividedBy(totalStaked.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
+                      investment = BigNumber(_stake).dividedBy(cycleTotalForStake.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
                       proposal =
                         id: i
                         token_symbol: _proposals[i].tokenSymbol
                         address: _proposals[i].tokenAddress
                         investment: investment.toFormat(4)
-                        stake: BigNumber(_stake).div(1e18).toFormat(4)
+                        for_stake: BigNumber(_stake).div(1e18).toFormat(4)
                         supporters: _proposals[i].numFor
+                        opposers: _proposals[i].numAgainst
+                  ).then(() -> betoken.getMappingOrArrayItem("againstStakedControlOfProposal", i).then(
+                    (_stake) ->
+                      proposal.against_stake = BigNumber(_stake).div(1e18).toFormat(4)
                       proposals.push(proposal)
-                  )
+                  ))
               allPromises = (getProposal(i) for i in [0.._proposals.length - 1])
             return Promise.all(allPromises)
         ).then(
@@ -697,8 +702,8 @@ Template.staked_props_box.helpers(
 )
 
 Template.staked_props_box.events(
-  "click .cancel_support_button": (event) ->
-    betoken.cancelSupport(this.id, showTransaction)
+  "click .cancel_stake_button": (event) ->
+    betoken.cancelStake(this.id, showTransaction)
 )
 
 Template.stats_tab.helpers(
@@ -723,12 +728,24 @@ Template.proposals_tab.helpers(
 Template.proposals_tab.events(
   "click .support_proposal": (event) ->
     id = this.id
-    $('#support_proposal_modal_' + id).modal(
+    $('#stake_proposal_modal_' + id).modal(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)
-          betoken.supportProposal(id, kairoAmountInWeis, showTransaction)
+          betoken.stakeProposal(id, kairoAmountInWeis, true, showTransaction)
+        catch error
+          showError(error.toString() || INPUT_ERR)
+    ).modal('show')
+
+  "click .against_proposal": (event) ->
+    id = this.id
+    $('#stake_proposal_modal_' + id).modal(
+      onApprove: (e) ->
+        try
+          kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
+          checkKairoAmountError(kairoAmountInWeis)
+          betoken.stakeProposal(id, kairoAmountInWeis, false, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
     ).modal('show')

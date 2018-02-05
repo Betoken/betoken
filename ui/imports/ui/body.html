@@ -393,7 +393,7 @@
           <td>{{token_symbol}}</td>
           <td>{{user_stake}}</td>
           <td>
-            <button class="cancel_support_button ui negative icon button {{is_disabled}}">
+            <button class="cancel_stake_button ui negative icon button {{is_disabled}}">
               <i class="remove icon" style="text-align: center;"></i>
             </button>
           </td>
@@ -411,6 +411,7 @@
           <th>#</th>
           <th>Symbol</th>
           <th>Stake/KRO</th>
+          <th>Action</th>
         </tr>
       </thead>
 
@@ -421,6 +422,11 @@
           <td>{{id}}</td>
           <td>{{token_symbol}}</td>
           <td>{{user_stake}}</td>
+          <td>
+            <button class="cancel_stake_button ui negative icon button {{is_disabled}}">
+              <i class="remove icon" style="text-align: center;"></i>
+            </button>
+          </td>
         </tr>
       {{/each}}
       </tbody>
@@ -521,8 +527,9 @@
       <th>#</th>
       <th>Token</th>
       <th>Current Investment</th>
-      <th>Supporters</th>
-      <th>Action</th>
+      <th>Opposition/KRO</th>
+      <th><i class="thumbs outline up icon"></i> / <i class="thumbs outline down icon"></i></th>
+      <th>Actions</th>
     </tr>
     </thead>
 
@@ -551,29 +558,34 @@
               })();
             </script>
           </td>
-          <td>{{investment}} ETH / {{stake}} KRO</td>
-          <td>{{supporters}}</td>
+          <td>{{investment}} ETH / {{for_stake}} KRO</td>
+          <td>{{against_stake}}</td>
+          <td>{{supporters}} / {{opposers}}</td>
           <td>
             <div class="ui positive icon button {{is_disabled}} support_proposal">
               <i class="thumbs outline up icon"></i>
             </div>
+            <p></p>
+            <div class="ui negative icon button {{is_disabled}} against_proposal">
+              <i class="thumbs outline down icon"></i>
+            </div>
           </td>
         </tr>
-        <!--Support Proposal Modal-->
-        <div class="ui basic modal" id="support_proposal_modal_{{id}}">
+        <!--Stake Proposal Modal-->
+        <div class="ui basic modal" id="stake_proposal_modal_{{id}}">
           <div class="ui icon header">
             <i class="line chart icon"></i>
-            Support an investment proposal
+            Stake into an investment proposal
           </div>
           <div class="content">
             <div class="ui left fluid inverted transparent input">
-              <input id="stake_input_{{id}}"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
+              <input id="stake_input_{{id}}"  placeholder="Amount of KRO you want to stake into this proposal..." type="text">
             </div>
           </div>
           <div class="actions">
             <div class="ui green ok inverted button fluid">
               <i class="checkmark icon"></i>
-              Support
+              Stake
             </div>
           </div>
         </div>

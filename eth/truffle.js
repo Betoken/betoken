@@ -12,7 +12,7 @@ module.exports = {
     rinkeby: {
       host: "localhost",
       port: 8545,
-      gas: 6972000,
+      gas: 5000000,
       gasPrice: 20 * Math.pow(10, 9),
       network_id: 4
     }

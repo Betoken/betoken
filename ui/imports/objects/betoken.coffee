@@ -211,28 +211,29 @@ export Betoken = (_address) ->
     )
 
   ###*
-   * Supports proposal
+   * Stakes for or against a proposal
    * @param  {Integer} _proposalId   the proposal ID
    * @param  {BigNumber} _stakeInWeis the investment amount
+   * @param  {Boolean} _support the stance of user
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.supportProposal = (_proposalId, _stakeInWeis, _callback) ->
+  self.stakeProposal = (_proposalId, _stakeInWeis, _support, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.betokenFund.methods.supportProposal(_proposalId, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.stakeProposal(_proposalId, _stakeInWeis, _support).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###*
-   * Cancels user's support of a proposal
+   * Cancels user's stake in a proposal
    * @param  {Integer} _proposalId the proposal ID
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}             .then(()->)
   ###
-  self.cancelSupport = (_proposalId, _callback) ->
+  self.cancelStake = (_proposalId, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.betokenFund.methods.cancelProposalSupport(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.cancelProposalStake(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###

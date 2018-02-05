@@ -436,10 +436,12 @@ contract BetokenFund is Pausable {
     balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
-    if (cycleNumber == 1) {
+    //Deposits during all cycles will grant you Kairo in the testnet alpha
+    //Uncomment in mainnet version
+    //if (cycleNumber == 1) {
       //Give control tokens proportional to investment
       cToken.mint(msg.sender, msg.value);
-    }
+    //}
 
     //Emit event
     Deposit(cycleNumber, msg.sender, msg.value, now);
@@ -555,7 +557,7 @@ contract BetokenFund is Pausable {
   }
 
   /**
-   * Supports an investment proposal.
+   * Stakes for or against an investment proposal.
    * @param _proposalId ID of the proposal the user wants to support
    * @param _stakeInWeis amount of Kairo to be staked in support of the proposal
    */
@@ -604,10 +606,10 @@ contract BetokenFund is Pausable {
   }
 
   /**
-   * Cancels support of a proposal.
+   * Cancels staking in a proposal.
    * @param _proposalId ID of the proposal
    */
-  function cancelProposalSupport(uint256 _proposalId)
+  function cancelProposalStake(uint256 _proposalId)
     public
     during(CyclePhase.ProposalMaking)
     onlyParticipant
@@ -676,8 +678,14 @@ contract BetokenFund is Pausable {
       if (userStakedProposalCount[participant] == 0 && kairoBalance > 0) {
         uint256 stakeIntoEachProposal = kairoBalance.mul(minStakeProportion).div(precision.mul(numProposals));
         for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
-          stakeProposal(j, stakeIntoEachProposal, false);
+          if (proposals[j].numFor > 0) {
+            cToken.ownerCollectFrom(participant, stakeIntoEachProposal);
+            againstStakedControlOfProposal[j] = againstStakedControlOfProposal[j].add(stakeIntoEachProposal);
+            againstStakedControlOfProposalOfUser[j][participant] = againstStakedControlOfProposalOfUser[j][participant].add(stakeIntoEachProposal);
+            StakedProposal(cycleNumber, j, stakeIntoEachProposal, false);
+          }
         }
+        userStakedProposalCount[participant] = numProposals;
       }
     }
   }

@@ -231,28 +231,29 @@ export var Betoken = function(_address) {
     });
   };
   /**
-   * Supports proposal
+   * Stakes for or against a proposal
    * @param  {Integer} _proposalId   the proposal ID
    * @param  {BigNumber} _stakeInWeis the investment amount
+   * @param  {Boolean} _support the stance of user
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.supportProposal = function(_proposalId, _stakeInWeis, _callback) {
+  self.stakeProposal = function(_proposalId, _stakeInWeis, _support, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.supportProposal(_proposalId, _stakeInWeis).send({
+      return self.contracts.betokenFund.methods.stakeProposal(_proposalId, _stakeInWeis, _support).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
   };
   /**
-   * Cancels user's support of a proposal
+   * Cancels user's stake in a proposal
    * @param  {Integer} _proposalId the proposal ID
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}             .then(()->)
    */
-  self.cancelSupport = function(_proposalId, _callback) {
+  self.cancelStake = function(_proposalId, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.cancelProposalSupport(_proposalId).send({
+      return self.contracts.betokenFund.methods.cancelProposalStake(_proposalId).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
