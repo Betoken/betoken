@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
+    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="Added script for automating upgrading contracts.">
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/Generated_files.xml" afterPath="$PROJECT_DIR$/.idea/libraries/Generated_files.xml" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.coffee" afterPath="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js.map" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js.map" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" afterPath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" afterPath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/Migrations.json" afterPath="$PROJECT_DIR$/eth/build/contracts/Migrations.json" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/OraclizeHandler.json" afterPath="$PROJECT_DIR$/eth/build/contracts/OraclizeHandler.json" />
+      <change beforePath="$PROJECT_DIR$/eth/truffle.js" afterPath="$PROJECT_DIR$/eth/truffle.js" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -38,10 +41,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="body.coffee" pinned="false" current-in-tab="true">
+      <file leaf-file-name="body.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-4901">
+            <state relative-caret-position="-5237">
               <caret line="599" column="108" lean-forward="false" selection-start-line="599" selection-start-column="108" selection-end-line="599" selection-end-column="108" />
               <folding>
                 <element signature="e#3009#4089#0" expanded="false" />
@@ -55,8 +58,8 @@
       <file leaf-file-name="betoken.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="283">
-              <caret line="235" column="48" lean-forward="false" selection-start-line="235" selection-start-column="48" selection-end-line="235" selection-end-column="48" />
+            <state relative-caret-position="3">
+              <caret line="75" column="45" lean-forward="false" selection-start-line="75" selection-start-column="45" selection-end-line="75" selection-end-column="45" />
               <folding />
             </state>
           </provider>
@@ -65,8 +68,18 @@
       <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="9531">
+            <state relative-caret-position="2857">
               <caret line="432" column="5" lean-forward="false" selection-start-line="432" selection-start-column="5" selection-end-line="432" selection-end-column="5" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="upgrade_retain_kairo_oraclize.coffee" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="448">
+              <caret line="16" column="9" lean-forward="true" selection-start-line="16" selection-start-column="9" selection-end-line="16" selection-end-column="9" />
               <folding />
             </state>
           </provider>
@@ -75,8 +88,8 @@
       <file leaf-file-name="2_deploy_contracts.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="280">
-              <caret line="10" column="33" lean-forward="false" selection-start-line="10" selection-start-column="33" selection-end-line="10" selection-end-column="33" />
+            <state relative-caret-position="140">
+              <caret line="5" column="70" lean-forward="true" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="70" />
               <folding />
             </state>
           </provider>
@@ -85,8 +98,8 @@
       <file leaf-file-name="truffle.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/truffle.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="392">
-              <caret line="14" column="18" lean-forward="false" selection-start-line="14" selection-start-column="18" selection-end-line="14" selection-end-column="18" />
+            <state relative-caret-position="196">
+              <caret line="7" column="12" lean-forward="false" selection-start-line="7" selection-start-column="12" selection-end-line="7" selection-end-column="12" />
               <folding />
             </state>
           </provider>
@@ -94,9 +107,15 @@
       </file>
     </leaf>
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="CoffeeScript File" />
+      </list>
+    </option>
+  </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>PredictionResult</find>
       <find>CycleStarted</find>
       <find>Withdraw</find>
       <find>ChangeMakingTimeEnded</find>
@@ -126,6 +145,7 @@
       <find>tenToDecimals</find>
       <find>totalStaked</find>
       <find>stakeProposal</find>
+      <find>//</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -143,12 +163,14 @@
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/GroupFund.json" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/ControlToken.json" />
         <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js" />
-        <option value="$PROJECT_DIR$/eth/truffle.js" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
         <option value="$PROJECT_DIR$/eth/contracts/betoken.sol" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
+        <option value="$PROJECT_DIR$/eth/truffle.js" />
+        <option value="$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo.coffee" />
+        <option value="$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee" />
       </list>
     </option>
   </component>
@@ -204,6 +226,18 @@
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
               <item name="betoken" type="462c0819:PsiDirectoryNode" />
               <item name="eth" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
+              <item name="betoken" type="462c0819:PsiDirectoryNode" />
+              <item name="eth" type="462c0819:PsiDirectoryNode" />
+              <item name="migrations" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
+              <item name="betoken" type="462c0819:PsiDirectoryNode" />
+              <item name="eth" type="462c0819:PsiDirectoryNode" />
+              <item name="scripts" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
@@ -362,14 +396,7 @@
       <workItem from="1516699449443" duration="73487000" />
       <workItem from="1517521415693" duration="9000" />
       <workItem from="1517521455834" duration="14580000" />
-      <workItem from="1517733543672" duration="15661000" />
-    </task>
-    <task id="LOCAL-00021" summary="Added smart contract address display and selector">
-      <created>1514006232744</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1514006232744</updated>
+      <workItem from="1517733543672" duration="20821000" />
     </task>
     <task id="LOCAL-00022" summary="Updated styling">
       <created>1514011173414</created>
@@ -707,11 +734,18 @@
       <option name="project" value="LOCAL" />
       <updated>1517792063043</updated>
     </task>
-    <option name="localTasksCounter" value="70" />
+    <task id="LOCAL-00070" summary="Added error checkers in UI for creating more than maxProposalsPerMember proposals and for staking on both sides of a proposal. Updated expected commission formula.">
+      <created>1517795101885</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1517795101885</updated>
+    </task>
+    <option name="localTasksCounter" value="71" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="472358000" />
+    <option name="totallyTimeSpent" value="477518000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -721,6 +755,7 @@
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5021142" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.49788582" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3279396" sideWeight="0.49788582" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -734,7 +769,6 @@
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="npm" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24894291" sideWeight="0.5045558" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
@@ -750,7 +784,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Added error message for not having web3" />
     <MESSAGE value="Address is now &quot;Not available&quot; if web3 isn't present" />
     <MESSAGE value="Fixed #20. Did not fix Owen's code." />
     <MESSAGE value="Fixed #40" />
@@ -775,7 +808,8 @@
     <MESSAGE value="Optimized new code a bit" />
     <MESSAGE value="Added corresponding features in the UI. Debugged contracts." />
     <MESSAGE value="npm fix" />
-    <option name="LAST_COMMIT_MESSAGE" value="npm fix" />
+    <MESSAGE value="Added error checkers in UI for creating more than maxProposalsPerMember proposals and for staking on both sides of a proposal. Updated expected commission formula." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added error checkers in UI for creating more than maxProposalsPerMember proposals and for staking on both sides of a proposal. Updated expected commission formula." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -784,20 +818,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/ui/client/lib/site/modules/checkbox.variables.import.less">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="84">
-          <caret line="3" column="0" lean-forward="true" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ui/client/lib/site/globals/site.overrides.import.less">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/client/lib/site/globals/site.variables.import.less">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -1038,22 +1058,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="280">
-          <caret line="10" column="33" lean-forward="false" selection-start-line="10" selection-start-column="33" selection-end-line="10" selection-end-column="33" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/truffle.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="392">
-          <caret line="14" column="18" lean-forward="false" selection-start-line="14" selection-start-column="18" selection-end-line="14" selection-end-column="18" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="283">
@@ -1091,31 +1095,63 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="283">
-          <caret line="235" column="48" lean-forward="false" selection-start-line="235" selection-start-column="48" selection-end-line="235" selection-end-column="48" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9531">
-          <caret line="432" column="5" lean-forward="false" selection-start-line="432" selection-start-column="5" selection-end-line="432" selection-end-column="5" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4901">
+        <state relative-caret-position="-5237">
           <caret line="599" column="108" lean-forward="false" selection-start-line="599" selection-start-column="108" selection-end-line="599" selection-end-column="108" />
           <folding>
             <element signature="e#3009#4089#0" expanded="false" />
             <element signature="e#4107#5081#0" expanded="false" />
             <element signature="e#16258#17612#0" expanded="false" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3">
+          <caret line="75" column="45" lean-forward="false" selection-start-line="75" selection-start-column="45" selection-end-line="75" selection-end-column="45" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/truffle.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="196">
+          <caret line="7" column="12" lean-forward="false" selection-start-line="7" selection-start-column="12" selection-end-line="7" selection-end-column="12" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="140">
+          <caret line="5" column="70" lean-forward="true" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="70" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/ownership/Ownable.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-168">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2857">
+          <caret line="432" column="5" lean-forward="false" selection-start-line="432" selection-start-column="5" selection-end-line="432" selection-end-column="5" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="448">
+          <caret line="16" column="9" lean-forward="true" selection-start-line="16" selection-start-column="9" selection-end-line="16" selection-end-column="9" />
+          <folding />
         </state>
       </provider>
     </entry>
