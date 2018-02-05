@@ -7,6 +7,7 @@ import BigNumber from 'bignumber.js'
 
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 INPUT_ERR = "There was an error in your input. Please fix it and try again."
+STAKE_BOTH_SIDES_ERR = "You have already staked on the opposite side of this proposal! If you want to change your mind, you can cancel your stake under \"My Proposals\"."
 
 #Import web3
 Web3 = require 'web3'
@@ -43,6 +44,8 @@ commissionRate = new ReactiveVar(BigNumber(0))
 minStakeProportion = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
 cycleTotalForStake = new ReactiveVar(BigNumber(0))
+maxProposalsPerMember = new ReactiveVar(0)
+createdProposalCount = new ReactiveVar(0)
 
 #Displayed variables
 kairo_addr = new ReactiveVar("")
@@ -209,6 +212,10 @@ loadFundData = () ->
           displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
       )
 
+      betoken.getMappingOrArrayItem("createdProposalCount", _userAddress).then(
+        (_count) -> createdProposalCount.set(+_count)
+      )
+
       #Listen for transactions
       transactionHistory.set([])
       betoken.contracts.betokenFund.getPastEvents("Deposit",
@@ -270,6 +277,9 @@ loadFundData = () ->
   )
   betoken.getPrimitiveVar("paused").then(
     (_result) -> paused.set(_result)
+  )
+  betoken.getPrimitiveVar("maxProposalsPerMember").then(
+    (_result) -> maxProposalsPerMember.set(+_result)
   )
 
   #Get contract addresses
@@ -587,7 +597,7 @@ Template.sidebar.helpers(
   kairo_unit: () -> displayedKairoUnit.get()
   expected_commission: () ->
     if kairoTotalSupply.get().greaterThan(0)
-      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(avgROI.get().add(100).div(100)).mul(commissionRate.get()).toFormat(18)
+      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(avgROI.get().div(100)).mul(commissionRate.get()).toFormat(18)
     return BigNumber(0).toFormat(18)
 )
 
@@ -728,6 +738,10 @@ Template.proposals_tab.helpers(
 Template.proposals_tab.events(
   "click .support_proposal": (event) ->
     id = this.id
+    if checkIfStakedOnOtherSide(id, true)
+      showError(STAKE_BOTH_SIDES_ERR)
+      return
+
     $('#stake_proposal_modal_' + id).modal(
       onApprove: (e) ->
         try
@@ -740,6 +754,9 @@ Template.proposals_tab.events(
 
   "click .against_proposal": (event) ->
     id = this.id
+    if checkIfStakedOnOtherSide(id, false)
+      showError(STAKE_BOTH_SIDES_ERR)
+      return
     $('#stake_proposal_modal_' + id).modal(
       onApprove: (e) ->
         try
@@ -751,6 +768,10 @@ Template.proposals_tab.events(
     ).modal('show')
 
   "click .new_proposal": (event) ->
+    if (createdProposalCount.get() == maxProposalsPerMember.get())
+      showError("You have already created #{createdProposalCount.get()} proposals this cycle, which is the maximum amount. You cannot create any more.")
+      return
+
     $('#new_proposal_modal').modal(
       onApprove: (e) ->
         try
@@ -772,6 +793,13 @@ Template.proposals_tab.events(
           showError(error.toString() || INPUT_ERR)
     ).modal('show')
 )
+
+checkIfStakedOnOtherSide = (_id, _pendingSupport) ->
+  proposals = if _pendingSupport then againstProposalList.get() else supportedProposalList.get()
+  for p in proposals
+    if p.id == _id
+      return true
+  return false
 
 checkKairoAmountError = (kairoAmountInWeis) ->
   if !kairoAmountInWeis.greaterThan(0)
