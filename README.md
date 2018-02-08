@@ -1,7 +1,7 @@
 ## BETOKEN:
 ### THE DECENTRALIZED TOKEN HEDGE FUND
 
-Betoken is a decentralized hedge fund that uses a one-of-a-kind Prediction Meritocracy to invest in ERC20 tokens, powered by Ethereum.
+Betoken is a decentralized hedge fund that uses a one-of-a-kind Incentivized Meritocracy to invest in ERC20 tokens, powered by Ethereum.
 
 # **[TRY THE PUBLIC ALPHA HERE](https://betoken.fund/betoken-ui/)**
 
