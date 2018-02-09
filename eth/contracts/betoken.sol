@@ -118,6 +118,9 @@ contract BetokenFund is Pausable {
   //Flag for whether the contract has been initialized with subcontracts' addresses.
   bool public initialized;
 
+  //Flag for whether emergency withdrawing is allowed.
+  bool public allowEmergencyWithdraw;
+
   //Returns true for an address if it's in the participants array, false otherwise.
   mapping(address => bool) public isParticipant;
 
@@ -212,6 +215,7 @@ contract BetokenFund is Pausable {
     numProposals = 0;
     cycleNumber = 0;
     etherDelta = EtherDelta(etherDeltaAddr);
+    allowEmergencyWithdraw = false;
   }
 
   /**
@@ -268,22 +272,83 @@ contract BetokenFund is Pausable {
    */
 
   /**
-   * Called by the owner to pause, triggers stopped state
+   * Emergency functions
    */
-  function pause() onlyOwner whenNotPaused public {
-    super.pause();
 
-    //Withdraw from EtherDelta
+  /**
+   * In case the fund is invested in tokens, sell all tokens.
+   */
+  function emergencyDumpTokens() onlyOwner whenPaused public {
+    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
+      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
+        oraclize.__grabCurrentPriceFromOraclize(i);
+      }
+    }
+  }
+
+  /**
+   * In case the fund is invested in tokens, withdraw all ether from EtherDelta.
+   */
+  function emergencyWithdrawFromEtherDelta() onlyOwner whenPaused public {
     uint256 balance = etherDelta.tokens(address(0), address(this));
     etherDelta.withdraw(balance);
+  }
 
-    //Return all stakes
+  /**
+   * In case the fund is invested in tokens, return all staked Kairos.
+   */
+  function emergencyReturnAllStakes() onlyOwner whenPaused public {
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
       if (proposals[i].numFor > 0) {
         __returnStakes(i);
       }
     }
   }
+
+  /**
+   * In case the fund is invested in tokens, redistribute balance after selling all tokens.
+   */
+  function emergencyRedistBalances() onlyOwner whenPaused public {
+    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
+      address participant = participants[i];
+      uint256 newBalance = 0;
+      if (totalFundsInWeis > 0) {
+        newBalance = newBalance.add(this.balance.mul(balanceOf[participant]).div(totalFundsInWeis));
+      }
+      balanceOf[participant] = newBalance;
+    }
+    totalFundsInWeis = this.balance;
+  }
+
+  function setAllowEmergencyWithdraw(bool _val) onlyOwner whenPaused public {
+    allowEmergencyWithdraw = _val;
+  }
+
+  /**
+   * Function for withdrawing all funds in times of emergency. Only callable when fund is paused.
+   */
+  function emergencyWithdraw()
+    public
+    onlyParticipant
+    whenPaused
+  {
+    require(allowEmergencyWithdraw);
+    uint256 amountInWeis = balanceOf[msg.sender];
+
+    //Subtract from account
+    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
+    balanceOf[msg.sender] = 0;
+
+    //Transfer
+    msg.sender.transfer(amountInWeis);
+
+    //Emit event
+    Withdraw(cycleNumber, msg.sender, amountInWeis, now);
+  }
+
+  /**
+   * Parameter setters
+   */
 
   /**
    * Changes the address of the EtherDelta contract used in the contract. Only callable by owner.
@@ -468,27 +533,6 @@ contract BetokenFund is Pausable {
 
     //Emit event
     Withdraw(cycleNumber, msg.sender, _amountInWeis, now);
-  }
-
-  /**
-   * Function for withdrawing all funds in times of emergency. Only callable when fund is paused.
-   */
-  function emergencyWithdraw()
-    public
-    onlyParticipant
-    whenPaused
-  {
-    uint256 amountInWeis = balanceOf[msg.sender];
-
-    //Subtract from account
-    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
-    balanceOf[msg.sender] = 0;
-
-    //Transfer
-    msg.sender.transfer(amountInWeis);
-
-    //Emit event
-    Withdraw(cycleNumber, msg.sender, amountInWeis, now);
   }
 
   /**
@@ -1002,17 +1046,18 @@ contract OraclizeHandler is usingOraclize, Ownable {
 
     uint256 investAmount = betokenFund.totalFundsInWeis().mul(betokenFund.forStakedControlOfProposal(proposalId)).div(betokenFund.cycleTotalForStake());
     uint256 expires = block.number.add(betokenFund.orderExpirationTimeInBlocks());
-    if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
-      //Make buy orders
-      betokenFund.__setBuyPriceAndExpirationBlock(proposalId, priceInWeis, expires);
-      uint256 buyTokenAmount = investAmount.mul(10**decimals).div(priceInWeis);
-      betokenFund.__makeOrder(tokenAddress, buyTokenAmount, address(0), investAmount, expires, proposalId);
-    } else if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Ended)) {
+
+    if (betokenFund.paused() || uint(betokenFund.cyclePhase()) == uint(CyclePhase.Ended)) {
       //Make sell orders
       betokenFund.__setSellPriceAndExpirationBlock(proposalId, priceInWeis, expires);
       uint256 sellTokenAmount = etherDelta.tokens(tokenAddress, owner);
       uint256 getWeiAmount = sellTokenAmount.mul(priceInWeis).div(10**decimals);
       betokenFund.__makeOrder(address(0), getWeiAmount, tokenAddress, sellTokenAmount, expires, proposalId);
+    } else if (uint(betokenFund.cyclePhase()) == uint(CyclePhase.Waiting)) {
+      //Make buy orders
+      betokenFund.__setBuyPriceAndExpirationBlock(proposalId, priceInWeis, expires);
+      uint256 buyTokenAmount = investAmount.mul(10**decimals).div(priceInWeis);
+      betokenFund.__makeOrder(tokenAddress, buyTokenAmount, address(0), investAmount, expires, proposalId);
     }
 
     //Reset data

@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change beforePath="$PROJECT_DIR$/eth/contracts/betoken.sol" afterPath="$PROJECT_DIR$/eth/contracts/betoken.sol" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -19,18 +20,9 @@
       <file leaf-file-name="body.html" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="283">
+            <state relative-caret-position="14840">
               <caret line="530" column="86" lean-forward="false" selection-start-line="530" selection-start-column="86" selection-end-line="530" selection-end-column="86" />
-              <folding>
-                <element signature="n#template#0;n#!!top" expanded="false" />
-                <element signature="n#template#1;n#!!top" expanded="false" />
-                <element signature="n#template#2;n#!!top" expanded="false" />
-                <element signature="n#template#3;n#!!top" expanded="false" />
-                <element signature="n#template#4;n#!!top" expanded="false" />
-                <element signature="n#template#5;n#!!top" expanded="false" />
-                <element signature="n#template#6;n#!!top" expanded="false" />
-                <element signature="n#template#8;n#!!top" expanded="false" />
-              </folding>
+              <folding />
             </state>
           </provider>
         </entry>
@@ -38,7 +30,7 @@
       <file leaf-file-name="body.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-5237">
+            <state relative-caret-position="13496">
               <caret line="599" column="108" lean-forward="false" selection-start-line="599" selection-start-column="108" selection-end-line="599" selection-end-column="108" />
               <folding>
                 <element signature="e#3009#4089#0" expanded="false" />
@@ -52,7 +44,7 @@
       <file leaf-file-name="betoken.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3">
+            <state relative-caret-position="2100">
               <caret line="75" column="45" lean-forward="false" selection-start-line="75" selection-start-column="45" selection-end-line="75" selection-end-column="45" />
               <folding />
             </state>
@@ -62,8 +54,18 @@
       <file leaf-file-name="betoken.sol" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="354">
-              <caret line="337" column="47" lean-forward="true" selection-start-line="337" selection-start-column="47" selection-end-line="337" selection-end-column="47" />
+            <state relative-caret-position="282">
+              <caret line="297" column="69" lean-forward="false" selection-start-line="297" selection-start-column="69" selection-end-line="297" selection-end-column="69" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="upgrade_retain_kairo_oraclize.coffee" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-1064">
+              <caret line="16" column="75" lean-forward="false" selection-start-line="16" selection-start-column="75" selection-end-line="16" selection-end-column="75" />
               <folding />
             </state>
           </provider>
@@ -189,8 +191,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="Scratches" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -202,6 +204,12 @@
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
               <item name="betoken" type="462c0819:PsiDirectoryNode" />
               <item name="eth" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
+              <item name="betoken" type="462c0819:PsiDirectoryNode" />
+              <item name="eth" type="462c0819:PsiDirectoryNode" />
+              <item name="scripts" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="betoken" type="b2602c69:ProjectViewProjectNode" />
@@ -360,14 +368,8 @@
       <workItem from="1516699449443" duration="73487000" />
       <workItem from="1517521415693" duration="9000" />
       <workItem from="1517521455834" duration="14580000" />
-      <workItem from="1517733543672" duration="24278000" />
-    </task>
-    <task id="LOCAL-00024" summary="Fixed bug in createNewProposal()">
-      <created>1514246011554</created>
-      <option name="number" value="00024" />
-      <option name="presentableId" value="LOCAL-00024" />
-      <option name="project" value="LOCAL" />
-      <updated>1514246011554</updated>
+      <workItem from="1517733543672" duration="27569000" />
+      <workItem from="1518082265674" duration="4155000" />
     </task>
     <task id="LOCAL-00025" summary="Fixed bug where UI can't display more than one member">
       <created>1514248051254</created>
@@ -705,21 +707,27 @@
       <option name="project" value="LOCAL" />
       <updated>1517866803818</updated>
     </task>
-    <option name="localTasksCounter" value="73" />
+    <task id="LOCAL-00073" summary="Refactored 2_deploy_contracts.js to coffeescript. Added whenPaused modifier for changing owner and address of ControlToken and OraclizeHandler contracts.">
+      <created>1517866833742</created>
+      <option name="number" value="00073" />
+      <option name="presentableId" value="LOCAL-00073" />
+      <option name="project" value="LOCAL" />
+      <updated>1517866833742</updated>
+    </task>
+    <option name="localTasksCounter" value="74" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="480975000" />
+    <option name="totallyTimeSpent" value="488421000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16226216" sideWeight="0.49544418" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18393235" sideWeight="0.49544418" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5021142" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.49788582" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3279396" sideWeight="0.49788582" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -733,6 +741,7 @@
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="npm" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24894291" sideWeight="0.5045558" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
@@ -990,7 +999,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="476">
           <caret line="17" column="26" lean-forward="false" selection-start-line="17" selection-start-column="26" selection-end-line="17" selection-end-column="26" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -1003,18 +1011,9 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="283">
+        <state relative-caret-position="14840">
           <caret line="530" column="86" lean-forward="false" selection-start-line="530" selection-start-column="86" selection-end-line="530" selection-end-column="86" />
-          <folding>
-            <element signature="n#template#0;n#!!top" expanded="false" />
-            <element signature="n#template#1;n#!!top" expanded="false" />
-            <element signature="n#template#2;n#!!top" expanded="false" />
-            <element signature="n#template#3;n#!!top" expanded="false" />
-            <element signature="n#template#4;n#!!top" expanded="false" />
-            <element signature="n#template#5;n#!!top" expanded="false" />
-            <element signature="n#template#6;n#!!top" expanded="false" />
-            <element signature="n#template#8;n#!!top" expanded="false" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -1032,15 +1031,12 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="28">
           <caret line="1361" column="3" lean-forward="false" selection-start-line="1361" selection-start-column="3" selection-end-line="1361" selection-end-column="3" />
-          <folding>
-            <element signature="e#11#27265#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-5237">
+        <state relative-caret-position="13496">
           <caret line="599" column="108" lean-forward="false" selection-start-line="599" selection-start-column="108" selection-end-line="599" selection-end-column="108" />
           <folding>
             <element signature="e#3009#4089#0" expanded="false" />
@@ -1052,7 +1048,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3">
+        <state relative-caret-position="2100">
           <caret line="75" column="45" lean-forward="false" selection-start-line="75" selection-start-column="45" selection-end-line="75" selection-end-column="45" />
           <folding />
         </state>
@@ -1108,7 +1104,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/eth/scripts/upgrade_retain_kairo_oraclize.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1201">
+        <state relative-caret-position="-1064">
           <caret line="16" column="75" lean-forward="false" selection-start-line="16" selection-start-column="75" selection-end-line="16" selection-end-column="75" />
           <folding />
         </state>
@@ -1116,8 +1112,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/eth/contracts/betoken.sol">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="354">
-          <caret line="337" column="47" lean-forward="true" selection-start-line="337" selection-start-column="47" selection-end-line="337" selection-end-column="47" />
+        <state relative-caret-position="282">
+          <caret line="297" column="69" lean-forward="false" selection-start-line="297" selection-start-column="69" selection-end-line="297" selection-end-column="69" />
           <folding />
         </state>
       </provider>
