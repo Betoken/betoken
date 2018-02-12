@@ -4,19 +4,14 @@ OraclizeHandler = artifacts.require("OraclizeHandler")
 
 config = require "../deployment_configs/testnet.json"
 
-dev_fee_address = "0xeabffa328d2e2340384ddfc128a78dd7964c6edb"
+dev_fee_address = "0xDbE011EB3fe8C77C94Cc9d9EC176BDddC937F425"
+old_address = "0x01cde8d0fc1188850852d7828de263953bb438f8"
 
 module.exports = (callback) ->
-  old_contract = null
+  old_contract = BetokenFund.at(old_address)
   new_contract = null
 
-  #Get old BetokenFund
-  BetokenFund.deployed().then(
-    (_instance) -> old_contract = _instance
-  ).then(
-    #Uncommemt on Testnet or Mainnet (anywhere with an EtherDelta contract)
-    () -> #old_contract.pause()
-  ).then(
+  old_contract.pause().then(
     () ->
       #Deploy new BetokenFund
       BetokenFund.new(
@@ -34,7 +29,9 @@ module.exports = (callback) ->
         config.developerFeeProportion, #developerFeeProportion
         config.maxProposalsPerMember #maxProposalsPerMember
       ).then(
-        (_instance) -> new_contract = _instance
+        (_instance) ->
+          new_contract = _instance
+          console.log("Created new BetokenFund at " + _instance.address)
       )
   ).then(
     () ->
@@ -64,7 +61,9 @@ module.exports = (callback) ->
           getAllItems = (getItem(id) for id in [0..count - 1])
           return Promise.all(getAllItems)
       ).then(
-        () -> new_contract.initializeParticipants(participants)
+        () ->
+          new_contract.initializeParticipants(participants)
+          console.log "Initializing participant list..."
       ).then(
         #Initialize subcontracts for new BetokenFund
         () -> old_contract.controlTokenAddr()

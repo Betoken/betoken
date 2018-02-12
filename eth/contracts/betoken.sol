@@ -706,30 +706,22 @@ contract BetokenFund is Pausable {
     startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Waiting;
 
-    __autoStakeAgainst();
+    __penalizeNonparticipation();
     __makeInvestments();
 
     ProposalMakingTimeEnded(cycleNumber, now);
   }
 
   /**
-   * Automatically stake equally into all proposals for Kairo holders who didn't stake anything.
+   * Penalizes non-participation by burning a proportion of Kairo balance.
    */
-  function __autoStakeAgainst() internal {
+  function __penalizeNonparticipation() internal {
     for (uint256 i = 0; i < participants.length; i = i.add(1)) {
       address participant = participants[i];
       uint256 kairoBalance = cToken.balanceOf(participant);
       if (userStakedProposalCount[participant] == 0 && kairoBalance > 0) {
-        uint256 stakeIntoEachProposal = kairoBalance.mul(minStakeProportion).div(precision.mul(numProposals));
-        for (uint256 j = 0; j < proposals.length; j = j.add(1)) {
-          if (proposals[j].numFor > 0) {
-            cToken.ownerCollectFrom(participant, stakeIntoEachProposal);
-            againstStakedControlOfProposal[j] = againstStakedControlOfProposal[j].add(stakeIntoEachProposal);
-            againstStakedControlOfProposalOfUser[j][participant] = againstStakedControlOfProposalOfUser[j][participant].add(stakeIntoEachProposal);
-            StakedProposal(cycleNumber, j, stakeIntoEachProposal, false);
-          }
-        }
-        userStakedProposalCount[participant] = numProposals;
+        uint256 decreaseAmount = kairoBalance.mul(minStakeProportion);
+        cToken.ownerBurn(participant, decreaseAmount);
       }
     }
   }
@@ -1082,6 +1074,7 @@ contract ControlToken is MintableToken {
   uint8 public constant decimals = 18;
 
   event OwnerCollectFrom(address _from, uint256 _value);
+  event OwnerBurn(address _from, uint256 _value);
 
   /**
    * Transfer token for a specified address
@@ -1137,6 +1130,23 @@ contract ControlToken is MintableToken {
     balances[_from] = balances[_from].sub(_value);
     balances[msg.sender] = balances[msg.sender].add(_value);
     OwnerCollectFrom(_from, _value);
+    return true;
+  }
+
+  /**
+   * Burns tokens.
+   * @param _from The address whose tokens you want to burn
+   * @param _value the amount of tokens to be burnt
+   * @return true if succeeded, false otherwise
+   */
+  function ownerBurn(address _from, uint256 _value) public onlyOwner returns(bool) {
+    require(_from != address(0));
+    require(_value <= balances[_from]);
+
+    // SafeMath.sub will throw if there is not enough balance.
+    balances[_from] = balances[_from].sub(_value);
+    totalSupply_ = totalSupply_.sub(_value);
+    OwnerBurn(_from, _value);
     return true;
   }
 

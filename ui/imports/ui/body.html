@@ -80,7 +80,7 @@
   <div class="ui top three item menu">
     <div class="item">
       <h1>
-        <img src="https://i.imgur.com/r2LL9Rl.png" style="max-height: 70%; max-width: 70%;">
+        <img src="https://i.imgur.com/r2LL9Rl.png" style="max-height: 60%; max-width: 60%;">
       </h1>
     </div>
 
@@ -106,15 +106,9 @@
         <button class="circular ui icon button refresh_button" style="float: right;">
           <i class="refresh icon"></i>
         </button>
-        <p></p>
-        Smart Contract Addresses:
-        <p></p>
-        Fund: <span class="copyable">{{betoken_addr}}</span>
-        <p></p>
-        Kairo: <span class="copyable">{{kairo_addr}}</span>
-        <p></p>
-        EtherDelta: <span class="copyable">{{etherdelta_addr}}</span>
-        <p></p>
+        <button class="circular ui icon button info_button" style="float: right;">
+          <i class="info icon"></i>
+        </button>
       </h5>
     </div>
   </div>
@@ -135,6 +129,23 @@
         <i class="checkmark icon"></i>
         Save Change
       </div>
+    </div>
+  </div>
+
+  <div class="ui basic modal" id="contract_info_modal">
+    <div class="ui icon header">
+      <i class="info icon"></i>
+      Smart Contract Addresses
+    </div>
+    <div class="content" style="text-align: center;">
+      <h5>
+        <p></p>
+        BetokenFund: <span class="copyable">{{betoken_addr}}</span>
+        <p></p>
+        Kairo: <span class="copyable">{{kairo_addr}}</span>
+        <p></p>
+        EtherDelta: <span class="copyable">{{etherdelta_addr}}</span>
+      </h5>
     </div>
   </div>
 </template>
@@ -179,7 +190,7 @@
 
 <template name="phase_indicator">
   <!--Phase Indicator-->
-  <div class="ui steps">
+  <div class="ui steps fluid">
     <div class="{{phase_active 0}} step">
       <div class="content">
         <div class="title">Deposit & Withdraw</div>
@@ -187,8 +198,8 @@
     </div>
     <div class="{{phase_active 1}} step">
       <div class="content">
-        <div class="title">Invest</div>
-        <div class="description">Make or support investment proposals</div>
+        <div class="title">Make Investments</div>
+        <div class="description">Create or stake in investment proposals</div>
       </div>
     </div>
     <div class="{{phase_active 2}} step">
@@ -200,13 +211,13 @@
     <div class="{{phase_active 3}} step">
       <div class="content">
         <div class="title">Cycle Ended</div>
-        <div class="description">Cycle ended, waiting for tokens to be sold</div>
+        <div class="description">Wait for tokens to be sold</div>
       </div>
     </div>
     <div class="{{phase_active 4}} step">
       <div class="content">
         <div class="title">Cycle Finalized</div>
-        <div class="description">Tokens have been sold, bets have been settled, and funds have been redistributed</div>
+        <div class="description">Cycle complete, wait for next cycle</div>
       </div>
     </div>
   </div>

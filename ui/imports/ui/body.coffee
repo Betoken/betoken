@@ -1,16 +1,16 @@
-import './body.html'
-import './body.css'
-import './tablesort.js'
-import { Betoken } from '../objects/betoken.js'
-import Chart from 'chart.js'
-import BigNumber from 'bignumber.js'
+import "./body.html"
+import "./body.css"
+import "./tablesort.js"
+import { Betoken } from "../objects/betoken.js"
+import Chart from "chart.js"
+import BigNumber from "bignumber.js"
 
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 INPUT_ERR = "There was an error in your input. Please fix it and try again."
 STAKE_BOTH_SIDES_ERR = "You have already staked on the opposite side of this proposal! If you want to change your mind, you can cancel your stake under \"My Proposals\"."
 
 #Import web3
-Web3 = require 'web3'
+Web3 = require "web3"
 web3 = window.web3
 hasWeb3 = false
 if typeof web3 != "undefined"
@@ -20,7 +20,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0xd918fcb0f12a730e1c3ec32b889f46f1fbdf753a")
+betoken_addr = new ReactiveVar("0x0aa40e5869ebd1a908360645d7c7a57c3d5c29e3")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -86,25 +86,25 @@ copyTextToClipboard = (text) ->
   textArea = document.createElement("textarea")
 
   # Place in top-left corner of screen regardless of scroll position.
-  textArea.style.position = 'fixed'
+  textArea.style.position = "fixed"
   textArea.style.top = 0
   textArea.style.left = 0
 
   # Ensure it has a small width and height. Setting to 1px / 1em
   # doesn't work as this gives a negative w/h on some browsers.
-  textArea.style.width = '2em'
-  textArea.style.height = '2em'
+  textArea.style.width = "2em"
+  textArea.style.height = "2em"
 
   # We don't need padding, reducing the size if it does flash render.
   textArea.style.padding = 0
 
   # Clean up any borders.
-  textArea.style.border = 'none'
-  textArea.style.outline = 'none'
-  textArea.style.boxShadow = 'none'
+  textArea.style.border = "none"
+  textArea.style.outline = "none"
+  textArea.style.boxShadow = "none"
 
   # Avoid flash of white box if rendered for any reason.
-  textArea.style.background = 'transparent'
+  textArea.style.background = "transparent"
 
   textArea.value = text
 
@@ -113,13 +113,13 @@ copyTextToClipboard = (text) ->
   textArea.select()
 
   try
-    successful = document.execCommand('copy')
+    successful = document.execCommand("copy")
     if successful
       showSuccess("Copied #{text} to clipboard")
     else
-      showError('Oops, unable to copy')
+      showError("Oops, unable to copy")
   catch err
-    showError('Oops, unable to copy')
+    showError("Oops, unable to copy")
 
   document.body.removeChild(textArea)
   return
@@ -474,9 +474,9 @@ loadFundData = () ->
 
   return
 
-$('document').ready(() ->
-  $('.menu .item').tab()
-  $('table').tablesort()
+$("document").ready(() ->
+  $(".menu .item").tab()
+  $("table").tablesort()
 
   if typeof web3 != "undefined"
     web3.eth.net.getId().then(
@@ -489,32 +489,32 @@ $('document').ready(() ->
     clock()
 
     chart = new Chart($("#myChart"),
-      type: 'line',
+      type: "line",
       data:
         datasets: [
           label: "ROI Per Cycle"
-          backgroundColor: 'rgba(0, 0, 100, 0.5)'
-          borderColor: 'rgba(0, 0, 100, 1)'
+          backgroundColor: "rgba(0, 0, 100, 0.5)"
+          borderColor: "rgba(0, 0, 100, 1)"
           data: []
         ]
       ,
       options:
         scales:
           xAxes: [
-            type: 'linear'
-            position: 'bottom'
+            type: "linear"
+            position: "bottom"
             scaleLabel:
               display: true
-              labelString: 'Investment Cycle'
+              labelString: "Investment Cycle"
             ticks:
               stepSize: 1
           ]
           yAxes: [
-            type: 'linear'
-            position: 'left'
+            type: "linear"
+            position: "left"
             scaleLabel:
               display: true
-              labelString: 'Percent'
+              labelString: "Percent"
             ticks:
               beginAtZero: true
           ]
@@ -524,7 +524,7 @@ $('document').ready(() ->
     betoken.init().then(loadFundData)
 
   if !hasWeb3
-    showError("Betoken can only be used in a Web3 enabled browser. Please install <a href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions.")
+    showError('Betoken can only be used in a Web3 enabled browser. Please install <a href=\'https://metamask.io/\'>MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund"s data, but cannot make any interactions.')
 )
 
 Template.body.helpers(
@@ -558,7 +558,7 @@ Template.top_bar.events(
     betoken.emergencyWithdraw(showTransaction)
 
   "click .change_contract": (event) ->
-    $('#change_contract_modal').modal(
+    $("#change_contract_modal").modal(
       onApprove: (e) ->
         try
           new_addr = $("#contract_addr_input")[0].value
@@ -569,10 +569,13 @@ Template.top_bar.events(
           betoken.init().then(loadFundData)
         catch error
           showError("Oops! That wasn't a valid contract address!")
-    ).modal('show')
+    ).modal("show")
 
   "click .refresh_button": (event) ->
     loadFundData()
+
+  "click .info_button": (event) ->
+    $("#contract_info_modal").modal("show")
 )
 
 Template.countdown_timer.helpers(
@@ -623,7 +626,7 @@ Template.transact_box.onCreated(
 
 Template.transact_box.helpers(
   is_disabled: (_type) ->
-    if cyclePhase.get() != 0 || (cycleNumber.get() == 1 && _type == 'withdraw')
+    if cyclePhase.get() != 0 || (cycleNumber.get() == 1 && _type == "withdraw")
       return "disabled"
     return ""
 
@@ -742,7 +745,7 @@ Template.proposals_tab.events(
       showError(STAKE_BOTH_SIDES_ERR)
       return
 
-    $('#stake_proposal_modal_' + id).modal(
+    $("#stake_proposal_modal_" + id).modal(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
@@ -750,14 +753,14 @@ Template.proposals_tab.events(
           betoken.stakeProposal(id, kairoAmountInWeis, true, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
-    ).modal('show')
+    ).modal("show")
 
   "click .against_proposal": (event) ->
     id = this.id
     if checkIfStakedOnOtherSide(id, false)
       showError(STAKE_BOTH_SIDES_ERR)
       return
-    $('#stake_proposal_modal_' + id).modal(
+    $("#stake_proposal_modal_" + id).modal(
       onApprove: (e) ->
         try
           kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
@@ -765,14 +768,14 @@ Template.proposals_tab.events(
           betoken.stakeProposal(id, kairoAmountInWeis, false, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
-    ).modal('show')
+    ).modal("show")
 
   "click .new_proposal": (event) ->
     if (createdProposalCount.get() == maxProposalsPerMember.get())
       showError("You have already created #{createdProposalCount.get()} proposals this cycle, which is the maximum amount. You cannot create any more.")
       return
 
-    $('#new_proposal_modal').modal(
+    $("#new_proposal_modal").modal(
       onApprove: (e) ->
         try
           address = $("#address_input_new")[0].value
@@ -791,7 +794,7 @@ Template.proposals_tab.events(
           betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
-    ).modal('show')
+    ).modal("show")
 )
 
 checkIfStakedOnOtherSide = (_id, _pendingSupport) ->
