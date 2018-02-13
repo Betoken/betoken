@@ -47,6 +47,7 @@ cycleTotalForStake = new ReactiveVar(BigNumber(0))
 maxProposalsPerMember = new ReactiveVar(0)
 createdProposalCount = new ReactiveVar(0)
 maxProposals = new ReactiveVar(0)
+allowEmergencyWithdraw = new ReactiveVar(false)
 
 #Displayed variables
 kairoAddr = new ReactiveVar("")
@@ -285,6 +286,9 @@ loadFundData = () ->
   )
   betoken.getPrimitiveVar("maxProposals").then(
     (_result) -> maxProposals.set(+_result)
+  )
+  betoken.getPrimitiveVar("allowEmergencyWithdraw").then(
+    (_result) -> allowEmergencyWithdraw.set(_result)
   )
 
   #Get contract addresses
@@ -550,6 +554,7 @@ Template.body.events(
 Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
   paused: () -> paused.get()
+  allow_emergency_withdraw: () -> if allowEmergencyWithdraw.get() then "" else "disabled"
   betoken_addr: () -> betoken_addr.get()
   kairo_addr: () -> kairoAddr.get()
   oraclize_addr: () -> oraclizeAddr.get()

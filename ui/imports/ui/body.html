@@ -90,7 +90,7 @@
       {{#if show_countdown}}
         {{> countdown_timer}}
       {{else if paused}}
-        <button class="ui negative button emergency_withdraw">
+        <button class="ui negative button emergency_withdraw {{allow_emergency_withdraw}}">
           Withdraw All Funds
         </button>
       {{else}}
