@@ -19,7 +19,8 @@ module.exports = (deployer, network, accounts) ->
     config.commissionRate, #commissionRate
     config.orderExpirationTimeInBlocks,#3600 / 20, #orderExpirationTimeInBlocks
     config.developerFeeProportion, #developerFeeProportion
-    config.maxProposalsPerMember #maxProposalsPerMember
+    config.maxProposalsPerMember, #maxProposalsPerMember
+    0 #cycleNumber
   ], [ControlToken]]).then(
     () ->
       return deployer.deploy(

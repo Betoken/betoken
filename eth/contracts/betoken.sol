@@ -188,7 +188,8 @@ contract BetokenFund is Pausable {
     uint256 _commissionRate,
     uint256 _orderExpirationTimeInBlocks,
     uint256 _developerFeeProportion,
-    uint256 _maxProposalsPerMember
+    uint256 _maxProposalsPerMember,
+    uint256 _cycleNumber
   )
     public
   {
@@ -213,7 +214,7 @@ contract BetokenFund is Pausable {
     cyclePhase = CyclePhase.Finalized;
     creator = msg.sender;
     numProposals = 0;
-    cycleNumber = 0;
+    cycleNumber = _cycleNumber;
     etherDelta = EtherDelta(etherDeltaAddr);
     allowEmergencyWithdraw = false;
   }
@@ -227,7 +228,7 @@ contract BetokenFund is Pausable {
     require (!initialized);
 
     participants = _participants;
-    for (int i = 0; i < _participants.length; i++) {
+    for (uint i = 0; i < _participants.length; i++) {
       isParticipant[_participants[i]] = true;
     }
   }

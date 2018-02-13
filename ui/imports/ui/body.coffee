@@ -20,7 +20,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0x8562d0e4e2853493e5d908ec1caaa05604d48605")
+betoken_addr = new ReactiveVar("0x03e68717e1d5a6373f99c346cb51bb6e7509033d")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data

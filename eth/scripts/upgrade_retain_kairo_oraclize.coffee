@@ -5,7 +5,8 @@ OraclizeHandler = artifacts.require("OraclizeHandler")
 config = require "../deployment_configs/testnet.json"
 
 dev_fee_address = "0xDbE011EB3fe8C77C94Cc9d9EC176BDddC937F425"
-old_address = "0x0aA40e5869ebd1a908360645d7c7A57c3d5C29E3"
+old_address = "0x8562D0E4E2853493E5d908Ec1caAa05604d48605"
+start_cycle_number = 0
 
 module.exports = (callback) ->
   old_contract = BetokenFund.at(old_address)
@@ -27,7 +28,8 @@ module.exports = (callback) ->
         config.commissionRate, #commissionRate
         config.orderExpirationTimeInBlocks,#3600 / 20, #orderExpirationTimeInBlocks
         config.developerFeeProportion, #developerFeeProportion
-        config.maxProposalsPerMember #maxProposalsPerMember
+        config.maxProposalsPerMember, #maxProposalsPerMember
+        start_cycle_number #cycleNumber
       ).then(
         (_instance) ->
           new_contract = _instance
