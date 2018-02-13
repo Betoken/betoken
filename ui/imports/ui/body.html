@@ -2,22 +2,23 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
 
-  <div class="ui grid" style="margin-top: 0.02%;">
+  <div class="ui stackable grid" style="margin-top: 0.02%;">
     <!-- Top Bar -->
     {{> top_bar}}
 
-    {{> phase_indicator}}
+    <div class="ui container sixteen wide column">
+      {{> phase_indicator}}
+    </div>
 
-    <!--Left Tabs-->
-    <div class="ui container ten wide column">
-      <!-- Tab buttons -->
+    <div class="ui container nine wide column">
+      <!-- Tabs -->
       <div class="ui top attached tabular menu">
         <a class="item active" data-tab="t1">Statistics</a>
         <a class="item" data-tab="t2">Proposals</a>
         <a class="item" data-tab="t3">Members</a>
       </div>
 
-      <!-- Actual Tab Content -->
+      <!-- Tab contents -->
       <div class="ui bottom attached tab segment active" data-tab="t1">
         {{> stats_tab}}
       </div>
@@ -31,8 +32,8 @@
       </div>
     </div>
 
-    <!-- Grid class for the right half -->
-    <div class="ui six wide column container">
+    <!-- Sidebar -->
+    <div class="ui seven wide column container">
       {{> sidebar}}
     </div>
 
@@ -190,7 +191,7 @@
 
 <template name="phase_indicator">
   <!--Phase Indicator-->
-  <div class="ui steps fluid">
+  <div class="ui steps fluid tablet stackable">
     <div class="{{phase_active 0}} step">
       <div class="content">
         <div class="title">Deposit & Withdraw</div>
@@ -234,7 +235,7 @@
       </div>
       <div class="ui item">
         <div class="ui horizontal divider">Address</div>
-        <h4 style="text-align: center;" class="copyable">{{user_address}}</h4>
+        <h5 style="text-align: center;" class="copyable">{{user_address}}</h5>
       </div>
 
       <div class="ui item">
@@ -252,18 +253,25 @@
       <div class="ui item">
         <div class="ui horizontal divider">Kairo Balance</div>
 
-        <div class="ui mini horizontal statistic">
-          <div class="value copyable">
-            {{user_kairo_balance}}
+        <div class="ui grid stackable">
+          <div class="ui container ten wide column">
+            <div class="ui mini horizontal statistic">
+              <div class="value copyable">
+                {{user_kairo_balance}}
+              </div>
+              <div class="label">
+                {{kairo_unit}}
+              </div>
+            </div>
           </div>
-          <div class="label">
-            {{kairo_unit}}
-          </div>
-        </div>
 
-        <div class="ui slider checkbox" style="float: right; margin-top: 4%;">
-          <input type="checkbox" class="kairo_unit_switch">
-          <label>KRO/%</label>
+          <div class="ui container six wide column">
+            <div class="ui slider checkbox" style="float: right;">
+              <input type="checkbox" class="kairo_unit_switch">
+              <label>KRO/%</label>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -297,8 +305,8 @@
   <div class="ui top attached tabular menu">
     <a class="item active header" data-tab="deposit">Deposit</a>
     <a class="item header" data-tab="withdraw">Withdraw</a>
-    <a class="item header" data-tab="kairo">Send Kairo</a>
-    <a class="item header" data-tab="history">History</a>
+    <a class="item header" data-tab="kairo">Send KRO</a>
+    <a class="item header" data-tab="history">Records</a>
   </div>
 
   <!-- Actual Tab Content -->
@@ -352,7 +360,7 @@
 
   <div class="ui bottom attached tab segment" data-tab="history">
     <!--History Tab-->
-    <table class="ui table celled sortable">
+    <table class="ui tablet stackable table celled sortable">
       <!-- Table header -->
       <thead>
       <tr>
@@ -385,7 +393,7 @@
   </div>
 
   <div class="ui bottom attached tab segment active" data-tab="for">
-    <table class="ui table celled sortable">
+    <table class="ui tablet stackable table celled sortable">
       <!-- Table header -->
       <thead>
         <tr>
@@ -415,7 +423,7 @@
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="against">
-    <table class="ui table celled sortable">
+    <table class="ui tablet stackable table celled sortable">
       <!-- Table header -->
       <thead>
         <tr>
@@ -447,7 +455,7 @@
 </template>
 
 <template name="stats_tab">
-  <div class="ui grid">
+  <div class="ui grid stackable">
     <div class="twelve wide column">
       <canvas id="myChart" width="400" height="400"></canvas>
     </div>
@@ -531,7 +539,7 @@
     </div>
   </div>
 
-  <table class="ui table celled sortable">
+  <table class="ui tablet stackable table celled sortable">
     <!-- Table header -->
     <thead>
     <tr>
@@ -638,7 +646,7 @@
 
 <template name="members_tab">
   <!-- Table for the Participants goes here -->
-  <table class="ui table celled sortable">
+  <table class="ui tablet stackable table celled sortable">
 
     <!-- Table header -->
     <thead>
