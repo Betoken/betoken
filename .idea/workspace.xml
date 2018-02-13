@@ -23,14 +23,14 @@
       <file leaf-file-name="body.html" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="392">
-              <caret line="35" column="24" lean-forward="false" selection-start-line="35" selection-start-column="24" selection-end-line="35" selection-end-column="24" />
+            <state relative-caret-position="591">
+              <caret line="147" column="115" lean-forward="false" selection-start-line="147" selection-start-column="115" selection-end-line="147" selection-end-column="115" />
               <folding>
-                <element signature="n#template#0;n#!!top" expanded="false" />
                 <element signature="n#style#0;n#img#0;n#h1#0;n#div#0;n#div#0;n#template#0;n#!!top" expanded="true" />
                 <element signature="n#style#0;n#div#1;n#div#2;n#template#0;n#!!top" expanded="true" />
                 <element signature="n#template#1;n#!!top" expanded="false" />
                 <element signature="n#template#2;n#!!top" expanded="false" />
+                <element signature="n#template#3;n#!!top" expanded="false" />
                 <element signature="n#style#0;n#h5#0;n#div#1;n#div#0;n#div#0;n#template#3;n#!!top" expanded="true" />
                 <element signature="n#style#0;n#div#0;n#div#1;n#div#1;n#div#3;n#div#0;n#div#0;n#template#3;n#!!top" expanded="true" />
                 <element signature="n#template#4;n#!!top" expanded="false" />
@@ -46,11 +46,13 @@
       <file leaf-file-name="body.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="334">
-              <caret line="526" column="114" lean-forward="false" selection-start-line="526" selection-start-column="114" selection-end-line="526" selection-end-column="114" />
+            <state relative-caret-position="543">
+              <caret line="550" column="40" lean-forward="false" selection-start-line="550" selection-start-column="40" selection-end-line="550" selection-end-column="40" />
               <folding>
-                <element signature="e#4107#5081#0" expanded="false" />
-                <element signature="e#5106#16228#0" expanded="false" />
+                <element signature="e#3042#4122#0" expanded="false" />
+                <element signature="e#4140#5114#0" expanded="false" />
+                <element signature="e#5139#16354#0" expanded="false" />
+                <element signature="e#16384#17738#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -494,14 +496,7 @@
       <workItem from="1517521415693" duration="9000" />
       <workItem from="1517521455834" duration="14580000" />
       <workItem from="1517733543672" duration="27569000" />
-      <workItem from="1518082265674" duration="26554000" />
-    </task>
-    <task id="LOCAL-00027" summary="Fixed #33">
-      <created>1515301651081</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
-      <option name="project" value="LOCAL" />
-      <updated>1515301651081</updated>
+      <workItem from="1518082265674" duration="28065000" />
     </task>
     <task id="LOCAL-00028" summary="Fixed #32">
       <created>1515306426387</created>
@@ -839,11 +834,18 @@
       <option name="project" value="LOCAL" />
       <updated>1518468433342</updated>
     </task>
-    <option name="localTasksCounter" value="76" />
+    <task id="LOCAL-00076" summary="Improved mobile support">
+      <created>1518482882608</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
+      <option name="project" value="LOCAL" />
+      <updated>1518482882608</updated>
+    </task>
+    <option name="localTasksCounter" value="77" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="510820000" />
+    <option name="totallyTimeSpent" value="512331000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -882,7 +884,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Enabled Kairo transfer during all phases" />
     <MESSAGE value="Debugged" />
     <MESSAGE value="Removed deposit amount checker" />
     <MESSAGE value="Fixed #41, updated open zeppelin libraries" />
@@ -907,7 +908,8 @@
     <MESSAGE value="Refactored 2_deploy_contracts.js to coffeescript. Added whenPaused modifier for changing owner and address of ControlToken and OraclizeHandler contracts." />
     <MESSAGE value="Completed emergency functions in BetokenFund" />
     <MESSAGE value="Changed auto-stake to burn, made topbar shorter, moved contract addresses to &quot;info&quot; modal." />
-    <option name="LAST_COMMIT_MESSAGE" value="Changed auto-stake to burn, made topbar shorter, moved contract addresses to &quot;info&quot; modal." />
+    <MESSAGE value="Improved mobile support" />
+    <option name="LAST_COMMIT_MESSAGE" value="Improved mobile support" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1226,25 +1228,27 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="334">
-          <caret line="526" column="114" lean-forward="false" selection-start-line="526" selection-start-column="114" selection-end-line="526" selection-end-column="114" />
+        <state relative-caret-position="543">
+          <caret line="550" column="40" lean-forward="false" selection-start-line="550" selection-start-column="40" selection-end-line="550" selection-end-column="40" />
           <folding>
-            <element signature="e#4107#5081#0" expanded="false" />
-            <element signature="e#5106#16228#0" expanded="false" />
+            <element signature="e#3042#4122#0" expanded="false" />
+            <element signature="e#4140#5114#0" expanded="false" />
+            <element signature="e#5139#16354#0" expanded="false" />
+            <element signature="e#16384#17738#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="392">
-          <caret line="35" column="24" lean-forward="false" selection-start-line="35" selection-start-column="24" selection-end-line="35" selection-end-column="24" />
+        <state relative-caret-position="591">
+          <caret line="147" column="115" lean-forward="false" selection-start-line="147" selection-start-column="115" selection-end-line="147" selection-end-column="115" />
           <folding>
-            <element signature="n#template#0;n#!!top" expanded="false" />
             <element signature="n#style#0;n#img#0;n#h1#0;n#div#0;n#div#0;n#template#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#1;n#div#2;n#template#0;n#!!top" expanded="true" />
             <element signature="n#template#1;n#!!top" expanded="false" />
             <element signature="n#template#2;n#!!top" expanded="false" />
+            <element signature="n#template#3;n#!!top" expanded="false" />
             <element signature="n#style#0;n#h5#0;n#div#1;n#div#0;n#div#0;n#template#3;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#div#1;n#div#1;n#div#3;n#div#0;n#div#0;n#template#3;n#!!top" expanded="true" />
             <element signature="n#template#4;n#!!top" expanded="false" />

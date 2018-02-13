@@ -48,8 +48,9 @@ maxProposalsPerMember = new ReactiveVar(0)
 createdProposalCount = new ReactiveVar(0)
 
 #Displayed variables
-kairo_addr = new ReactiveVar("")
-etherDelta_addr = new ReactiveVar("")
+kairoAddr = new ReactiveVar("")
+etherDeltaAddr = new ReactiveVar("")
+oraclizeAddr = new ReactiveVar("")
 displayedKairoBalance = new ReactiveVar(BigNumber(0))
 displayedKairoUnit = new ReactiveVar("KRO")
 countdownDay = new ReactiveVar(0)
@@ -283,10 +284,13 @@ loadFundData = () ->
   )
 
   #Get contract addresses
-  kairo_addr.set(betoken.addrs.controlToken)
+  kairoAddr.set(betoken.addrs.controlToken)
   betoken.getPrimitiveVar("etherDeltaAddr").then(
     (_etherDeltaAddr) ->
-      etherDelta_addr.set(_etherDeltaAddr)
+      etherDeltaAddr.set(_etherDeltaAddr)
+  )
+  betoken.getPrimitiveVar("oraclizeAddr").then(
+    (_result) -> oraclizeAddr.set(_result)
   )
 
   #Get statistics
@@ -543,8 +547,10 @@ Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
   paused: () -> paused.get()
   betoken_addr: () -> betoken_addr.get()
-  kairo_addr: () -> kairo_addr.get()
-  etherdelta_addr: () -> etherDelta_addr.get()
+  kairo_addr: () -> kairoAddr.get()
+  oraclize_addr: () -> oraclizeAddr.get()
+  etherdelta_addr: () -> etherDeltaAddr.get()
+  network_prefix: () -> networkPrefix.get()
 )
 
 Template.top_bar.events(
