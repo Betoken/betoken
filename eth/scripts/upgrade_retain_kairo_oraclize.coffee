@@ -5,7 +5,7 @@ OraclizeHandler = artifacts.require("OraclizeHandler")
 config = require "../deployment_configs/testnet.json"
 
 dev_fee_address = "0xDbE011EB3fe8C77C94Cc9d9EC176BDddC937F425"
-old_address = "0x01cde8d0fc1188850852d7828de263953bb438f8"
+old_address = "0x0aA40e5869ebd1a908360645d7c7A57c3d5C29E3"
 
 module.exports = (callback) ->
   old_contract = BetokenFund.at(old_address)

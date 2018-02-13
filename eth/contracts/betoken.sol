@@ -720,7 +720,7 @@ contract BetokenFund is Pausable {
       address participant = participants[i];
       uint256 kairoBalance = cToken.balanceOf(participant);
       if (userStakedProposalCount[participant] == 0 && kairoBalance > 0) {
-        uint256 decreaseAmount = kairoBalance.mul(minStakeProportion);
+        uint256 decreaseAmount = kairoBalance.mul(minStakeProportion).div(precision);
         cToken.ownerBurn(participant, decreaseAmount);
       }
     }

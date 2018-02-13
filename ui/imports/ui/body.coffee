@@ -20,7 +20,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0x0aa40e5869ebd1a908360645d7c7a57c3d5c29e3")
+betoken_addr = new ReactiveVar("0x8562d0e4e2853493e5d908ec1caaa05604d48605")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
@@ -46,6 +46,7 @@ paused = new ReactiveVar(false)
 cycleTotalForStake = new ReactiveVar(BigNumber(0))
 maxProposalsPerMember = new ReactiveVar(0)
 createdProposalCount = new ReactiveVar(0)
+maxProposals = new ReactiveVar(0)
 
 #Displayed variables
 kairoAddr = new ReactiveVar("")
@@ -281,6 +282,9 @@ loadFundData = () ->
   )
   betoken.getPrimitiveVar("maxProposalsPerMember").then(
     (_result) -> maxProposalsPerMember.set(+_result)
+  )
+  betoken.getPrimitiveVar("maxProposals").then(
+    (_result) -> maxProposals.set(+_result)
   )
 
   #Get contract addresses
@@ -778,8 +782,11 @@ Template.proposals_tab.events(
 
   "click .new_proposal": (event) ->
     if (createdProposalCount.get() == maxProposalsPerMember.get())
-      showError("You have already created #{createdProposalCount.get()} proposals this cycle, which is the maximum amount. You cannot create any more.")
+      showError("You have already created #{createdProposalCount.get()} proposals this cycle, which is the maximum amount. You can wait for the next cycle, or stake in existing proposals.")
       return
+
+    if (maxProposals.get() == proposalList.get().length)
+      showError("#{maxProposals.get()} proposals have already been created this cycle, which is the maximum amount. You can wait for the next cycle, or stake in existing proposals.")
 
     $("#new_proposal_modal").modal(
       onApprove: (e) ->
