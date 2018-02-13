@@ -227,6 +227,9 @@ contract BetokenFund is Pausable {
     require (!initialized);
 
     participants = _participants;
+    for (int i = 0; i < _participants.length; i++) {
+      isParticipant[_participants[i]] = true;
+    }
   }
 
   /**
