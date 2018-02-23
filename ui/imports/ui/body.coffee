@@ -33,7 +33,6 @@ startTimeOfCyclePhase = new ReactiveVar(0)
 timeOfChangeMaking = new ReactiveVar(0)
 timeOfProposalMaking = new ReactiveVar(0)
 timeOfWaiting = new ReactiveVar(0)
-timeOfSellOrderWaiting = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
@@ -51,7 +50,7 @@ allowEmergencyWithdraw = new ReactiveVar(false)
 
 #Displayed variables
 kairoAddr = new ReactiveVar("")
-etherDeltaAddr = new ReactiveVar("")
+kyberAddr = new ReactiveVar("")
 oraclizeAddr = new ReactiveVar("")
 displayedKairoBalance = new ReactiveVar(BigNumber(0))
 displayedKairoUnit = new ReactiveVar("KRO")
@@ -139,8 +138,6 @@ clock = () ->
           target = startTimeOfCyclePhase.get() + timeOfProposalMaking.get()
         when 2
           target = startTimeOfCyclePhase.get() + timeOfWaiting.get()
-        when 3
-          target = startTimeOfCyclePhase.get() + timeOfSellOrderWaiting.get()
 
       distance = target - now
 
@@ -269,9 +266,6 @@ loadFundData = () ->
   betoken.getPrimitiveVar("timeOfWaiting").then(
     (_time) -> timeOfWaiting.set(+_time)
   )
-  betoken.getPrimitiveVar("timeOfSellOrderWaiting").then(
-    (_time) -> timeOfSellOrderWaiting.set(+_time)
-  )
   betoken.getPrimitiveVar("commissionRate").then(
     (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
   )
@@ -293,9 +287,9 @@ loadFundData = () ->
 
   #Get contract addresses
   kairoAddr.set(betoken.addrs.controlToken)
-  betoken.getPrimitiveVar("etherDeltaAddr").then(
-    (_etherDeltaAddr) ->
-      etherDeltaAddr.set(_etherDeltaAddr)
+  betoken.getPrimitiveVar("kyberAddr").then(
+    (_kyberAddr) ->
+      kyberAddr.set(_kyberAddr)
   )
   betoken.getPrimitiveVar("oraclizeAddr").then(
     (_result) -> oraclizeAddr.set(_result)
@@ -557,8 +551,7 @@ Template.top_bar.helpers(
   allow_emergency_withdraw: () -> if allowEmergencyWithdraw.get() then "" else "disabled"
   betoken_addr: () -> betoken_addr.get()
   kairo_addr: () -> kairoAddr.get()
-  oraclize_addr: () -> oraclizeAddr.get()
-  etherdelta_addr: () -> etherDeltaAddr.get()
+  kyber_addr: () -> kyberAddr.get()
   network_prefix: () -> networkPrefix.get()
 )
 
@@ -736,7 +729,7 @@ Template.staked_props_box.events(
 
 Template.stats_tab.helpers(
   member_count: () -> memberList.get().length
-  cycle_length: () -> BigNumber(timeOfChangeMaking.get() + timeOfProposalMaking.get() + timeOfWaiting.get() + timeOfSellOrderWaiting.get()).div(24 * 60 * 60).toDigits(3)
+  cycle_length: () -> BigNumber(timeOfChangeMaking.get() + timeOfProposalMaking.get() + timeOfWaiting.get()).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
   avg_roi: () -> avgROI.get().toFormat(2)

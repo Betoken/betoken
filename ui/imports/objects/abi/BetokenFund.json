@@ -15,27 +15,11 @@
           "type": "address"
         },
         {
-          "name": "tokenSymbol",
-          "type": "string"
-        },
-        {
-          "name": "tokenDecimals",
-          "type": "uint256"
-        },
-        {
           "name": "buyPriceInWeis",
           "type": "uint256"
         },
         {
           "name": "sellPriceInWeis",
-          "type": "uint256"
-        },
-        {
-          "name": "buyOrderExpirationBlockNum",
-          "type": "uint256"
-        },
-        {
-          "name": "sellOrderExpirationBlockNum",
           "type": "uint256"
         },
         {
@@ -393,20 +377,6 @@
       "type": "function"
     },
     {
-      "constant": true,
-      "inputs": [],
-      "name": "orderExpirationTimeInBlocks",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "constant": false,
       "inputs": [],
       "name": "pause",
@@ -450,48 +420,6 @@
     },
     {
       "constant": true,
-      "inputs": [],
-      "name": "etherDeltaAddr",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "timeOfSellOrderWaiting",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "oraclizeAddr",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
       "inputs": [
         {
           "name": "",
@@ -499,6 +427,34 @@
         }
       ],
       "name": "againstStakedControlOfProposal",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "kyberAddr",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "PRECISION",
       "outputs": [
         {
           "name": "",
@@ -532,20 +488,6 @@
       "constant": true,
       "inputs": [],
       "name": "developerFeeProportion",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "precision",
       "outputs": [
         {
           "name": "",
@@ -648,16 +590,12 @@
     {
       "inputs": [
         {
-          "name": "_etherDeltaAddr",
+          "name": "_kyberAddr",
           "type": "address"
         },
         {
           "name": "_developerFeeAccount",
           "type": "address"
-        },
-        {
-          "name": "_precision",
-          "type": "uint256"
         },
         {
           "name": "_timeOfChangeMaking",
@@ -672,10 +610,6 @@
           "type": "uint256"
         },
         {
-          "name": "_timeOfSellOrderWaiting",
-          "type": "uint256"
-        },
-        {
           "name": "_minStakeProportion",
           "type": "uint256"
         },
@@ -685,10 +619,6 @@
         },
         {
           "name": "_commissionRate",
-          "type": "uint256"
-        },
-        {
-          "name": "_orderExpirationTimeInBlocks",
           "type": "uint256"
         },
         {
@@ -821,12 +751,7 @@
         },
         {
           "indexed": false,
-          "name": "_tokenSymbol",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "name": "_amountInWeis",
+          "name": "_stakeInWeis",
           "type": "uint256"
         }
       ],
@@ -848,7 +773,7 @@
         },
         {
           "indexed": false,
-          "name": "_amountInWeis",
+          "name": "_stakeInWeis",
           "type": "uint256"
         },
         {
@@ -875,23 +800,6 @@
         }
       ],
       "name": "ProposalMakingTimeEnded",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "CycleEnded",
       "type": "event"
     },
     {
@@ -999,10 +907,6 @@
         {
           "name": "_cTokenAddr",
           "type": "address"
-        },
-        {
-          "name": "_oraclizeAddr",
-          "type": "address"
         }
       ],
       "name": "initializeSubcontracts",
@@ -1043,15 +947,6 @@
       "constant": false,
       "inputs": [],
       "name": "emergencyDumpTokens",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "emergencyWithdrawFromEtherDelta",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -1106,21 +1001,7 @@
           "type": "address"
         }
       ],
-      "name": "changeEtherDeltaAddress",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newAddr",
-          "type": "address"
-        }
-      ],
-      "name": "changeOraclizeAddress",
+      "name": "changeKyberNetworkAddress",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -1163,29 +1044,6 @@
         }
       ],
       "name": "changeCommissionRate",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "topupOraclizeFees",
-      "outputs": [],
-      "payable": true,
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "changeOraclizeOwner",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -1254,14 +1112,6 @@
           "type": "address"
         },
         {
-          "name": "_tokenSymbol",
-          "type": "string"
-        },
-        {
-          "name": "_tokenDecimals",
-          "type": "uint256"
-        },
-        {
           "name": "_stakeInWeis",
           "type": "uint256"
         }
@@ -1320,15 +1170,6 @@
     {
       "constant": false,
       "inputs": [],
-      "name": "endWaitingTime",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
       "name": "finalizeCycle",
       "outputs": [],
       "payable": false,
@@ -1344,84 +1185,6 @@
         }
       ],
       "name": "__addControlTokenReceipientAsParticipant",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_tokenGet",
-          "type": "address"
-        },
-        {
-          "name": "_amountGet",
-          "type": "uint256"
-        },
-        {
-          "name": "_tokenGive",
-          "type": "address"
-        },
-        {
-          "name": "_amountGive",
-          "type": "uint256"
-        },
-        {
-          "name": "_expires",
-          "type": "uint256"
-        },
-        {
-          "name": "_nonce",
-          "type": "uint256"
-        }
-      ],
-      "name": "__makeOrder",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_proposalId",
-          "type": "uint256"
-        },
-        {
-          "name": "_buyPrice",
-          "type": "uint256"
-        },
-        {
-          "name": "_expires",
-          "type": "uint256"
-        }
-      ],
-      "name": "__setBuyPriceAndExpirationBlock",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_proposalId",
-          "type": "uint256"
-        },
-        {
-          "name": "_sellPrice",
-          "type": "uint256"
-        },
-        {
-          "name": "_expires",
-          "type": "uint256"
-        }
-      ],
-      "name": "__setSellPriceAndExpirationBlock",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",

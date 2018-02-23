@@ -1,6 +1,5 @@
 BetokenFund = artifacts.require("BetokenFund")
 ControlToken = artifacts.require("ControlToken")
-OraclizeHandler = artifacts.require("OraclizeHandler")
 
 config = require "../deployment_configs/testnet.json"
 
@@ -16,17 +15,14 @@ module.exports = (callback) ->
     () ->
       #Deploy new BetokenFund
       BetokenFund.new(
-        config.etherDeltaAddress, #Ethdelta address
+        config.kyberAddress, #KyberNetwork address
         dev_fee_address, #developerFeeAccount
-        config.precision, #precision
         config.timeOfChangeMaking,#2 * 24 * 3600, #timeOfChangeMaking
         config.timeOfProposalMaking,#2 * 24 * 3600, #timeOfProposalMaking
         config.timeOfWaiting, #timeOfWaiting
-        config.timeOfSellOrderWaiting, #timeOfSellOrderWaiting
         config.minStakeProportion, #minStakeProportion
         config.maxProposals, #maxProposals
         config.commissionRate, #commissionRate
-        config.orderExpirationTimeInBlocks,#3600 / 20, #orderExpirationTimeInBlocks
         config.developerFeeProportion, #developerFeeProportion
         config.maxProposalsPerMember, #maxProposalsPerMember
         start_cycle_number #cycleNumber
@@ -39,7 +35,6 @@ module.exports = (callback) ->
     () ->
       #Transfer participants data
       participants = []
-      oraclizeAddr = null
       kairoAddr = null
 
       old_contract.participantsCount().then(
@@ -72,14 +67,9 @@ module.exports = (callback) ->
       ).then(
         (_addr) -> kairoAddr = _addr
       ).then(
-        () -> old_contract.oraclizeAddr()
-      ).then(
-        (_addr) -> oraclizeAddr = _addr
-      ).then(
-        () -> new_contract.initializeSubcontracts(kairoAddr, oraclizeAddr)
+        () -> new_contract.initializeSubcontracts(kairoAddr)
       )
 
       #Transfer ownership
-      old_contract.changeOraclizeOwner(new_contract.address)
       old_contract.changeControlTokenOwner(new_contract.address)
   )

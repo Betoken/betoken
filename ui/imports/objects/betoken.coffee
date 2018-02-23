@@ -123,10 +123,8 @@ export Betoken = (_address) ->
           when 1
             funcName = "endProposalMakingTime"
           when 2
-            funcName = "endWaitingTime"
-          when 3
             funcName = "finalizeCycle"
-          when 4
+          when 3
             funcName = "startNewCycle"
     ).then(
       () ->
