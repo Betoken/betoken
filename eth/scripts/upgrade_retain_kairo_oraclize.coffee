@@ -59,7 +59,7 @@ module.exports = (callback) ->
           return Promise.all(getAllItems)
       ).then(
         () ->
-          new_contract.initializeParticipants(participants)
+          new_contract.initializeParticipants(participants.filter((v, i, a) -> a.indexOf(v) == i))
           console.log "Initializing participant list..."
       ).then(
         #Initialize subcontracts for new BetokenFund

@@ -49,16 +49,18 @@
           });
         };
         getAllItems = (function() {
-          var i, ref, results;
+          var j, ref, results;
           results = [];
-          for (id = i = 0, ref = count - 1; undefined !== 0 && (0 <= ref ? 0 <= i && i <= ref : 0 >= i && i >= ref); id = 0 <= ref ? ++i : --i) {
+          for (id = j = 0, ref = count - 1; undefined !== 0 && (0 <= ref ? 0 <= j && j <= ref : 0 >= j && j >= ref); id = 0 <= ref ? ++j : --j) {
             results.push(getItem(id));
           }
           return results;
         })();
         return Promise.all(getAllItems);
       }).then(function() {
-        new_contract.initializeParticipants(participants);
+        new_contract.initializeParticipants(participants.filter(function(v, i, a) {
+          return a.indexOf(v) === i;
+        }));
         return console.log("Initializing participant list...");
       //Initialize subcontracts for new BetokenFund
       }).then(function() {
