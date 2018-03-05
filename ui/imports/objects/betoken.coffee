@@ -196,16 +196,14 @@ export Betoken = (_address) ->
   ###*
    * Creates proposal
    * @param  {String} _tokenAddress the token address
-   * @param  {String} _tokenSymbol  the token symbol (ticker)
-   * @param  {Number} _tokenDecimals the number of decimals the token uses
    * @param  {BigNumber} _stakeInWeis the investment amount
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.createProposal = (_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis, _callback) ->
+  self.createProposal = (_tokenAddress, _stakeInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.betokenFund.methods.createProposal(_tokenAddress, _tokenSymbol, _tokenDecimals, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.createProposal(_tokenAddress, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###*

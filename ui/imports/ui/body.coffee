@@ -793,12 +793,6 @@ Template.proposals_tab.events(
           if (!web3.utils.isAddress(address))
             throw "Invalid token address."
 
-          tickerSymbol = $("#ticker_input_new")[0].value
-
-          decimals = +$("#decimals_input_new")[0].value
-          if (decimals % 1 > 0 || decimals <= 0)
-            throw "Token decimals should be a positive integer."
-
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)
 
