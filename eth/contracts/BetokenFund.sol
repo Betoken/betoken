@@ -13,7 +13,7 @@ import './Utils.sol';
 contract BetokenFund is Pausable, Utils {
   using SafeMath for uint256;
 
-  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Finalized }
+  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Selling, Finalized }
 
   struct Proposal {
     address tokenAddress;
@@ -21,6 +21,7 @@ contract BetokenFund is Pausable, Utils {
     uint256 sellPriceInWeis;
     uint256 numFor;
     uint256 numAgainst;
+    bool isSold;
   }
 
   /**
@@ -37,6 +38,11 @@ contract BetokenFund is Pausable, Utils {
    */
   modifier onlyParticipant {
     require(isParticipant[msg.sender]);
+    _;
+  }
+
+  modifier rewardCaller {
+    cToken.mint(msg.sender, functionCallReward);
     _;
   }
 
@@ -70,7 +76,7 @@ contract BetokenFund is Pausable, Utils {
   //Temporal length of proposal making period at start of each cycle, in seconds.
   uint256 public timeOfProposalMaking;
 
-  //Temporal length of waiting period, after which the bets will be settled, in seconds.
+  //Temporal length of waiting period, in seconds.
   uint256 public timeOfWaiting;
 
   //Minimum proportion of Kairo balance people have to stake in support of a proposal. Fixed point decimal.
@@ -93,6 +99,9 @@ contract BetokenFund is Pausable, Utils {
 
   //Total Kairo staked in support of proposals this cycle.
   uint256 public cycleTotalForStake;
+
+  //Amount of Kairo rewarded to the user who calls a phase transition/proposal handling function
+  uint256 public functionCallReward;
 
   //Flag for whether the contract has been initialized with subcontracts' addresses.
   bool public initialized;
@@ -129,12 +138,12 @@ contract BetokenFund is Pausable, Utils {
   //List of proposals in the current cycle.
   Proposal[] public proposals;
 
-  //References to subcontracts and KyberNetwork contract.
-  ControlToken internal cToken;
-  KyberNetwork internal kyber;
-
   //The current cycle phase.
   CyclePhase public cyclePhase;
+
+  //Contract instances
+  ControlToken internal cToken;
+  KyberNetwork internal kyber;
 
   event CycleStarted(uint256 _cycleNumber, uint256 _timestamp);
   event Deposit(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
@@ -144,6 +153,11 @@ contract BetokenFund is Pausable, Utils {
   event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
   event StakedProposal(uint256 _cycleNumber, uint256 _id, uint256 _stakeInWeis, bool _support);
   event ProposalMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
+
+  event WaitingPhaseEnded(uint256 _cycleNumber, uint256 _timestamp);
+
+  event AssetSold(uint256 _cycleNumber, uint256 _proposalId);
+  event SellingPhaseEnded(uint256 _cycleNumber, uint256 _timestamp);
 
   event ROI(uint256 _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 _cycleNumber, uint256 _totalCommissionInWeis);
@@ -165,7 +179,8 @@ contract BetokenFund is Pausable, Utils {
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _maxProposalsPerMember,
-    uint256 _cycleNumber
+    uint256 _cycleNumber,
+    uint256 _functionCallReward
   )
     public
   {
@@ -187,6 +202,7 @@ contract BetokenFund is Pausable, Utils {
     creator = msg.sender;
     numProposals = 0;
     cycleNumber = _cycleNumber;
+    functionCallReward = _functionCallReward;
     kyber = KyberNetwork(_kyberAddr);
     allowEmergencyWithdraw = false;
   }
@@ -367,7 +383,7 @@ contract BetokenFund is Pausable, Utils {
   /**
    * Starts a new investment cycle.
    */
-  function startNewCycle() public during(CyclePhase.Finalized) whenNotPaused {
+  function startNewCycle() public during(CyclePhase.Finalized) whenNotPaused rewardCaller {
     require(initialized);
 
     //Update values
@@ -475,7 +491,7 @@ contract BetokenFund is Pausable, Utils {
   /**
    * Ends the ChangeMaking phase.
    */
-  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused {
+  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
     require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
 
     startTimeOfCyclePhase = now;
@@ -512,7 +528,8 @@ contract BetokenFund is Pausable, Utils {
       buyPriceInWeis: 0,
       sellPriceInWeis: 0,
       numFor: 0,
-      numAgainst: 0
+      numAgainst: 0,
+      isSold: false
     }));
 
     //Update values about proposal
@@ -627,6 +644,7 @@ contract BetokenFund is Pausable, Utils {
   function endProposalMakingTime()
     public
     during(CyclePhase.ProposalMaking)
+    rewardCaller
     whenNotPaused
   {
     require(now >= startTimeOfCyclePhase.add(timeOfProposalMaking));
@@ -635,7 +653,6 @@ contract BetokenFund is Pausable, Utils {
     cyclePhase = CyclePhase.Waiting;
 
     __penalizeNonparticipation();
-    __makeInvestments();
 
     ProposalMakingTimeEnded(cycleNumber, now);
   }
@@ -655,35 +672,63 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Turns the investment proposals into actual investments.
+   * Waiting phase functions
    */
-  function __makeInvestments() internal {
-    //Invest in tokens using KyberNetwork
-    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
-        //Deposit ether
-        __handleInvestment(i, true);
-      }
-    }
+
+  function executeProposal(uint256 _proposalId)
+    public
+    during(CyclePhase.Waiting)
+    whenNotPaused
+    rewardCaller
+  {
+    require(__proposalIsValid(_proposalId));
+    __handleInvestment(_proposalId, true);
+  }
+
+  function endWaitingPhase()
+    public
+    during(CyclePhase.Waiting)
+    whenNotPaused
+    rewardCaller
+  {
+    require(now >= startTimeOfCyclePhase.add(timeOfWaiting));
+
+    startTimeOfCyclePhase = now;
+    cyclePhase = CyclePhase.Selling;
+
+    WaitingPhaseEnded(cycleNumber, now);
+  }
+
+  /**
+   * Selling phase functions
+   */
+
+  /**
+   * Called by user to sell the assets a proposal invested in
+   * @param _proposalId the ID of the proposal
+   */
+  function sellProposalAsset(uint256 _proposalId)
+    public
+    during(CyclePhase.Selling)
+    whenNotPaused
+    rewardCaller
+  {
+    require(__proposalIsValid(_proposalId));
+    require(proposals[_proposalId].buyPriceInWeis > 0);
+    __handleInvestment(_proposalId, false);
+    __settleBets(_proposalId);
+    proposals[_proposalId].isSold = true;
   }
 
   /**
    * Finalize the cycle by redistributing user balances and settling investment proposals.
    */
-  function finalizeCycle() public during(CyclePhase.Waiting) whenNotPaused {
-    require(now >= startTimeOfCyclePhase.add(timeOfWaiting));
+  function finalizeCycle() public during(CyclePhase.Selling) whenNotPaused rewardCaller {
+    require(proposalsAreSold());
 
     //Update cycle values
     startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Finalized;
-
-    //Sell all invested tokens and settle bets
-    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
-        __handleInvestment(i, false);
-        __settleBets(i);
-      }
-    }
 
     //Burn any Kairo left in BetokenFund's account
     cToken.burnOwnerBalance();
@@ -696,17 +741,51 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
+   * Returns true if the tokens proposals have invested in have all been sold.
+   */
+  function proposalsAreSold() public view returns (bool) {
+    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
+      if (__proposalIsValid(i) && !proposals[i].isSold && proposals[i].buyPriceInWeis > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Internal use functions
+   */
+
+  function __proposalIsValid(uint256 _proposalId) internal view returns (bool) {
+    return isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
+  }
+
+  function __addControlTokenReceipientAsParticipant(address _receipient) public {
+    require(msg.sender == controlTokenAddr);
+    isParticipant[_receipient] = true;
+    participants.push(_receipient);
+  }
+
+  /**
+   * Returns all stakes of a proposal
+   * @param _proposalId ID of the proposal
+   */
+  function __returnStakes(uint256 _proposalId) internal {
+    for (uint256 j = 0; j < participants.length; j = j.add(1)) {
+      address participant = participants[j];
+      uint256 stake = forStakedControlOfProposalOfUser[_proposalId][participant].add(againstStakedControlOfProposalOfUser[_proposalId][participant]);
+      if (stake != 0) {
+        cToken.transfer(participant, stake);
+      }
+    }
+  }
+
+  /**
    * Settles an investment proposal in terms of profitability.
    * @param _proposalId ID of the proposal
    */
   function __settleBets(uint256 _proposalId) internal {
     Proposal storage prop = proposals[_proposalId];
-
-    //Prevent divide by zero errors
-    if (prop.buyPriceInWeis == 0) {
-      __returnStakes(_proposalId);
-      return;
-    }
 
     uint256 forMultiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis);
     uint256 againstMultiplier = 0;
@@ -775,34 +854,8 @@ contract BetokenFund is Pausable, Utils {
     CommissionPaid(cycleNumber, totalCommission);
   }
 
-  /**
-   * Internal use functions
-   */
-
-  function __addControlTokenReceipientAsParticipant(address _receipient) public {
-    require(msg.sender == controlTokenAddr);
-    isParticipant[_receipient] = true;
-    participants.push(_receipient);
-  }
-
-  /**
-   * Returns all stakes of a proposal
-   * @param _proposalId ID of the proposal
-   */
-  function __returnStakes(uint256 _proposalId) internal {
-    for (uint256 j = 0; j < participants.length; j = j.add(1)) {
-      address participant = participants[j];
-      uint256 stake = forStakedControlOfProposalOfUser[_proposalId][participant].add(againstStakedControlOfProposalOfUser[_proposalId][participant]);
-      if (stake != 0) {
-        cToken.transfer(participant, stake);
-      }
-    }
-  }
-
   function __handleInvestment(uint256 _proposalId, bool _buy) internal {
     uint256 srcAmount;
-    uint256 bestReserve;
-    uint256 bestRate;
     uint256 actualDestAmount;
     uint256 actualRate;
     address destAddr = proposals[_proposalId].tokenAddress;
@@ -814,13 +867,6 @@ contract BetokenFund is Pausable, Utils {
       //Calculate investment amount
       srcAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cycleTotalForStake);
 
-      //Get conversion rate
-      (bestReserve, bestRate) = kyber.findBestRate(
-        ETH_TOKEN_ADDRESS,
-        destToken,
-        srcAmount
-      );
-
       uint256 beforeBalance = this.balance;
 
       //Do trade
@@ -830,7 +876,7 @@ contract BetokenFund is Pausable, Utils {
         destToken,
         address(this),
         MAX_QTY,
-        bestRate,
+        1,
         address(this)
       );
 
@@ -844,13 +890,6 @@ contract BetokenFund is Pausable, Utils {
       //Get sell amount
       srcAmount = destToken.balanceOf(address(this));
 
-      //Get conversion rate
-      (bestReserve, bestRate) = kyber.findBestRate(
-        destToken,
-        ETH_TOKEN_ADDRESS,
-        srcAmount
-      );
-
       //Do trade
       destToken.approve(kyberAddr, srcAmount);
       actualDestAmount = kyber.trade(
@@ -859,7 +898,7 @@ contract BetokenFund is Pausable, Utils {
         ETH_TOKEN_ADDRESS,
         address(this),
         MAX_QTY,
-        bestRate,
+        1,
         address(this)
       );
       destToken.approve(kyberAddr, 0);
