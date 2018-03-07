@@ -375,6 +375,7 @@ loadFundData = () ->
                   return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
                     (_stake) ->
                       investment = BigNumber(_stake).dividedBy(cycleTotalForStake.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
+                      # TODO
                       proposal =
                         id: i
                         token_symbol: _proposals[i].tokenSymbol

@@ -85,9 +85,6 @@ contract BetokenFund is Pausable, Utils {
   //The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
   uint256 public developerFeeProportion;
 
-  //The max number of proposals each member can create.
-  uint256 public maxProposalsPerMember;
-
   //Number of proposals already made in this cycle. Excludes deleted proposals.
   uint256 public numProposals;
 
@@ -112,9 +109,6 @@ contract BetokenFund is Pausable, Utils {
   //Mapping from Proposal to total amount of Control Tokens being staked by supporters.
   mapping(uint256 => uint256) public forStakedControlOfProposal;
   mapping(uint256 => uint256) public againstStakedControlOfProposal;
-
-  //Records the number of proposals a user has created in the current cycle. Canceling support does not decrease this number.
-  mapping(address => uint256) public createdProposalCount;
 
   //mapping(proposalId => mapping(participantAddress => stakedTokensInWeis))
   mapping(uint256 => mapping(address => uint256)) public forStakedControlOfProposalOfUser;
@@ -141,7 +135,7 @@ contract BetokenFund is Pausable, Utils {
   event Withdraw(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
   event ChangeMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
 
-  event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
+  event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress);
   event StakedProposal(uint256 _cycleNumber, uint256 _id, uint256 _stakeInWeis, bool _support);
   event ProposalMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
 
@@ -164,7 +158,6 @@ contract BetokenFund is Pausable, Utils {
     uint256 _maxProposals,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
-    uint256 _maxProposalsPerMember,
     uint256 _cycleNumber
   )
     public
@@ -181,7 +174,6 @@ contract BetokenFund is Pausable, Utils {
     maxProposals = _maxProposals;
     commissionRate = _commissionRate;
     developerFeeProportion = _developerFeeProportion;
-    maxProposalsPerMember = _maxProposalsPerMember;
     startTimeOfCyclePhase = 0;
     cyclePhase = CyclePhase.Finalized;
     creator = msg.sender;
@@ -382,8 +374,6 @@ contract BetokenFund is Pausable, Utils {
     for (i = 0; i < proposals.length; i = i.add(1)) {
       __resetProposalData(i);
     }
-    delete proposals;
-    delete numProposals;
     delete cycleTotalForStake;
 
     //Emit event
@@ -395,7 +385,6 @@ contract BetokenFund is Pausable, Utils {
    * @param _addr the participant whose data will be reset
    */
   function __resetMemberData(address _addr) internal {
-    delete createdProposalCount[_addr];
     delete userStakedProposalCount[_addr];
 
     //Remove the associated corresponding control staked for/against  each proposal
@@ -410,9 +399,12 @@ contract BetokenFund is Pausable, Utils {
    * @param _proposalId ID of proposal whose data will be reset
    */
   function __resetProposalData(uint256 _proposalId) internal {
-    delete isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
     delete forStakedControlOfProposal[_proposalId];
     delete againstStakedControlOfProposal[_proposalId];
+    proposals[_proposalId].numFor = 0;
+    proposals[_proposalId].numAgainst = 0;
+    proposals[_proposalId].buyPriceInWeis = 0;
+    proposals[_proposalId].sellPriceInWeis = 0;
   }
 
   /**
@@ -494,17 +486,15 @@ contract BetokenFund is Pausable, Utils {
    * @param _stakeInWeis amount of Kairos to be staked in support of the proposal
    */
   function createProposal(
-    address _tokenAddress,
-    uint256 _stakeInWeis
+    address _tokenAddress
   )
     public
     during(CyclePhase.ProposalMaking)
-    onlyParticipant
+    onlyOwner
     whenNotPaused
   {
     require(numProposals < maxProposals);
     require(!isTokenAlreadyProposed[_tokenAddress]);
-    require(createdProposalCount[msg.sender] < maxProposalsPerMember);
 
     //Add proposal to list
     proposals.push(Proposal({
@@ -517,15 +507,10 @@ contract BetokenFund is Pausable, Utils {
 
     //Update values about proposal
     isTokenAlreadyProposed[_tokenAddress] = true;
-    createdProposalCount[msg.sender] = createdProposalCount[msg.sender].add(1);
     numProposals = numProposals.add(1);
 
-    //Stake control tokens
-    uint256 proposalId = proposals.length - 1;
-    stakeProposal(proposalId, _stakeInWeis, true);
-
     //Emit event
-    NewProposal(cycleNumber, proposalId, _tokenAddress, _stakeInWeis);
+    NewProposal(cycleNumber, proposals.length - 1, _tokenAddress);
   }
 
   /**
@@ -611,14 +596,6 @@ contract BetokenFund is Pausable, Utils {
 
     //Return stake
     cToken.transfer(msg.sender, stake);
-
-    //Delete proposal if necessary
-    if (proposals[_proposalId].numFor == 0) {
-      __returnStakes(_proposalId);
-      __resetProposalData(_proposalId);
-      numProposals = numProposals.sub(1);
-      delete proposals[_proposalId];
-    }
   }
 
   /**
@@ -814,13 +791,6 @@ contract BetokenFund is Pausable, Utils {
       //Calculate investment amount
       srcAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cycleTotalForStake);
 
-      //Get conversion rate
-      (bestReserve, bestRate) = kyber.findBestRate(
-        ETH_TOKEN_ADDRESS,
-        destToken,
-        srcAmount
-      );
-
       uint256 beforeBalance = this.balance;
 
       //Do trade
@@ -830,7 +800,7 @@ contract BetokenFund is Pausable, Utils {
         destToken,
         address(this),
         MAX_QTY,
-        bestRate,
+        1,
         address(this)
       );
 
@@ -844,13 +814,6 @@ contract BetokenFund is Pausable, Utils {
       //Get sell amount
       srcAmount = destToken.balanceOf(address(this));
 
-      //Get conversion rate
-      (bestReserve, bestRate) = kyber.findBestRate(
-        destToken,
-        ETH_TOKEN_ADDRESS,
-        srcAmount
-      );
-
       //Do trade
       destToken.approve(kyberAddr, srcAmount);
       actualDestAmount = kyber.trade(
@@ -859,7 +822,7 @@ contract BetokenFund is Pausable, Utils {
         ETH_TOKEN_ADDRESS,
         address(this),
         MAX_QTY,
-        bestRate,
+        1,
         address(this)
       );
       destToken.approve(kyberAddr, 0);

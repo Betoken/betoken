@@ -442,6 +442,7 @@ loadFundData = function() {
       i).then(function(_stake) {
                 var investment;
                 investment = BigNumber(_stake).dividedBy(cycleTotalForStake.get()).times(web3.utils.fromWei(totalFunds.get().toString()));
+                // TODO
                 return proposal = {
                   id: i,
                   token_symbol: _proposals[i].tokenSymbol,
