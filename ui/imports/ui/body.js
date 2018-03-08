@@ -456,7 +456,7 @@ loadFundData = function() {
                   for_stake: BigNumber(_stake).div(1e18).toFormat(4),
                   supporters: _proposals[i].numFor,
                   opposers: _proposals[i].numAgainst,
-                  isSold: _proposals[i].isSold
+                  is_sold: _proposals[i].isSold
                 };
               }).then(function() {
                 return betoken.getMappingOrArrayItem("againstStakedControlOfProposal",
@@ -992,7 +992,7 @@ Template.proposals_tab.helpers({
   proposal_list: function() {
     return proposalList.get();
   },
-  is_disabled: function(_id) {
+  is_disabled: function(_id, _isSold) {
     if (_id === "support" || _id === "against") {
       if (cyclePhase.get() !== 1) {
         return "disabled";

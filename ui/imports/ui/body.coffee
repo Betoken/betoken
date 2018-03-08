@@ -388,7 +388,7 @@ loadFundData = () ->
                         for_stake: BigNumber(_stake).div(1e18).toFormat(4)
                         supporters: _proposals[i].numFor
                         opposers: _proposals[i].numAgainst
-                        isSold: _proposals[i].isSold
+                        is_sold: _proposals[i].isSold
                   ).then(() -> betoken.getMappingOrArrayItem("againstStakedControlOfProposal", i).then(
                     (_stake) ->
                       proposal.against_stake = BigNumber(_stake).div(1e18).toFormat(4)
@@ -750,7 +750,7 @@ Template.stats_tab.helpers(
 Template.proposals_tab.helpers(
   proposal_list: () -> proposalList.get()
 
-  is_disabled: (_id) ->
+  is_disabled: (_id, _isSold) ->
     if _id == "support" || _id == "against"
       if cyclePhase.get() != 1
         return "disabled"
