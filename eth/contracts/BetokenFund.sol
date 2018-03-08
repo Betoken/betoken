@@ -675,6 +675,10 @@ contract BetokenFund is Pausable, Utils {
    * Waiting phase functions
    */
 
+  /**
+   * Called by user to buy the assets of a proposal
+   * @param _proposalId the ID of the proposal
+   */
   function executeProposal(uint256 _proposalId)
     public
     during(CyclePhase.Waiting)
@@ -682,6 +686,7 @@ contract BetokenFund is Pausable, Utils {
     rewardCaller
   {
     require(__proposalIsValid(_proposalId));
+    require(proposals[_proposalId].buyPriceInWeis == 0);
     __handleInvestment(_proposalId, true);
   }
 

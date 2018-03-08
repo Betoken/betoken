@@ -70,6 +70,7 @@ totalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
+proposalsAreSold = new ReactiveVar(false)
 
 showTransaction = (_txHash) ->
   transactionHash.set(_txHash)
@@ -284,6 +285,9 @@ loadFundData = () ->
   betoken.getPrimitiveVar("allowEmergencyWithdraw").then(
     (_result) -> allowEmergencyWithdraw.set(_result)
   )
+  betoken.getPrimitiveVar("proposalsAreSold").then(
+    (_result) -> proposalsAreSold.set(_result)
+  )
 
   #Get contract addresses
   kairoAddr.set(betoken.addrs.controlToken)
@@ -378,12 +382,13 @@ loadFundData = () ->
                       # TODO
                       proposal =
                         id: i
-                        token_symbol: _proposals[i].tokenSymbol
+                        #token_symbol: _proposals[i].tokenSymbol
                         address: _proposals[i].tokenAddress
                         investment: investment.toFormat(4)
                         for_stake: BigNumber(_stake).div(1e18).toFormat(4)
                         supporters: _proposals[i].numFor
                         opposers: _proposals[i].numAgainst
+                        isSold: _proposals[i].isSold
                   ).then(() -> betoken.getMappingOrArrayItem("againstStakedControlOfProposal", i).then(
                     (_stake) ->
                       proposal.against_stake = BigNumber(_stake).div(1e18).toFormat(4)
@@ -554,12 +559,16 @@ Template.top_bar.helpers(
   kairo_addr: () -> kairoAddr.get()
   kyber_addr: () -> kyberAddr.get()
   network_prefix: () -> networkPrefix.get()
+  next_phase_is_disabled: () ->
+    if cyclePhase.get() == 3 && proposalsAreSold.get() == false
+      return "disabled"
+    return ""
 )
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
     try
-      betoken.endPhase(showTransaction)
+      betoken.endPhase(cyclePhase.get(), showTransaction)
     catch error
       console.log error
 
@@ -741,9 +750,13 @@ Template.stats_tab.helpers(
 Template.proposals_tab.helpers(
   proposal_list: () -> proposalList.get()
 
-  is_disabled: () ->
-    if cyclePhase.get() != 1
-      return "disabled"
+  is_disabled: (_id) ->
+    if _id == "support" || _id == "against"
+      if cyclePhase.get() != 1
+        return "disabled"
+    else if _id == "execute"
+      if (cyclePhase.get() != 2 && cyclePhase.get() != 3) || this.isSold == true
+        return "disabled"
     return ""
 )
 
@@ -778,6 +791,14 @@ Template.proposals_tab.events(
         catch error
           showError(error.toString() || INPUT_ERR)
     ).modal("show")
+
+  "click .execute_proposal": (event) ->
+    id = this.id
+    switch cyclePhase.get()
+      when 2
+        betoken.executeProposal(id, showTransaction)
+      when 3
+        betoken.sellProposalAsset(id, showTransaction)
 
   "click .new_proposal": (event) ->
     if (createdProposalCount.get() == maxProposalsPerMember.get())

@@ -29,6 +29,10 @@
         {
           "name": "numAgainst",
           "type": "uint256"
+        },
+        {
+          "name": "isSold",
+          "type": "bool"
         }
       ],
       "payable": false,
@@ -319,6 +323,20 @@
       "constant": true,
       "inputs": [],
       "name": "commissionRate",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "functionCallReward",
       "outputs": [
         {
           "name": "",
@@ -632,6 +650,10 @@
         {
           "name": "_cycleNumber",
           "type": "uint256"
+        },
+        {
+          "name": "_functionCallReward",
+          "type": "uint256"
         }
       ],
       "payable": false,
@@ -816,7 +838,41 @@
           "type": "uint256"
         }
       ],
-      "name": "CycleFinalized",
+      "name": "WaitingPhaseEnded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "_cycleNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "AssetSold",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "_cycleNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "SellingPhaseEnded",
       "type": "event"
     },
     {
@@ -856,6 +912,23 @@
         }
       ],
       "name": "CommissionPaid",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "_cycleNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "CycleFinalized",
       "type": "event"
     },
     {
@@ -1169,11 +1242,62 @@
     },
     {
       "constant": false,
+      "inputs": [
+        {
+          "name": "_proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "executeProposal",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "endWaitingPhase",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "sellProposalAsset",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
       "inputs": [],
       "name": "finalizeCycle",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "proposalsAreSold",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
       "type": "function"
     },
     {

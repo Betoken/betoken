@@ -94,7 +94,7 @@
           Withdraw All Funds
         </button>
       {{else}}
-        <button class="ui positive button next_phase">
+        <button class="ui positive button {{next_phase_is_disabled}} next_phase">
           Next Phase
         </button>
       {{/if}}
@@ -576,12 +576,16 @@
           <td>{{against_stake}}</td>
           <td>{{supporters}} / {{opposers}}</td>
           <td>
-            <div class="ui positive icon button {{is_disabled}} support_proposal">
+            <div class="ui positive icon button {{is_disabled "support"}} support_proposal">
               <i class="thumbs outline up icon"></i>
             </div>
             <p></p>
-            <div class="ui negative icon button {{is_disabled}} against_proposal">
+            <div class="ui negative icon button {{is_disabled "against"}} against_proposal">
               <i class="thumbs outline down icon"></i>
+            </div>
+            <p></p>
+            <div class="ui yellow icon button {{is_disabled "execute"}} execute_proposal">
+              <i class="bolt icon"></i>
             </div>
           </td>
         </tr>

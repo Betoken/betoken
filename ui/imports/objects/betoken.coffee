@@ -109,27 +109,24 @@ export Betoken = (_address) ->
 
   ###*
    * Ends the current phase
+   * @param  {Number} _currentPhase the current cycle phase
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
   ###
-  self.endPhase = (_callback) ->
+  self.endPhase = (_currentPhase, _callback) ->
     funcName = null
-    return self.getPrimitiveVar("cyclePhase").then(
-      (_cyclePhase) ->
-        _cyclePhase = +_cyclePhase
-        switch _cyclePhase
-          when 0
-            funcName = "endChangeMakingTime"
-          when 1
-            funcName = "endProposalMakingTime"
-          when 2
-            funcName = "finalizeCycle"
-          when 3
-            funcName = "startNewCycle"
-    ).then(
-      () ->
-        return getDefaultAccount()
-    ).then(
+    switch _currentPhase
+      when 0
+        funcName = "endChangeMakingTime"
+      when 1
+        funcName = "endProposalMakingTime"
+      when 2
+        funcName = "endWaitingPhase"
+      when 3
+        funcName = "finalizeCycle"
+      when 4
+        funcName = "startNewCycle"
+    return getDefaultAccount().then(
       () ->
         return self.contracts.betokenFund.methods[funcName]().send({from: web3.eth.defaultAccount}).on(
           "transactionHash", _callback
@@ -230,6 +227,22 @@ export Betoken = (_address) ->
     return getDefaultAccount().then(
       () ->
         return self.contracts.betokenFund.methods.cancelProposalStake(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+    )
+
+  ###
+    Proposal execution functions
+  ###
+
+  self.executeProposal = (_proposalId, _callback) ->
+    return getDefaultAccount().then(
+      () ->
+        return self.contracts.betokenFund.methods.executeProposal(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+    )
+
+  self.sellProposalAsset = (_proposalId, _callback) ->
+    return getDefaultAccount().then(
+      () ->
+        return self.contracts.betokenFund.methods.sellProposalAsset(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###
