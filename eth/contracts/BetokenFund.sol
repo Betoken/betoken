@@ -274,8 +274,8 @@ contract BetokenFund is Pausable, Utils {
   }
 
   function emergencyDumpToken(uint256 _proposalId) onlyOwner whenPaused public {
-    if (__proposalIsValid(i)) { //Ensure proposal isn't a deleted one
-      __handleInvestment(i, false);
+    if (__proposalIsValid(_proposalId)) { //Ensure proposal isn't a deleted one
+      __handleInvestment(_proposalId, false);
     }
   }
 
@@ -613,7 +613,7 @@ contract BetokenFund is Pausable, Utils {
     whenNotPaused
   {
     require(_proposalId < proposals.length); //Valid ID
-    require(proposals[_proposalId].numFor > 0); //Non-empty proposal
+    require(__proposalIsValid(_proposalId)); //Non-empty proposal
 
     //Remove stake data
     uint256 forStake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];

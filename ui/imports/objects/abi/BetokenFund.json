@@ -1019,7 +1019,21 @@
     {
       "constant": false,
       "inputs": [],
-      "name": "emergencyDumpTokens",
+      "name": "emergencyDumpAllTokens",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "emergencyDumpToken",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -1029,6 +1043,20 @@
       "constant": false,
       "inputs": [],
       "name": "emergencyReturnAllStakes",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "emergencyReturnStakes",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
