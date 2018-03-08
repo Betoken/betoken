@@ -447,7 +447,7 @@ loadFundData = function() {
       i).then(function(_stake) {
                 var investment;
                 investment = BigNumber(_stake).dividedBy(cycleTotalForStake.get()).times(web3.utils.fromWei(totalFunds.get().toString()));
-                // TODO
+                // TODO get token symbol using ERC20 contract
                 return proposal = {
                   id: i,
                   //token_symbol: _proposals[i].tokenSymbol
@@ -456,7 +456,8 @@ loadFundData = function() {
                   for_stake: BigNumber(_stake).div(1e18).toFormat(4),
                   supporters: _proposals[i].numFor,
                   opposers: _proposals[i].numAgainst,
-                  is_sold: _proposals[i].isSold
+                  is_sold: _proposals[i].isSold,
+                  buy_price: +_proposals[i].buyPriceInWeis
                 };
               }).then(function() {
                 return betoken.getMappingOrArrayItem("againstStakedControlOfProposal",
@@ -992,13 +993,13 @@ Template.proposals_tab.helpers({
   proposal_list: function() {
     return proposalList.get();
   },
-  is_disabled: function(_id, _isSold) {
+  is_disabled: function(_id, _isSold, _buyPrice) {
     if (_id === "support" || _id === "against") {
       if (cyclePhase.get() !== 1) {
         return "disabled";
       }
     } else if (_id === "execute") {
-      if ((cyclePhase.get() !== 2 && cyclePhase.get() !== 3) || this.isSold === true) {
+      if ((cyclePhase.get() !== 2 && cyclePhase.get() !== 3) || (cyclePhase.get() === 2 && _buyPrice > 0) || (cyclePhase.get() === 3 && _isSold === true)) {
         return "disabled";
       }
     }

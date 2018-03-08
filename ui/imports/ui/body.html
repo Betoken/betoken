@@ -576,15 +576,15 @@
           <td>{{against_stake}}</td>
           <td>{{supporters}} / {{opposers}}</td>
           <td>
-            <div class="ui positive icon button {{is_disabled "support" false}} support_proposal">
+            <div class="ui positive icon button {{is_disabled "support" false 0}} support_proposal">
               <i class="thumbs outline up icon"></i>
             </div>
             <p></p>
-            <div class="ui negative icon button {{is_disabled "against" false}} against_proposal">
+            <div class="ui negative icon button {{is_disabled "against" false 0}} against_proposal">
               <i class="thumbs outline down icon"></i>
             </div>
             <p></p>
-            <div class="ui yellow icon button {{is_disabled "execute" is_sold}} execute_proposal">
+            <div class="ui yellow icon button {{is_disabled "execute" is_sold buy_price}} execute_proposal">
               <i class="bolt icon"></i>
             </div>
           </td>

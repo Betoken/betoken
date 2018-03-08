@@ -24,7 +24,7 @@
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="634">
-              <caret line="586" column="70" lean-forward="false" selection-start-line="586" selection-start-column="70" selection-end-line="586" selection-end-column="70" />
+              <caret line="586" column="87" lean-forward="false" selection-start-line="586" selection-start-column="87" selection-end-line="586" selection-end-column="87" />
               <folding>
                 <element signature="n#template#0;n#!!top" expanded="false" />
                 <element signature="n#template#1;n#!!top" expanded="false" />
@@ -42,12 +42,12 @@
       <file leaf-file-name="body.coffee" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="199">
-              <caret line="380" column="143" lean-forward="true" selection-start-line="380" selection-start-column="143" selection-end-line="380" selection-end-column="143" />
+            <state relative-caret-position="321">
+              <caret line="391" column="36" lean-forward="false" selection-start-line="391" selection-start-column="36" selection-end-line="391" selection-end-column="36" />
               <folding>
                 <element signature="e#3117#4197#0" expanded="false" />
                 <element signature="e#4215#5096#0" expanded="false" />
-                <element signature="e#16632#17986#0" expanded="false" />
+                <element signature="e#16735#18089#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -383,14 +383,7 @@
       <workItem from="1519329563041" duration="10339000" />
       <workItem from="1519365745570" duration="4304000" />
       <workItem from="1520293359222" duration="20665000" />
-      <workItem from="1520461243508" duration="6495000" />
-    </task>
-    <task id="LOCAL-00039" summary="Debugged">
-      <created>1516495696534</created>
-      <option name="number" value="00039" />
-      <option name="presentableId" value="LOCAL-00039" />
-      <option name="project" value="LOCAL" />
-      <updated>1516495696534</updated>
+      <workItem from="1520461243508" duration="6827000" />
     </task>
     <task id="LOCAL-00040" summary="Finally made the broken pos start working. Contracts are good now.">
       <created>1516566793741</created>
@@ -728,11 +721,18 @@
       <option name="project" value="LOCAL" />
       <updated>1520497626912</updated>
     </task>
-    <option name="localTasksCounter" value="88" />
+    <task id="LOCAL-00088" summary="partially finished UI">
+      <created>1520498072665</created>
+      <option name="number" value="00088" />
+      <option name="presentableId" value="LOCAL-00088" />
+      <option name="project" value="LOCAL" />
+      <updated>1520498072665</updated>
+    </task>
+    <option name="localTasksCounter" value="89" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="596567000" />
+    <option name="totallyTimeSpent" value="596899000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
@@ -792,7 +792,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Improved upgrading process of contracts" />
     <MESSAGE value="Added Metamask link in web3 not found message" />
     <MESSAGE value="Changed Kairo redistribution model after cycle end, such that reward is related to token price performance." />
     <MESSAGE value="Fixed #44. Added stake amount in Kairo in proposals tab." />
@@ -817,7 +816,8 @@
     <MESSAGE value="Made proposal execution more scalable" />
     <MESSAGE value="partially updated UI, fixed bug in contract" />
     <MESSAGE value="removed most proposal-based loops in contract" />
-    <option name="LAST_COMMIT_MESSAGE" value="removed most proposal-based loops in contract" />
+    <MESSAGE value="partially finished UI" />
+    <option name="LAST_COMMIT_MESSAGE" value="partially finished UI" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1124,10 +1124,18 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5924">
+          <caret line="244" column="67" lean-forward="false" selection-start-line="244" selection-start-column="67" selection-end-line="244" selection-end-column="67" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="634">
-          <caret line="586" column="70" lean-forward="false" selection-start-line="586" selection-start-column="70" selection-end-line="586" selection-end-column="70" />
+          <caret line="586" column="87" lean-forward="false" selection-start-line="586" selection-start-column="87" selection-end-line="586" selection-end-column="87" />
           <folding>
             <element signature="n#template#0;n#!!top" expanded="false" />
             <element signature="n#template#1;n#!!top" expanded="false" />
@@ -1141,22 +1149,14 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="5924">
-          <caret line="244" column="67" lean-forward="false" selection-start-line="244" selection-start-column="67" selection-end-line="244" selection-end-column="67" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="199">
-          <caret line="380" column="143" lean-forward="true" selection-start-line="380" selection-start-column="143" selection-end-line="380" selection-end-column="143" />
+        <state relative-caret-position="321">
+          <caret line="391" column="36" lean-forward="false" selection-start-line="391" selection-start-column="36" selection-end-line="391" selection-end-column="36" />
           <folding>
             <element signature="e#3117#4197#0" expanded="false" />
             <element signature="e#4215#5096#0" expanded="false" />
-            <element signature="e#16632#17986#0" expanded="false" />
+            <element signature="e#16735#18089#0" expanded="false" />
           </folding>
         </state>
       </provider>
