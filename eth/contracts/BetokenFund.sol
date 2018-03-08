@@ -267,11 +267,15 @@ contract BetokenFund is Pausable, Utils {
   /**
    * In case the fund is invested in tokens, sell all tokens.
    */
-  function emergencyDumpTokens() onlyOwner whenPaused public {
+  function emergencyDumpAllTokens() onlyOwner whenPaused public {
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) { //Ensure proposal isn't a deleted one
-        __handleInvestment(i, false);
-      }
+      emergencyDumpToken(i);
+    }
+  }
+
+  function emergencyDumpToken(uint256 _proposalId) onlyOwner whenPaused public {
+    if (__proposalIsValid(i)) { //Ensure proposal isn't a deleted one
+      __handleInvestment(i, false);
     }
   }
 
@@ -280,9 +284,13 @@ contract BetokenFund is Pausable, Utils {
    */
   function emergencyReturnAllStakes() onlyOwner whenPaused public {
     for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      if (proposals[i].numFor > 0) {
-        __returnStakes(i);
-      }
+      emergencyReturnStakes(i);
+    }
+  }
+
+  function emergencyReturnStakes(uint256 _proposalId) onlyOwner whenPaused public {
+    if (__proposalIsValid(_proposalId)) {
+      __returnStakes(_proposalId);
     }
   }
 
@@ -762,7 +770,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   function __proposalIsValid(uint256 _proposalId) internal view returns (bool) {
-    return isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
+    return proposals[_proposalId].numFor > 0;
   }
 
   function __addControlTokenReceipientAsParticipant(address _receipient) public {
