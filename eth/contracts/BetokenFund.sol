@@ -13,7 +13,7 @@ import './Utils.sol';
 contract BetokenFund is Pausable, Utils {
   using SafeMath for uint256;
 
-  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Selling, Finalized }
+  enum CyclePhase { ChangeMaking, Waiting, Selling, Finalized }
 
   struct Proposal {
     address tokenAddress;
@@ -72,9 +72,6 @@ contract BetokenFund is Pausable, Utils {
 
   //Temporal length of change making period at start of each cycle, in seconds.
   uint256 public timeOfChangeMaking;
-
-  //Temporal length of proposal making period at start of each cycle, in seconds.
-  uint256 public timeOfProposalMaking;
 
   //Temporal length of waiting period, in seconds.
   uint256 public timeOfWaiting;
@@ -148,11 +145,9 @@ contract BetokenFund is Pausable, Utils {
   event CycleStarted(uint256 _cycleNumber, uint256 _timestamp);
   event Deposit(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
   event Withdraw(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
-  event ChangeMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
-
   event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
   event StakedProposal(uint256 _cycleNumber, uint256 _id, uint256 _stakeInWeis, bool _support);
-  event ProposalMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event ChangeMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
 
   event WaitingPhaseEnded(uint256 _cycleNumber, uint256 _timestamp);
 
@@ -172,7 +167,6 @@ contract BetokenFund is Pausable, Utils {
     address _kyberAddr,
     address _developerFeeAccount,
     uint256 _timeOfChangeMaking,
-    uint256 _timeOfProposalMaking,
     uint256 _timeOfWaiting,
     uint256 _minStakeProportion,
     uint256 _maxProposals,
@@ -190,7 +184,6 @@ contract BetokenFund is Pausable, Utils {
     kyberAddr = _kyberAddr;
     developerFeeAccount = _developerFeeAccount;
     timeOfChangeMaking = _timeOfChangeMaking;
-    timeOfProposalMaking = _timeOfProposalMaking;
     timeOfWaiting = _timeOfWaiting;
     minStakeProportion = _minStakeProportion;
     maxProposals = _maxProposals;
@@ -497,22 +490,6 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Ends the ChangeMaking phase.
-   */
-  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
-    require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
-
-    startTimeOfCyclePhase = now;
-    cyclePhase = CyclePhase.ProposalMaking;
-
-    ChangeMakingTimeEnded(cycleNumber, now);
-  }
-
-  /**
-   * ProposalMakingTime functions
-   */
-
-  /**
    * Creates a new investment proposal for an ERC20 token.
    * @param _tokenAddress address of the ERC20 token contract
    * @param _stakeInWeis amount of Kairos to be staked in support of the proposal
@@ -522,7 +499,7 @@ contract BetokenFund is Pausable, Utils {
     uint256 _stakeInWeis
   )
     public
-    during(CyclePhase.ProposalMaking)
+    during(CyclePhase.ChangeMaking)
     onlyParticipant
     whenNotPaused
   {
@@ -560,7 +537,7 @@ contract BetokenFund is Pausable, Utils {
    */
   function stakeProposal(uint256 _proposalId, uint256 _stakeInWeis, bool _support)
     public
-    during(CyclePhase.ProposalMaking)
+    during(CyclePhase.ChangeMaking)
     onlyParticipant
     whenNotPaused
   {
@@ -608,7 +585,7 @@ contract BetokenFund is Pausable, Utils {
    */
   function cancelProposalStake(uint256 _proposalId)
     public
-    during(CyclePhase.ProposalMaking)
+    during(CyclePhase.ChangeMaking)
     onlyParticipant
     whenNotPaused
   {
@@ -647,36 +624,15 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Ends the ProposalMaking phase.
+   * Ends the ChangeMaking phase.
    */
-  function endProposalMakingTime()
-    public
-    during(CyclePhase.ProposalMaking)
-    rewardCaller
-    whenNotPaused
-  {
-    require(now >= startTimeOfCyclePhase.add(timeOfProposalMaking));
+  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
+    require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
 
     startTimeOfCyclePhase = now;
-    cyclePhase = CyclePhase.Waiting;
+    cyclePhase = CyclePhase.ProposalMaking;
 
-    __penalizeNonparticipation();
-
-    ProposalMakingTimeEnded(cycleNumber, now);
-  }
-
-  /**
-   * Penalizes non-participation by burning a proportion of Kairo balance.
-   */
-  function __penalizeNonparticipation() internal {
-    for (uint256 i = 0; i < participants.length; i = i.add(1)) {
-      address participant = participants[i];
-      uint256 kairoBalance = cToken.balanceOf(participant);
-      if (userStakedProposalCount[participant] == 0 && kairoBalance > 0) {
-        uint256 decreaseAmount = kairoBalance.mul(minStakeProportion).div(PRECISION);
-        cToken.ownerBurn(participant, decreaseAmount);
-      }
-    }
+    ChangeMakingTimeEnded(cycleNumber, now);
   }
 
   /**
