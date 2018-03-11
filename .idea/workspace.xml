@@ -1,18 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
+    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="preliminary implementation of scalable version">
+      <change beforePath="" afterPath="$PROJECT_DIR$/eth/contracts/ShareToken.sol" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/BasicToken.json" afterPath="$PROJECT_DIR$/eth/build/contracts/BasicToken.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" afterPath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" afterPath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ERC20.json" afterPath="$PROJECT_DIR$/eth/build/contracts/ERC20.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ERC20Basic.json" afterPath="$PROJECT_DIR$/eth/build/contracts/ERC20Basic.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/MintableToken.json" afterPath="$PROJECT_DIR$/eth/build/contracts/MintableToken.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/Ownable.json" afterPath="$PROJECT_DIR$/eth/build/contracts/Ownable.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/Pausable.json" afterPath="$PROJECT_DIR$/eth/build/contracts/Pausable.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/SafeMath.json" afterPath="$PROJECT_DIR$/eth/build/contracts/SafeMath.json" />
-      <change beforePath="$PROJECT_DIR$/eth/build/contracts/StandardToken.json" afterPath="$PROJECT_DIR$/eth/build/contracts/StandardToken.json" />
       <change beforePath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" afterPath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" />
       <change beforePath="$PROJECT_DIR$/eth/contracts/ControlToken.sol" afterPath="$PROJECT_DIR$/eth/contracts/ControlToken.sol" />
     </list>
@@ -65,8 +56,8 @@
       <file leaf-file-name="BetokenFund.sol" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-806">
-              <caret line="543" column="35" lean-forward="false" selection-start-line="543" selection-start-column="35" selection-end-line="543" selection-end-column="35" />
+            <state relative-caret-position="161">
+              <caret line="537" column="101" lean-forward="false" selection-start-line="537" selection-start-column="101" selection-end-line="537" selection-end-column="101" />
               <folding />
             </state>
           </provider>
@@ -85,8 +76,8 @@
       <file leaf-file-name="ControlToken.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="560">
-              <caret line="23" column="47" lean-forward="false" selection-start-line="23" selection-start-column="47" selection-end-line="23" selection-end-column="47" />
+            <state relative-caret-position="533">
+              <caret line="58" column="26" lean-forward="false" selection-start-line="58" selection-start-column="26" selection-end-line="58" selection-end-column="26" />
               <folding />
             </state>
           </provider>
@@ -124,9 +115,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>}</find>
-      <find>=&gt;</find>
-      <find>//</find>
       <find>'.*'</find>
       <find>&quot;.*'</find>
       <find>ui table</find>
@@ -154,6 +142,9 @@
       <find>onlyparticipant</find>
       <find>__returnstakes</find>
       <find>participant</find>
+      <find>= 0</find>
+      <find>= 0</find>
+      <find>redeem</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -343,7 +334,7 @@
     <property name="ignore_missing_gitignore" value="true" />
     <property name="javascript.nodejs.core.library.configured.version" value="8.9.1" />
     <property name="JavaScriptWeakerCompletionTypeGuess" value="true" />
-    <property name="SearchEverywhereHistoryKey" value="__proposal&#9;null&#9;null&#10;executeproposal&#9;null&#9;null&#10;removeAss&#9;null&#9;null&#10;handleI&#9;null&#9;null&#10;callba&#9;null&#9;null&#10;file wa&#9;ACTION&#9;FileWatcher.runForFiles&#10;stakePr&#9;null&#9;null&#10;numProposals&#9;null&#9;null&#10;stakeP&#9;null&#9;null&#10;__returnS&#9;null&#9;null&#10;stakeProposal&#9;null&#9;null&#10;tenTo&#9;null&#9;null&#10;pricef&#9;null&#9;null&#10;tokenSymbo&#9;null&#9;null&#10;commissionr&#9;null&#9;null&#10;makeIn&#9;null&#9;null&#10;__reset&#9;null&#9;null" />
+    <property name="SearchEverywhereHistoryKey" value="redeemst&#9;null&#9;null&#10;__proposal&#9;null&#9;null&#10;executeproposal&#9;null&#9;null&#10;removeAss&#9;null&#9;null&#10;handleI&#9;null&#9;null&#10;callba&#9;null&#9;null&#10;file wa&#9;ACTION&#9;FileWatcher.runForFiles&#10;stakePr&#9;null&#9;null&#10;numProposals&#9;null&#9;null&#10;stakeP&#9;null&#9;null&#10;__returnS&#9;null&#9;null&#10;stakeProposal&#9;null&#9;null&#10;tenTo&#9;null&#9;null&#10;pricef&#9;null&#9;null&#10;tokenSymbo&#9;null&#9;null&#10;commissionr&#9;null&#9;null&#10;makeIn&#9;null&#9;null&#10;__reset&#9;null&#9;null" />
     <property name="add_unversioned_files" value="true" />
   </component>
   <component name="RecentsManager">
@@ -437,14 +428,7 @@
       <workItem from="1519365745570" duration="4304000" />
       <workItem from="1520293359222" duration="20665000" />
       <workItem from="1520461243508" duration="12883000" />
-      <workItem from="1520718170556" duration="15324000" />
-    </task>
-    <task id="LOCAL-00043" summary="Added warning for users not on Rinkeby">
-      <created>1516750876759</created>
-      <option name="number" value="00043" />
-      <option name="presentableId" value="LOCAL-00043" />
-      <option name="project" value="LOCAL" />
-      <updated>1516750876759</updated>
+      <workItem from="1520718170556" duration="18740000" />
     </task>
     <task id="LOCAL-00044" summary="Improved copying of addresses in UI">
       <created>1516787020093</created>
@@ -782,20 +766,37 @@
       <option name="project" value="LOCAL" />
       <updated>1520718364000</updated>
     </task>
-    <option name="localTasksCounter" value="92" />
+    <task id="LOCAL-00092" summary="preliminary implementation of scalable version">
+      <created>1520758636225</created>
+      <option name="number" value="00092" />
+      <option name="presentableId" value="LOCAL-00092" />
+      <option name="project" value="LOCAL" />
+      <updated>1520758636225</updated>
+    </task>
+    <option name="localTasksCounter" value="93" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="618279000" />
+    <option name="totallyTimeSpent" value="621695000" />
+  </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
   </component>
   <component name="ToolWindowManager">
     <frame x="-9" y="-9" width="1938" height="1098" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18393235" sideWeight="0.49544418" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.18393235" sideWeight="0.49544418" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32937366" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32829374" sideWeight="0.5021142" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.49788582" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3279396" sideWeight="0.49788582" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -809,7 +810,6 @@
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="npm" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24894291" sideWeight="0.5045558" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32901832" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
     <layout-to-restore>
@@ -846,7 +846,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="Implemented #45" />
     <MESSAGE value="Optimized new code a bit" />
     <MESSAGE value="Added corresponding features in the UI. Debugged contracts." />
     <MESSAGE value="npm fix" />
@@ -871,7 +870,8 @@
     <MESSAGE value="finished disable handler for proposal execution button in UI" />
     <MESSAGE value="fixed bugs in contract, updated abi in ui" />
     <MESSAGE value="merged changemakingtime and proposalmakingtime" />
-    <option name="LAST_COMMIT_MESSAGE" value="merged changemakingtime and proposalmakingtime" />
+    <MESSAGE value="preliminary implementation of scalable version" />
+    <option name="LAST_COMMIT_MESSAGE" value="preliminary implementation of scalable version" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1185,22 +1185,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/ShareToken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="364">
-          <caret line="13" column="10" lean-forward="false" selection-start-line="13" selection-start-column="10" selection-end-line="13" selection-end-column="10" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="560">
-          <caret line="23" column="47" lean-forward="false" selection-start-line="23" selection-start-column="47" selection-end-line="23" selection-end-column="47" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/token/ERC20/PausableToken.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="280">
@@ -1241,10 +1225,26 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="533">
+          <caret line="58" column="26" lean-forward="false" selection-start-line="58" selection-start-column="26" selection-end-line="58" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/ShareToken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="364">
+          <caret line="13" column="10" lean-forward="false" selection-start-line="13" selection-start-column="10" selection-end-line="13" selection-end-column="10" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-806">
-          <caret line="543" column="35" lean-forward="false" selection-start-line="543" selection-start-column="35" selection-end-line="543" selection-end-column="35" />
+        <state relative-caret-position="161">
+          <caret line="537" column="101" lean-forward="false" selection-start-line="537" selection-start-column="101" selection-end-line="537" selection-end-column="101" />
           <folding />
         </state>
       </provider>

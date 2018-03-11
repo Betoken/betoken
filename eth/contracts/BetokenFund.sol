@@ -18,6 +18,7 @@ contract BetokenFund is Pausable, Utils {
 
   struct Proposal {
     address tokenAddress;
+    uint256 cycleNumber;
     uint256 buyPriceInWeis;
     uint256 sellPriceInWeis;
     uint256 numFor;
@@ -223,8 +224,8 @@ contract BetokenFund is Pausable, Utils {
   function emergencyRedeemStake(uint256 _proposalId) whenPaused public {
     require(allowEmergencyWithdraw);
     uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(againstStakedControlOfProposalOfUser[_proposalId][msg.sender]);
-    forStakedControlOfProposalOfUser[_proposalId][msg.sender] = 0;
-    againstStakedControlOfProposalOfUser[_proposalId][msg.sender] = 0;
+    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
     cToken.transfer(msg.sender, stake);
   }
 
@@ -428,6 +429,7 @@ contract BetokenFund is Pausable, Utils {
     //Add proposal to list
     proposals.push(Proposal({
       tokenAddress: _tokenAddress,
+      cycleNumber: cycleNumber,
       buyPriceInWeis: 0,
       sellPriceInWeis: 0,
       numFor: 0,
@@ -528,10 +530,25 @@ contract BetokenFund is Pausable, Utils {
 
     //Delete proposal if necessary
     if (proposals[_proposalId].numFor == 0) {
-      //TODO return stakes
       __resetProposalData(_proposalId);
-      delete proposals[_proposalId];
     }
+  }
+
+  /**
+   * @dev Returns Kairos staked on the opposing side of a deleted proposal. Can only do so within the same cycle as the
+   *  proposal.
+   * @param _proposalId ID of the proposal
+   */
+  function redeemStakeFromDeletedProposal(uint256 _proposalId)
+    public
+    whenNotPaused
+  {
+    require(!__proposalIsValid(_proposalId));
+    require(proposals[_proposalId].cycleNumber == cycleNumber); //Prevent getting back stake from previous cycles
+    uint256 stake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    require(stake > 0);
+    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    cToken.transfer(msg.sender, stake);
   }
 
   /**
