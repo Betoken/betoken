@@ -306,6 +306,14 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
+   * @dev Changes the inflation rate of control tokens. Only callable by owner.
+   * @param _newVal the new inflation value, fixed point decimal
+   */
+  function changeControlTokenInflation(uint256 _newVal) public onlyOwner {
+    controlTokenInflation = _newVal;
+  }
+
+  /**
    * @dev Changes the owner of the ControlToken contract.
    * @param  _newOwner the new owner address
    */
