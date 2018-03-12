@@ -92,6 +92,9 @@ contract BetokenFund is Pausable, Utils {
   //Amount of commission to be paid out this cycle
   uint256 public totalCommission;
 
+  //Inflation rate of control token (KRO). Fixed point decimal.
+  uint256 public controlTokenInflation;
+
   //Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
@@ -154,7 +157,8 @@ contract BetokenFund is Pausable, Utils {
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _cycleNumber,
-    uint256 _functionCallReward
+    uint256 _functionCallReward,
+    uint256 _controlTokenInflation
   )
     public
   {
@@ -180,6 +184,7 @@ contract BetokenFund is Pausable, Utils {
     cyclePhase = CyclePhase.Finalized;
     cycleNumber = _cycleNumber;
     functionCallReward = _functionCallReward;
+    controlTokenInflation = _controlTokenInflation;
     allowEmergencyWithdraw = false;
   }
 
@@ -628,18 +633,13 @@ contract BetokenFund is Pausable, Utils {
     Proposal storage prop = proposals[_proposalId];
     require(prop.isSold);
 
-    uint256 forMultiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis);
-    uint256 againstMultiplier = 0;
-    if (prop.sellPriceInWeis < prop.buyPriceInWeis.mul(2)) {
-      againstMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(PRECISION).div(prop.buyPriceInWeis);
-    }
-
     uint256 stake = 0;
     if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] > 0) {
       //User supports proposal
       stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
       //Mint instead of transfer. Ensures that there are always enough tokens.
       //Extra will be burnt right after so no problem there.
+      uint256 forMultiplier = prop.sellPriceInWeis.mul(PRECISION.add(controlTokenInflation)).div(prop.buyPriceInWeis);
       cToken.mint(msg.sender, stake.mul(forMultiplier).div(PRECISION));
       delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     } else if (againstStakedControlOfProposalOfUser[_proposalId][msg.sender] > 0) {
@@ -647,6 +647,10 @@ contract BetokenFund is Pausable, Utils {
       stake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
       //Mint instead of transfer. Ensures that there are always enough tokens.
       //Extra will be burnt right after so no problem there.
+      uint256 againstMultiplier = 0;
+      if (prop.sellPriceInWeis < prop.buyPriceInWeis.mul(2)) {
+        againstMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(PRECISION.add(controlTokenInflation)).div(prop.buyPriceInWeis);
+      }
       cToken.mint(msg.sender, stake.mul(againstMultiplier).div(PRECISION));
       delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
     }
