@@ -690,6 +690,9 @@ contract BetokenFund is Pausable, Utils {
    * Finalized phase functions
    */
 
+  /**
+   * Redeems commission.
+   */
   function redeemCommission()
     public
     during(CyclePhase.Finalized)
@@ -698,6 +701,25 @@ contract BetokenFund is Pausable, Utils {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
     msg.sender.transfer(totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply()));
+  }
+
+  /**
+   * @dev Redeems staked Kairo from a proposal that wasn't sold in the Finalizing phase.
+   * @param _proposalId the ID of the proposal
+   */
+  function redeemStakeFromUnsoldProposal(uint256 _proposalId)
+    public
+    during(CyclePhase.Finalized)
+    whenNotPaused
+  {
+    require(__proposalIsValid(_proposalId));
+    require(!proposals[_proposalId].isSold);
+    require(proposals[_proposalId].cycleNumber == cycleNumber);
+    uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(againstStakedControlOfProposalOfUser[_proposalId][msg.sender]);
+    require(stake > 0);
+    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    cToken.transfer(msg.sender, stake);
   }
 
   /**
