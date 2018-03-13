@@ -647,7 +647,7 @@ contract BetokenFund is Pausable, Utils {
       stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
       //Mint instead of transfer. Ensures that there are always enough tokens.
       //Extra will be burnt right after so no problem there.
-      uint256 forMultiplier = prop.sellPriceInWeis.mul(PRECISION.add(controlTokenInflation)).div(prop.buyPriceInWeis);
+      uint256 forMultiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis).add(controlTokenInflation);
       cToken.mint(msg.sender, stake.mul(forMultiplier).div(PRECISION));
       delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
     } else if (againstStakedControlOfProposalOfUser[_proposalId][msg.sender] > 0) {
@@ -655,9 +655,9 @@ contract BetokenFund is Pausable, Utils {
       stake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
       //Mint instead of transfer. Ensures that there are always enough tokens.
       //Extra will be burnt right after so no problem there.
-      uint256 againstMultiplier = 0;
+      uint256 againstMultiplier = controlTokenInflation;
       if (prop.sellPriceInWeis < prop.buyPriceInWeis.mul(2)) {
-        againstMultiplier = prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(PRECISION.add(controlTokenInflation)).div(prop.buyPriceInWeis);
+        againstMultiplier = againstMultiplier.add(prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(PRECISION).div(prop.buyPriceInWeis));
       }
       cToken.mint(msg.sender, stake.mul(againstMultiplier).div(PRECISION));
       delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
