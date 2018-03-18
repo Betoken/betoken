@@ -135,15 +135,12 @@ export var Betoken = function(_address) {
         funcName = "endChangeMakingTime";
         break;
       case 1:
-        funcName = "endProposalMakingTime";
-        break;
-      case 2:
         funcName = "endWaitingPhase";
         break;
-      case 3:
+      case 2:
         funcName = "finalizeCycle";
         break;
-      case 4:
+      case 3:
         funcName = "startNewCycle";
     }
     return getDefaultAccount().then(function() {

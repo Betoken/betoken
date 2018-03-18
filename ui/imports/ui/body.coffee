@@ -31,8 +31,9 @@ kairoTotalSupply = new ReactiveVar(BigNumber(0))
 cyclePhase = new ReactiveVar(0)
 startTimeOfCyclePhase = new ReactiveVar(0)
 timeOfChangeMaking = new ReactiveVar(0)
-timeOfProposalMaking = new ReactiveVar(0)
 timeOfWaiting = new ReactiveVar(0)
+timeOfFinalizing = new ReactiveVar(0)
+timeBetweenCycles = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
 supportedProposalList = new ReactiveVar([])
@@ -43,9 +44,6 @@ commissionRate = new ReactiveVar(BigNumber(0))
 minStakeProportion = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
 cycleTotalForStake = new ReactiveVar(BigNumber(0))
-maxProposalsPerMember = new ReactiveVar(0)
-createdProposalCount = new ReactiveVar(0)
-maxProposals = new ReactiveVar(0)
 allowEmergencyWithdraw = new ReactiveVar(false)
 
 #Displayed variables
@@ -70,7 +68,6 @@ totalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
-proposalsAreSold = new ReactiveVar(false)
 
 showTransaction = (_txHash) ->
   transactionHash.set(_txHash)
@@ -136,9 +133,11 @@ clock = () ->
         when 0
           target = startTimeOfCyclePhase.get() + timeOfChangeMaking.get()
         when 1
-          target = startTimeOfCyclePhase.get() + timeOfProposalMaking.get()
-        when 2
           target = startTimeOfCyclePhase.get() + timeOfWaiting.get()
+        when 2
+          target = startTimeOfCyclePhase.get() + timeOfFinalizing.get()
+        when 3
+          target = startTimeOfCyclePhase.get() + timeBetweenCycles.get()
 
       distance = target - now
 
@@ -213,10 +212,6 @@ loadFundData = () ->
           displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
       )
 
-      betoken.getMappingOrArrayItem("createdProposalCount", _userAddress).then(
-        (_count) -> createdProposalCount.set(+_count)
-      )
-
       #Listen for transactions
       transactionHistory.set([])
       betoken.contracts.betokenFund.getPastEvents("Deposit",
@@ -261,11 +256,14 @@ loadFundData = () ->
   betoken.getPrimitiveVar("timeOfChangeMaking").then(
     (_time) -> timeOfChangeMaking.set(+_time)
   )
-  betoken.getPrimitiveVar("timeOfProposalMaking").then(
-    (_time) -> timeOfProposalMaking.set(+_time)
-  )
   betoken.getPrimitiveVar("timeOfWaiting").then(
     (_time) -> timeOfWaiting.set(+_time)
+  )
+  betoken.getPrimitiveVar("timeOfFinalizing").then(
+    (_time) -> timeOfFinalizing.set(+_time)
+  )
+  betoken.getPrimitiveVar("timeBetweenCycles").then(
+    (_time) -> timeBetweenCycles.set(+_time)
   )
   betoken.getPrimitiveVar("commissionRate").then(
     (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
@@ -276,17 +274,8 @@ loadFundData = () ->
   betoken.getPrimitiveVar("paused").then(
     (_result) -> paused.set(_result)
   )
-  betoken.getPrimitiveVar("maxProposalsPerMember").then(
-    (_result) -> maxProposalsPerMember.set(+_result)
-  )
-  betoken.getPrimitiveVar("maxProposals").then(
-    (_result) -> maxProposals.set(+_result)
-  )
   betoken.getPrimitiveVar("allowEmergencyWithdraw").then(
     (_result) -> allowEmergencyWithdraw.set(_result)
-  )
-  betoken.getPrimitiveVar("proposalsAreSold").then(
-    (_result) -> proposalsAreSold.set(_result)
   )
 
   #Get contract addresses
@@ -560,10 +549,6 @@ Template.top_bar.helpers(
   kairo_addr: () -> kairoAddr.get()
   kyber_addr: () -> kyberAddr.get()
   network_prefix: () -> networkPrefix.get()
-  next_phase_is_disabled: () ->
-    if cyclePhase.get() == 3 && proposalsAreSold.get() == false
-      return "disabled"
-    return ""
 )
 
 Template.top_bar.events(
@@ -753,12 +738,12 @@ Template.proposals_tab.helpers(
 
   is_disabled: (_id, _isSold, _buyPrice) ->
     if _id == "support" || _id == "against"
-      if cyclePhase.get() != 1
+      if cyclePhase.get() != 0
         return "disabled"
     else if _id == "execute"
-      if (cyclePhase.get() != 2 && cyclePhase.get() != 3) \
-          || (cyclePhase.get() == 2 && _buyPrice > 0) \
-          || (cyclePhase.get() == 3 && _isSold == true)
+      if (cyclePhase.get() != 1 && cyclePhase.get() != 2) \
+          || (cyclePhase.get() == 1 && _buyPrice > 0) \
+          || (cyclePhase.get() == 2 && _isSold == true)
         return "disabled"
     return ""
 )
@@ -798,19 +783,12 @@ Template.proposals_tab.events(
   "click .execute_proposal": (event) ->
     id = this.id
     switch cyclePhase.get()
-      when 2
+      when 1
         betoken.executeProposal(id, showTransaction)
-      when 3
+      when 2
         betoken.sellProposalAsset(id, showTransaction)
 
   "click .new_proposal": (event) ->
-    if (createdProposalCount.get() == maxProposalsPerMember.get())
-      showError("You have already created #{createdProposalCount.get()} proposals this cycle, which is the maximum amount. You can wait for the next cycle, or stake in existing proposals.")
-      return
-
-    if (maxProposals.get() == proposalList.get().length)
-      showError("#{maxProposals.get()} proposals have already been created this cycle, which is the maximum amount. You can wait for the next cycle, or stake in existing proposals.")
-
     $("#new_proposal_modal").modal(
       onApprove: (e) ->
         try

@@ -119,12 +119,10 @@ export Betoken = (_address) ->
       when 0
         funcName = "endChangeMakingTime"
       when 1
-        funcName = "endProposalMakingTime"
-      when 2
         funcName = "endWaitingPhase"
-      when 3
+      when 2
         funcName = "finalizeCycle"
-      when 4
+      when 3
         funcName = "startNewCycle"
     return getDefaultAccount().then(
       () ->
