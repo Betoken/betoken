@@ -3,12 +3,13 @@ pragma solidity ^0.4.18;
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 
 contract ShareToken is MintableToken {
+  using SafeMath for uint256;
 
   string public constant name = "Betoken Share";
   string public constant symbol = "BTKS";
   uint8 public constant decimals = 18;
 
-  event OwnerBurn(address _from, uint256 _value);
+  event OwnerBurn(address indexed _from, uint256 _value);
 
   /**
    * @dev Burns tokens.

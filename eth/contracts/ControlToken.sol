@@ -14,8 +14,7 @@ contract ControlToken is MintableToken, PausableToken {
   string public constant symbol = "KRO";
   uint8 public constant decimals = 18;
 
-  event OwnerCollectFrom(address _from, uint256 _value);
-  event OwnerBurn(address _from, uint256 _value);
+  event OwnerCollectFrom(address indexed _from, uint256 _value);
 
   /**
    * @dev Collects tokens for the owner.
@@ -31,23 +30,6 @@ contract ControlToken is MintableToken, PausableToken {
     balances[_from] = balances[_from].sub(_value);
     balances[msg.sender] = balances[msg.sender].add(_value);
     OwnerCollectFrom(_from, _value);
-    return true;
-  }
-
-  /**
-   * @dev Burns tokens.
-   * @param _from The address whose tokens you want to burn
-   * @param _value the amount of tokens to be burnt
-   * @return true if succeeded, false otherwise
-   */
-  function ownerBurn(address _from, uint256 _value) public onlyOwner returns(bool) {
-    require(_from != address(0));
-    require(_value <= balances[_from]);
-
-    // SafeMath.sub will throw if there is not enough balance.
-    balances[_from] = balances[_from].sub(_value);
-    totalSupply_ = totalSupply_.sub(_value);
-    OwnerBurn(_from, _value);
     return true;
   }
 

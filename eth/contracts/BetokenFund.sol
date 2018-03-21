@@ -14,15 +14,15 @@ import './Utils.sol';
 contract BetokenFund is Pausable, Utils {
   using SafeMath for uint256;
 
-  enum CyclePhase { ChangeMaking, Waiting, Finalizing, Finalized }
+  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Finalizing, Finalized }
 
   struct Proposal {
     address tokenAddress;
     uint256 cycleNumber;
+    uint256 stake;
+    uint256 tokenAmount;
     uint256 buyPriceInWeis;
     uint256 sellPriceInWeis;
-    uint256 numFor;
-    uint256 numAgainst;
     bool isSold;
   }
 
@@ -40,116 +40,107 @@ contract BetokenFund is Pausable, Utils {
     _;
   }
 
-  //Address of the control token contract.
+  // Address of the control token contract.
   address public controlTokenAddr;
 
-  //Address of the share token contract.
+  // Address of the share token contract.
   address public shareTokenAddr;
 
-  //Address of the KyberNetwork contract
+  // Address of the KyberNetwork contract
   address public kyberAddr;
 
-  //Address to which the developer fees will be paid.
+  // Address to which the developer fees will be paid.
   address public developerFeeAccount;
 
-  //The number of the current investment cycle.
+  // The number of the current investment cycle.
   uint256 public cycleNumber;
 
-  //10^{decimals} used for representing fixed point numbers with {decimals} decimals.
+  // 10^{decimals} used for representing fixed point numbers with {decimals} decimals.
   uint256 public PRECISION;
 
-  //The amount of funds held by the fund.
+  // The amount of funds held by the fund.
   uint256 public totalFundsInWeis;
 
-  //The start time for the current investment cycle phase, in seconds since Unix epoch.
+  // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
 
-  //Temporal length of change making period at start of each cycle, in seconds.
+  // Temporal length of change making period at start of each cycle, in seconds.
   uint256 public timeOfChangeMaking;
 
-  //Temporal length of waiting period, in seconds.
+  uint256 public timeOfProposalMaking;
+
+  // Temporal length of waiting period, in seconds.
   uint256 public timeOfWaiting;
 
   uint256 public timeOfFinalizing;
 
   uint256 public timeBetweenCycles;
 
-  //Minimum proportion of Kairo balance people have to stake in support of a proposal. Fixed point decimal.
+  // Minimum proportion of Kairo balance people have to stake in support of a proposal. Fixed point decimal.
   uint256 public minStakeProportion;
 
-  //The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
+  // The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
   uint256 public commissionRate;
 
-  //The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
+  // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
   uint256 public developerFeeProportion;
 
-  //Total Kairo staked in support of proposals this cycle.
-  uint256 public cycleTotalForStake;
-
-  //Amount of Kairo rewarded to the user who calls a phase transition/proposal handling function
+  // Amount of Kairo rewarded to the user who calls a phase transition/proposal handling function
   uint256 public functionCallReward;
 
-  //Amount of commission to be paid out this cycle
+  // Amount of commission to be paid out this cycle
   uint256 public totalCommission;
 
-  //Inflation rate of control token (KRO). Fixed point decimal.
+  // Inflation rate of control token (KRO). Fixed point decimal.
   uint256 public controlTokenInflation;
 
-  //Flag for whether emergency withdrawing is allowed.
+  // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
-  //Mapping from Proposal to total amount of Control Tokens being staked by supporters.
-  mapping(uint256 => uint256) public forStakedControlOfProposal;
-  mapping(uint256 => uint256) public againstStakedControlOfProposal;
-
-  //mapping(proposalId => mapping(participantAddress => stakedTokensInWeis))
-  mapping(uint256 => mapping(address => uint256)) public forStakedControlOfProposalOfUser;
-  mapping(uint256 => mapping(address => uint256)) public againstStakedControlOfProposalOfUser;
-
-  //Mapping to check if a proposal for a token has already been made.
-  mapping(address => bool) public isTokenAlreadyProposed;
-
-  //The last cycle where a user redeemed commission.
+  // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
 
-  //List of proposals in the current cycle.
-  Proposal[] public proposals;
+  // List of proposals in the current cycle.
+  mapping(address => Proposal[]) public userProposals;
 
-  //The current cycle phase.
+  // The current cycle phase.
   CyclePhase public cyclePhase;
 
-  //Contract instances
+  // Contract instances
   ControlToken internal cToken;
   ShareToken internal sToken;
   KyberNetwork internal kyber;
 
-  event CycleStarted(uint256 _cycleNumber, uint256 _timestamp);
-  event Deposit(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
-  event Withdraw(uint256 _cycleNumber, address _sender, uint256 _amountInWeis, uint256 _timestamp);
-  event NewProposal(uint256 _cycleNumber, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
-  event StakedProposal(uint256 _cycleNumber, uint256 _id, uint256 _stakeInWeis, bool _support);
-  event ChangeMakingTimeEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event CycleStarted(uint256 indexed _cycleNumber, uint256 _timestamp);
+  event Deposit(uint256 indexed _cycleNumber, address indexed _sender, uint256 _amountInWeis, uint256 _timestamp);
+  event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, uint256 _amountInWeis, uint256 _timestamp);
+  event ChangeMakingTimeEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
 
-  event WaitingPhaseEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event NewProposal(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
+  event ProposalMakingTimeEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
 
-  event AssetSold(uint256 _cycleNumber, uint256 _proposalId);
-  event SellingPhaseEnded(uint256 _cycleNumber, uint256 _timestamp);
+  event WaitingPhaseEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
 
-  event ROI(uint256 _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
-  event CommissionPaid(uint256 _cycleNumber, uint256 _totalCommissionInWeis);
-  event CycleFinalized(uint256 _cycleNumber, uint256 _timestamp);
+  event ProposalSold(uint256 indexed _cycleNumber, address indexed _sender, uint256 _proposalId, uint256 _receivedKairos);
+  event SellingPhaseEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
+
+  event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
+  event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
+  event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInWeis);
+  event CycleFinalized(uint256 indexed _cycleNumber, uint256 _timestamp);
 
   /**
    * Contract initialization functions
    */
 
-  //Constructor
+  // Constructor
   function BetokenFund(
     address _cTokenAddr,
     address _sTokenAddr,
     address _kyberAddr,
     address _developerFeeAccount,
     uint256 _timeOfChangeMaking,
+    uint256 _timeOfProposalMaking,
     uint256 _timeOfWaiting,
     uint256 _timeOfFinalizing,
     uint256 _timeBetweenCycles,
@@ -174,6 +165,7 @@ contract BetokenFund is Pausable, Utils {
 
     developerFeeAccount = _developerFeeAccount;
     timeOfChangeMaking = _timeOfChangeMaking;
+    timeOfProposalMaking = _timeOfProposalMaking;
     timeOfWaiting = _timeOfWaiting;
     timeOfFinalizing = _timeOfFinalizing;
     timeBetweenCycles = _timeBetweenCycles;
@@ -196,8 +188,8 @@ contract BetokenFund is Pausable, Utils {
    * Returns the length of the proposals array.
    * @return length of proposals array
    */
-  function proposalsCount() public view returns(uint256 _count) {
-    return proposals.length;
+  function proposalsCount(address _userAddr) public view returns(uint256 _count) {
+    return userProposals[_userAddr].length;
   }
 
   /**
@@ -211,16 +203,13 @@ contract BetokenFund is Pausable, Utils {
   /**
    * @dev In case the fund is invested in tokens, sell all tokens.
    */
-  function emergencyDumpAllTokens() onlyOwner whenPaused public {
-    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      emergencyDumpToken(i);
-    }
-  }
-
-  function emergencyDumpToken(uint256 _proposalId) onlyOwner whenPaused public {
-    if (__proposalIsValid(_proposalId)) { //Ensure proposal isn't a deleted one
-      __handleInvestment(_proposalId, false);
-    }
+  function emergencyDumpToken(address _tokenAddr)
+    public
+    onlyOwner
+    during(CyclePhase.Finalized)
+    whenPaused
+  {
+    __transactToken(_tokenAddr, ERC20(_tokenAddr).balanceOf(address(this)), false);
   }
 
   /**
@@ -228,16 +217,18 @@ contract BetokenFund is Pausable, Utils {
    */
   function emergencyRedeemStake(uint256 _proposalId) whenPaused public {
     require(allowEmergencyWithdraw);
-    uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(againstStakedControlOfProposalOfUser[_proposalId][msg.sender]);
-    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
+    Proposal storage prop = userProposals[msg.sender][_proposalId];
+    require(prop.cycleNumber == cycleNumber);
+    uint256 stake = prop.stake;
+    require(stake > 0);
+    delete prop.stake;
     cToken.transfer(msg.sender, stake);
   }
 
   /**
    * @dev Update current fund balance
    */
-  function emergencyRedistBalances() onlyOwner whenPaused public {
+  function emergencyUpdateBalance() onlyOwner whenPaused public {
     totalFundsInWeis = this.balance;
   }
 
@@ -258,10 +249,10 @@ contract BetokenFund is Pausable, Utils {
     sToken.ownerBurn(msg.sender, sToken.balanceOf(msg.sender));
     totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
 
-    //Transfer
+    // Transfer
     msg.sender.transfer(amountInWeis);
 
-    //Emit event
+    // Emit event
     Withdraw(cycleNumber, msg.sender, amountInWeis, now);
   }
 
@@ -341,7 +332,7 @@ contract BetokenFund is Pausable, Utils {
   function startNewCycle() public during(CyclePhase.Finalized) whenNotPaused rewardCaller {
     require(now >= startTimeOfCyclePhase.add(timeBetweenCycles));
 
-    //Update values
+    // Update values
     cyclePhase = CyclePhase.ChangeMaking;
     startTimeOfCyclePhase = now;
     cycleNumber = cycleNumber.add(1);
@@ -350,25 +341,8 @@ contract BetokenFund is Pausable, Utils {
       cToken.unpause();
     }
 
-    //Reset data
-    for (uint256 i = 0; i < proposals.length; i = i.add(1)) {
-      __resetProposalData(i);
-    }
-    delete proposals;
-    delete cycleTotalForStake;
-
-    //Emit event
+    // Emit event
     CycleStarted(cycleNumber, now);
-  }
-
-  /**
-   * @dev Resets cycle specific data for a give proposal
-   * @param _proposalId ID of proposal whose data will be reset
-   */
-  function __resetProposalData(uint256 _proposalId) internal {
-    delete isTokenAlreadyProposed[proposals[_proposalId].tokenAddress];
-    delete forStakedControlOfProposal[_proposalId];
-    delete againstStakedControlOfProposal[_proposalId];
   }
 
   /**
@@ -384,7 +358,7 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.ChangeMaking)
     whenNotPaused
   {
-    //Register investment
+    // Register investment
     if (cycleNumber == 1) {
       sToken.mint(msg.sender, msg.value);
     } else {
@@ -392,13 +366,13 @@ contract BetokenFund is Pausable, Utils {
     }
     totalFundsInWeis = totalFundsInWeis.add(msg.value);
 
-    //Give control tokens proportional to investment
-    //Uncomment if statement if not test version
-    //if (cycleNumber == 1) {
+    // Give control tokens proportional to investment
+    // Uncomment if statement if not test version
+    // if (cycleNumber == 1) {
       cToken.mint(msg.sender, msg.value);
-    //}
+    // }
 
-    //Emit event
+    // Emit event
     Deposit(cycleNumber, msg.sender, msg.value, now);
   }
 
@@ -413,16 +387,32 @@ contract BetokenFund is Pausable, Utils {
   {
     require(cycleNumber != 1);
 
-    //Subtract from account
+    // Subtract from account
     sToken.ownerBurn(msg.sender, _amountInWeis.mul(sToken.totalSupply()).div(totalFundsInWeis));
     totalFundsInWeis = totalFundsInWeis.sub(_amountInWeis);
 
-    //Transfer Ether to user
+    // Transfer Ether to user
     msg.sender.transfer(_amountInWeis);
 
-    //Emit event
+    // Emit event
     Withdraw(cycleNumber, msg.sender, _amountInWeis, now);
   }
+
+  /**
+   * @dev Ends the ChangeMaking phase.
+   */
+  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
+    require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
+
+    startTimeOfCyclePhase = now;
+    cyclePhase = CyclePhase.ProposalMaking;
+
+    ChangeMakingTimeEnded(cycleNumber, now);
+  }
+
+  /**
+   * Proposal Making time functions
+   */
 
   /**
    * @dev Creates a new investment proposal for an ERC20 token.
@@ -434,166 +424,50 @@ contract BetokenFund is Pausable, Utils {
     uint256 _stakeInWeis
   )
     public
-    during(CyclePhase.ChangeMaking)
+    during(CyclePhase.ProposalMaking)
     whenNotPaused
   {
-    require(!isTokenAlreadyProposed[_tokenAddress]);
+    // Check if token is valid
+    require(ERC20(_tokenAddress).totalSupply() > 0);
 
-    //Add proposal to list
-    proposals.push(Proposal({
+    // Collect stake
+    cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
+
+    // Add proposal to list
+    userProposals[msg.sender].push(Proposal({
       tokenAddress: _tokenAddress,
       cycleNumber: cycleNumber,
+      stake: _stakeInWeis,
+      tokenAmount: 0,
       buyPriceInWeis: 0,
       sellPriceInWeis: 0,
-      numFor: 0,
-      numAgainst: 0,
       isSold: false
     }));
 
-    //Update values about proposal
-    isTokenAlreadyProposed[_tokenAddress] = true;
+    // Invest
+    __handleInvestment(proposalsCount(msg.sender) - 1, true);
 
-    //Stake control tokens
-    uint256 proposalId = proposals.length - 1;
-    stakeProposal(proposalId, _stakeInWeis, true);
-
-    //Emit event
-    NewProposal(cycleNumber, proposalId, _tokenAddress, _stakeInWeis);
+    // Emit event
+    NewProposal(cycleNumber, msg.sender, proposalsCount(msg.sender) - 1, _tokenAddress, _stakeInWeis);
   }
 
-  /**
-   * @dev Stakes for or against an investment proposal.
-   * @param _proposalId ID of the proposal the user wants to support
-   * @param _stakeInWeis amount of Kairo to be staked in support of the proposal
-   */
-  function stakeProposal(uint256 _proposalId, uint256 _stakeInWeis, bool _support)
+  function endProposalMakingTime()
     public
-    during(CyclePhase.ChangeMaking)
+    during(CyclePhase.ProposalMaking)
     whenNotPaused
+    rewardCaller
   {
-    require(_proposalId < proposals.length); //Valid ID
-    require(isTokenAlreadyProposed[proposals[_proposalId].tokenAddress]); //Non-empty proposal
-
-    /**
-     * Stake Kairos
-     */
-    //Ensure stake is larger than the minimum proportion of Kairo balance
-    require(_stakeInWeis.mul(PRECISION) >= minStakeProportion.mul(cToken.balanceOf(msg.sender)));
-    require(_stakeInWeis > 0); //Ensure positive stake amount
-
-    //Collect Kairos as stake
-    cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
-
-    //Update stake data
-    if (_support && againstStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
-      //Support proposal, hasn't staked against it
-      if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
-        proposals[_proposalId].numFor = proposals[_proposalId].numFor.add(1);
-      }
-      forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].add(_stakeInWeis);
-      forStakedControlOfProposalOfUser[_proposalId][msg.sender] = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
-      cycleTotalForStake = cycleTotalForStake.add(_stakeInWeis);
-    } else if (!_support && forStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
-      //Against proposal, hasn't staked for it
-      if (againstStakedControlOfProposalOfUser[_proposalId][msg.sender] == 0) {
-        proposals[_proposalId].numAgainst = proposals[_proposalId].numAgainst.add(1);
-      }
-      againstStakedControlOfProposal[_proposalId] = againstStakedControlOfProposal[_proposalId].add(_stakeInWeis);
-      againstStakedControlOfProposalOfUser[_proposalId][msg.sender] = againstStakedControlOfProposalOfUser[_proposalId][msg.sender].add(_stakeInWeis);
-    } else {
-      revert();
-    }
-
-    //Emit event
-    StakedProposal(cycleNumber, _proposalId, _stakeInWeis, _support);
-  }
-
-  /**
-   * @dev Cancels staking in a proposal.
-   * @param _proposalId ID of the proposal
-   */
-  function cancelProposalStake(uint256 _proposalId)
-    public
-    during(CyclePhase.ChangeMaking)
-    whenNotPaused
-  {
-    require(_proposalId < proposals.length); //Valid ID
-    require(__proposalIsValid(_proposalId)); //Non-empty proposal
-
-    //Remove stake data
-    uint256 forStake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    uint256 againstStake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    uint256 stake = forStake.add(againstStake);
-    if (forStake > 0) {
-      forStakedControlOfProposal[_proposalId] = forStakedControlOfProposal[_proposalId].sub(stake);
-      cycleTotalForStake = cycleTotalForStake.sub(stake);
-      proposals[_proposalId].numFor = proposals[_proposalId].numFor.sub(1);
-    } else if (againstStake > 0) {
-      againstStakedControlOfProposal[_proposalId] = againstStakedControlOfProposal[_proposalId].sub(stake);
-      proposals[_proposalId].numAgainst = proposals[_proposalId].numAgainst.sub(1);
-    } else {
-      return;
-    }
-
-    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-
-    //Return stake
-    cToken.transfer(msg.sender, stake);
-
-    //Delete proposal if necessary
-    if (proposals[_proposalId].numFor == 0) {
-      __resetProposalData(_proposalId);
-    }
-  }
-
-  /**
-   * @dev Returns Kairos staked on the opposing side of a deleted proposal. Can only do so within the same cycle as the
-   *  proposal.
-   * @param _proposalId ID of the proposal
-   */
-  function redeemStakeFromDeletedProposal(uint256 _proposalId)
-    public
-    whenNotPaused
-  {
-    require(!__proposalIsValid(_proposalId));
-    require(proposals[_proposalId].cycleNumber == cycleNumber); //Prevent getting back stake from previous cycles
-    uint256 stake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    require(stake > 0);
-    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    cToken.transfer(msg.sender, stake);
-  }
-
-  /**
-   * @dev Ends the ChangeMaking phase.
-   */
-  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
-    require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
+    require(now >= startTimeOfCyclePhase.add(timeOfProposalMaking));
 
     startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Waiting;
 
-    ChangeMakingTimeEnded(cycleNumber, now);
+    ProposalMakingTimeEnded(cycleNumber, now);
   }
 
   /**
    * Waiting phase functions
    */
-
-  /**
-   * @dev Called by user to buy the assets of a proposal
-   * @param _proposalId the ID of the proposal
-   */
-  function executeProposal(uint256 _proposalId)
-    public
-    during(CyclePhase.Waiting)
-    whenNotPaused
-    rewardCaller
-  {
-    require(__proposalIsValid(_proposalId));
-    require(proposals[_proposalId].buyPriceInWeis == 0);
-    __handleInvestment(_proposalId, true);
-  }
 
   function endWaitingPhase()
     public
@@ -621,47 +495,20 @@ contract BetokenFund is Pausable, Utils {
     public
     during(CyclePhase.Finalizing)
     whenNotPaused
-    rewardCaller
   {
-    require(__proposalIsValid(_proposalId));
-    require(proposals[_proposalId].buyPriceInWeis > 0);
+    Proposal storage prop = userProposals[msg.sender][_proposalId];
+    require(prop.buyPriceInWeis > 0);
+    require(prop.cycleNumber == cycleNumber);
+    require(!prop.isSold);
+
     __handleInvestment(_proposalId, false);
-    proposals[_proposalId].isSold = true;
-  }
+    prop.isSold = true;
 
-  /**
-   * @dev Redeems the Kairo stake and reward for a particular proposal
-   * @param _proposalId the ID of the proposal
-   */
-  function redeemKairos(uint256 _proposalId)
-    public
-    during(CyclePhase.Finalizing)
-    whenNotPaused
-  {
-    Proposal storage prop = proposals[_proposalId];
-    require(prop.isSold);
+    uint256 multiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis).add(controlTokenInflation);
+    uint256 receiveKairoAmount = prop.stake.mul(multiplier).div(PRECISION);
+    cToken.mint(msg.sender, receiveKairoAmount);
 
-    uint256 stake = 0;
-    if (forStakedControlOfProposalOfUser[_proposalId][msg.sender] > 0) {
-      //User supports proposal
-      stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-      //Mint instead of transfer. Ensures that there are always enough tokens.
-      //Extra will be burnt right after so no problem there.
-      uint256 forMultiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis).add(controlTokenInflation);
-      cToken.mint(msg.sender, stake.mul(forMultiplier).div(PRECISION));
-      delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    } else if (againstStakedControlOfProposalOfUser[_proposalId][msg.sender] > 0) {
-      //User is against proposal
-      stake = againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-      //Mint instead of transfer. Ensures that there are always enough tokens.
-      //Extra will be burnt right after so no problem there.
-      uint256 againstMultiplier = controlTokenInflation;
-      if (prop.sellPriceInWeis < prop.buyPriceInWeis.mul(2)) {
-        againstMultiplier = againstMultiplier.add(prop.buyPriceInWeis.mul(2).sub(prop.sellPriceInWeis).mul(PRECISION).div(prop.buyPriceInWeis));
-      }
-      cToken.mint(msg.sender, stake.mul(againstMultiplier).div(PRECISION));
-      delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    }
+    ProposalSold(cycleNumber, msg.sender, _proposalId, receiveKairoAmount);
   }
 
   /**
@@ -670,19 +517,19 @@ contract BetokenFund is Pausable, Utils {
   function finalizeCycle() public during(CyclePhase.Finalizing) whenNotPaused rewardCaller {
     require(now >= startTimeOfCyclePhase.add(timeOfFinalizing));
 
-    //Update cycle values
+    // Update cycle values
     startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.Finalized;
 
-    //Burn any Kairo left in BetokenFund's account
+    // Burn any Kairo left in BetokenFund's account
     cToken.burnOwnerBalance();
 
     cToken.pause();
 
-    //Distribute funds
+    // Distribute funds
     __distributeFundsAfterCycleEnd();
 
-    //Emit event
+    // Emit event
     CycleFinalized(cycleNumber, now);
   }
 
@@ -691,7 +538,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * Redeems commission.
+   * @dev Redeems commission.
    */
   function redeemCommission()
     public
@@ -700,35 +547,32 @@ contract BetokenFund is Pausable, Utils {
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    msg.sender.transfer(totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply()));
+    uint256 commission = totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply());
+    msg.sender.transfer(commission);
+
+    // Reset data
+    delete userProposals[msg.sender];
+
+    CommissionPaid(cycleNumber, msg.sender, commission);
   }
 
   /**
-   * @dev Redeems staked Kairo from a proposal that wasn't sold in the Finalizing phase.
-   * @param _proposalId the ID of the proposal
+   * @dev Sells tokens left over due to manager not selling or KyberNetwork not having enough demand.
+   * @param _tokenAddr address of the token to be sold
    */
-  function redeemStakeFromUnsoldProposal(uint256 _proposalId)
+  function sellLeftoverToken(address _tokenAddr)
     public
     during(CyclePhase.Finalized)
     whenNotPaused
   {
-    require(__proposalIsValid(_proposalId));
-    require(!proposals[_proposalId].isSold);
-    require(proposals[_proposalId].cycleNumber == cycleNumber);
-    uint256 stake = forStakedControlOfProposalOfUser[_proposalId][msg.sender].add(againstStakedControlOfProposalOfUser[_proposalId][msg.sender]);
-    require(stake > 0);
-    delete forStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    delete againstStakedControlOfProposalOfUser[_proposalId][msg.sender];
-    cToken.transfer(msg.sender, stake);
+    uint256 beforeBalance = this.balance;
+    __transactToken(_tokenAddr, ERC20(_tokenAddr).balanceOf(address(this)), false);
+    totalFundsInWeis = totalFundsInWeis.add(this.balance.sub(beforeBalance));
   }
 
   /**
    * Internal use functions
    */
-
-  function __proposalIsValid(uint256 _proposalId) internal view returns (bool) {
-    return proposals[_proposalId].numFor > 0;
-  }
 
   /**
    * @dev Distributes the funds accourding to previously held proportions. Pays commission to Kairo holders,
@@ -743,36 +587,48 @@ contract BetokenFund is Pausable, Utils {
     uint256 devFee = developerFeeProportion.mul(this.balance).div(PRECISION);
     uint256 newTotalFunds = this.balance.sub(totalCommission).sub(devFee);
 
-    //Update values
+    // Update values
     ROI(cycleNumber, totalFundsInWeis, newTotalFunds);
     totalFundsInWeis = newTotalFunds;
 
-    //Transfer fees
+    // Transfer fees
     developerFeeAccount.transfer(devFee);
 
-    //Emit event
-    CommissionPaid(cycleNumber, totalCommission);
+    // Emit event
+    TotalCommissionPaid(cycleNumber, totalCommission);
   }
 
   function __handleInvestment(uint256 _proposalId, bool _buy) internal {
+    Proposal storage prop = userProposals[msg.sender][_proposalId];
     uint256 srcAmount;
+    if (_buy) {
+      srcAmount = totalFundsInWeis.mul(prop.stake).div(cToken.totalSupply());
+    } else {
+      srcAmount = prop.tokenAmount;
+    }
+    uint256 actualRate = __transactToken(prop.tokenAddress, srcAmount, _buy);
+    if (_buy) {
+      prop.buyPriceInWeis = actualRate;
+    } else {
+      prop.sellPriceInWeis = actualRate;
+    }
+  }
+
+  function __transactToken(address _tokenAddr, uint256 _srcAmount, bool _buy) internal returns(uint256 _actualRate) {
     uint256 actualDestAmount;
-    uint256 actualRate;
-    address destAddr = proposals[_proposalId].tokenAddress;
+    uint256 beforeBalance;
+    address destAddr = _tokenAddr;
     DetailedERC20 destToken = DetailedERC20(destAddr);
 
     if (_buy) {
-      //Make buy orders
+      // Make buy orders
 
-      //Calculate investment amount
-      srcAmount = totalFundsInWeis.mul(forStakedControlOfProposal[_proposalId]).div(cycleTotalForStake);
+      beforeBalance = this.balance;
 
-      uint256 beforeBalance = this.balance;
-
-      //Do trade
-      actualDestAmount = kyber.trade.value(srcAmount)(
+      // Do trade
+      actualDestAmount = kyber.trade.value(_srcAmount)(
         ETH_TOKEN_ADDRESS,
-        srcAmount,
+        _srcAmount,
         destToken,
         address(this),
         MAX_QTY,
@@ -780,21 +636,19 @@ contract BetokenFund is Pausable, Utils {
         address(this)
       );
 
-      //Record buy price
+      // Record buy price
       require(actualDestAmount > 0);
-      actualRate = beforeBalance.sub(this.balance).mul(PRECISION).div(actualDestAmount);
-      proposals[_proposalId].buyPriceInWeis = actualRate;
+      _actualRate = beforeBalance.sub(this.balance).mul(PRECISION).div(actualDestAmount);
     } else {
-      //Make sell orders
+      // Make sell orders
 
-      //Get sell amount
-      srcAmount = destToken.balanceOf(address(this));
+      beforeBalance = destToken.balanceOf(address(this));
 
-      //Do trade
-      destToken.approve(kyberAddr, srcAmount);
+      // Do trade
+      destToken.approve(kyberAddr, _srcAmount);
       actualDestAmount = kyber.trade(
         destToken,
-        srcAmount,
+        _srcAmount,
         ETH_TOKEN_ADDRESS,
         address(this),
         MAX_QTY,
@@ -803,10 +657,9 @@ contract BetokenFund is Pausable, Utils {
       );
       destToken.approve(kyberAddr, 0);
 
-      //Record sell price
-      require(srcAmount > destToken.balanceOf(address(this)));
-      actualRate = actualDestAmount.mul(PRECISION).div(srcAmount.sub(destToken.balanceOf(address(this))));
-      proposals[_proposalId].sellPriceInWeis = actualRate;
+      // Record sell price
+      require(beforeBalance > destToken.balanceOf(address(this)));
+      _actualRate = actualDestAmount.mul(PRECISION).div(beforeBalance.sub(destToken.balanceOf(address(this))));
     }
   }
 
