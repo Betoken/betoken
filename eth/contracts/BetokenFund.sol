@@ -94,6 +94,9 @@ contract BetokenFund is Pausable, Utils {
   // Inflation rate of control token (KRO). Fixed point decimal.
   uint256 public controlTokenInflation;
 
+  // The AUM (Asset Under Management) threshold for progressing to ProposalMakingTime in the first cycle.
+  uint256 public aumThresholdInWeis;
+
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
@@ -149,7 +152,8 @@ contract BetokenFund is Pausable, Utils {
     uint256 _developerFeeProportion,
     uint256 _cycleNumber,
     uint256 _functionCallReward,
-    uint256 _controlTokenInflation
+    uint256 _controlTokenInflation,
+    uint256 _aumThresholdInWeis
   )
     public
   {
@@ -177,6 +181,7 @@ contract BetokenFund is Pausable, Utils {
     cycleNumber = _cycleNumber;
     functionCallReward = _functionCallReward;
     controlTokenInflation = _controlTokenInflation;
+    aumThresholdInWeis = _aumThresholdInWeis;
     allowEmergencyWithdraw = false;
   }
 
@@ -403,6 +408,10 @@ contract BetokenFund is Pausable, Utils {
    */
   function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
     require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
+
+    if (cycleNumber == 1) {
+      require(totalFundsInWeis >= aumThresholdInWeis);
+    }
 
     startTimeOfCyclePhase = now;
     cyclePhase = CyclePhase.ProposalMaking;
