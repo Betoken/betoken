@@ -642,7 +642,7 @@ contract BetokenFund is Pausable, Utils {
         address(this),
         MAX_QTY,
         1,
-        address(this)
+        0
       );
 
       // Record buy price
@@ -662,7 +662,7 @@ contract BetokenFund is Pausable, Utils {
         address(this),
         MAX_QTY,
         1,
-        address(this)
+        0
       );
       destToken.approve(kyberAddr, 0);
 
