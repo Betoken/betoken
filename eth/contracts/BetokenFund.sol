@@ -76,9 +76,6 @@ contract BetokenFund is Pausable, Utils {
 
   uint256 public timeBetweenCycles;
 
-  // Minimum proportion of Kairo balance people have to stake in support of a proposal. Fixed point decimal.
-  uint256 public minStakeProportion;
-
   // The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
   uint256 public commissionRate;
 
@@ -147,7 +144,6 @@ contract BetokenFund is Pausable, Utils {
     uint256 _timeOfWaiting,
     uint256 _timeOfFinalizing,
     uint256 _timeBetweenCycles,
-    uint256 _minStakeProportion,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _cycleNumber,
@@ -157,7 +153,6 @@ contract BetokenFund is Pausable, Utils {
   )
     public
   {
-    require(_minStakeProportion < 10**18);
     require(_commissionRate.add(_developerFeeProportion) < 10**18);
 
     controlTokenAddr = _cTokenAddr;
@@ -173,7 +168,6 @@ contract BetokenFund is Pausable, Utils {
     timeOfWaiting = _timeOfWaiting;
     timeOfFinalizing = _timeOfFinalizing;
     timeBetweenCycles = _timeBetweenCycles;
-    minStakeProportion = _minStakeProportion;
     commissionRate = _commissionRate;
     developerFeeProportion = _developerFeeProportion;
     startTimeOfCyclePhase = 0;
