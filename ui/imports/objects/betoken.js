@@ -4,7 +4,7 @@
  * Sets the first account as defaultAccount
  * @return {Promise} .then(()->)
  */
-var Web3, getDefaultAccount, web3;
+var ERC20, Web3, getDefaultAccount, web3;
 
 Web3 = require('web3');
 
@@ -22,6 +22,12 @@ getDefaultAccount = function() {
   });
 };
 
+ERC20 = function(_tokenAddr) {
+  var erc20ABI;
+  erc20ABI = require("./abi/ERC20.json").abi;
+  return new web3.eth.Contract(erc20ABI, _tokenAddr);
+};
+
 /**
  * Constructs an abstraction of Betoken contracts
  * @param {String} _address the GroupFund contract's address
@@ -31,11 +37,13 @@ export var Betoken = function(_address) {
   self = this;
   self.contracts = {
     betokenFund: null,
-    controlToken: null
+    controlToken: null,
+    shareToken: null
   };
   self.addrs = {
     betokenFund: null,
-    controlToken: null
+    controlToken: null,
+    shareToken: null
   };
   /*
   Getters
@@ -67,6 +75,9 @@ export var Betoken = function(_address) {
   self.getDoubleMapping = function(_mappingName, _input1, _input2) {
     return self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call();
   };
+  self.getTokenSymbol = function(_tokenAddr) {
+    return ERC20(_tokenAddr).methods.symbol().call();
+  };
   /**
    * Gets the Kairo balance of an address
    * @param  {String} _address the address whose balance we're getting
@@ -79,44 +90,15 @@ export var Betoken = function(_address) {
     return self.contracts.controlToken.methods.totalSupply().call();
   };
   /**
-   * Gets an entire array
-   * @param  {String} _name name of the array
-   * @return {Promise}       .then((_array)->)
+   * Gets the Share balance of an address
+   * @param  {String} _address the address whose balance we're getting
+   * @return {Promise}          .then((_value)->)
    */
-  self.getArray = function(_name) {
-    var array;
-    array = [];
-    return self.contracts.betokenFund.methods[`${_name}Count`]().call().then(function(_count) {
-      var count, getAllItems, getItem, id;
-      count = +_count;
-      if (count === 0) {
-        return [];
-      }
-      array = new Array(count);
-      getItem = function(id) {
-        return self.contracts.betokenFund.methods[_name](id).call().then(function(_item) {
-          return new Promise(function(fullfill, reject) {
-            if (typeof _item !== null) {
-              array[id] = _item;
-              fullfill();
-            } else {
-              reject();
-            }
-          });
-        });
-      };
-      getAllItems = (function() {
-        var i, ref, results;
-        results = [];
-        for (id = i = 0, ref = count - 1; (0 <= ref ? i <= ref : i >= ref); id = 0 <= ref ? ++i : --i) {
-          results.push(getItem(id));
-        }
-        return results;
-      })();
-      return Promise.all(getAllItems);
-    }).then(function() {
-      return array;
-    });
+  self.getShareBalance = function(_address) {
+    return self.contracts.shareToken.methods.balanceOf(_address).call();
+  };
+  self.getShareTotalSupply = function() {
+    return self.contracts.shareToken.methods.totalSupply().call();
   };
   /*
   Phase handlers
@@ -135,12 +117,15 @@ export var Betoken = function(_address) {
         funcName = "endChangeMakingTime";
         break;
       case 1:
-        funcName = "endWaitingPhase";
+        funcName = "endProposalMakingTime";
         break;
       case 2:
-        funcName = "finalizeCycle";
+        funcName = "endWaitingPhase";
         break;
       case 3:
+        funcName = "finalizeCycle";
+        break;
+      case 4:
         funcName = "startNewCycle";
     }
     return getDefaultAccount().then(function() {
@@ -170,6 +155,23 @@ export var Betoken = function(_address) {
       }).on("transactionHash", _callback);
     });
   };
+  self.depositToken = function(_tokenAddr, _tokenAmount, _callback) {
+    return getDefaultAccount().then(function() {
+      var token;
+      token = ERC20(_tokenAddr);
+      return token.methods.approve(self.addrs.betokenFund, 0).send({
+        from: web3.eth.defaultAccount
+      }).on("transactionHash", _callback).then(function() {
+        return token.methods.approve(self.addrs.betokenFund, _tokenAmount).send({
+          from: web3.eth.defaultAccount
+        }).on("transactionHash", _callback);
+      }).then(function() {
+        return self.contracts.betokenFund.methods.depositToken(_tokenAddr, _tokenAmount).send({
+          from: web3.eth.defaultAccount
+        }).on("transactionHash", _callback);
+      });
+    });
+  };
   /**
    * Allows user to withdraw from GroupFund balance
    * @param  {BigNumber} _amountInWeis the withdrawl amount
@@ -179,6 +181,13 @@ export var Betoken = function(_address) {
   self.withdraw = function(_amountInWeis, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({
+        from: web3.eth.defaultAccount
+      }).on("transactionHash", _callback);
+    });
+  };
+  self.withdrawToken = function(_tokenAddr, _tokenAmount, _callback) {
+    return getDefaultAccount().then(function() {
+      return self.contracts.betokenFund.methods.withdrawToken(_tokenAddr, _tokenAmount).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -198,13 +207,27 @@ export var Betoken = function(_address) {
   /**
    * Sends Kairo to another address
    * @param  {String} _to           the recipient address
-   * @param  {BigNumber} _amountInWeis the withdrawl amount
+   * @param  {BigNumber} _amountInWeis the amount
    * @param  {Function} _callback     will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
   self.sendKairo = function(_to, _amountInWeis, _callback) {
     return getDefaultAccount().then(function() {
       return self.contracts.controlToken.methods.transfer(_to, _amountInWeis).send({
+        from: web3.eth.defaultAccount
+      }).on("transactionHash", _callback);
+    });
+  };
+  /**
+   * Sends Shares to another address
+   * @param  {String} _to           the recipient address
+   * @param  {BigNumber} _amountInWeis the amount
+   * @param  {Function} _callback     will be called after tx hash is generated
+   * @return {Promise}               .then(()->)
+   */
+  self.sendShares = function(_to, _amountInWeis, _callback) {
+    return getDefaultAccount().then(function() {
+      return self.contracts.shareToken.methods.transfer(_to, _amountInWeis).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -226,47 +249,22 @@ export var Betoken = function(_address) {
       }).on("transactionHash", _callback);
     });
   };
-  /**
-   * Stakes for or against a proposal
-   * @param  {Integer} _proposalId   the proposal ID
-   * @param  {BigNumber} _stakeInWeis the investment amount
-   * @param  {Boolean} _support the stance of user
-   * @param  {Function} _callback will be called after tx hash is generated
-   * @return {Promise}               .then(()->)
-   */
-  self.stakeProposal = function(_proposalId, _stakeInWeis, _support, _callback) {
+  /*
+  Finalizing Phase functions
+  */
+  self.redeemKairo = function(_proposalId, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.stakeProposal(_proposalId, _stakeInWeis, _support).send({
-        from: web3.eth.defaultAccount
-      }).on("transactionHash", _callback);
-    });
-  };
-  /**
-   * Cancels user's stake in a proposal
-   * @param  {Integer} _proposalId the proposal ID
-   * @param  {Function} _callback will be called after tx hash is generated
-   * @return {Promise}             .then(()->)
-   */
-  self.cancelStake = function(_proposalId, _callback) {
-    return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.cancelProposalStake(_proposalId).send({
+      return self.contracts.betokenFund.methods.sellProposalAsset(_proposalId).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
   };
   /*
-  Proposal execution functions
+  Finalized Phase functions
   */
-  self.executeProposal = function(_proposalId, _callback) {
+  self.redeemCommission = function(_callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.executeProposal(_proposalId).send({
-        from: web3.eth.defaultAccount
-      }).on("transactionHash", _callback);
-    });
-  };
-  self.sellProposalAsset = function(_proposalId, _callback) {
-    return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.sellProposalAsset(_proposalId).send({
+      return self.contracts.betokenFund.methods.redeemCommission().send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
@@ -286,7 +284,15 @@ export var Betoken = function(_address) {
       //Initialize ControlToken contract
       self.addrs.controlToken = _controlTokenAddr;
       controlTokenABI = require("./abi/ControlToken.json").abi;
-      return self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken);
+      self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken);
+      //Get ShareToken address
+      return self.contracts.betokenFund.methods.shareTokenAddr().call();
+    }).then(function(_shareTokenAddr) {
+      var shareTokenABI;
+      //Initialize ShareToken contract
+      self.addrs.shareToken = _shareTokenAddr;
+      shareTokenABI = require("./abi/ShareToken.json").abi;
+      return self.contracts.shareToken = new web3.eth.Contract(shareTokenABI, self.addrs.shareToken);
     });
   };
   return self;

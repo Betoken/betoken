@@ -1,23 +1,30 @@
 BetokenFund = artifacts.require "BetokenFund"
 ControlToken = artifacts.require "ControlToken"
+ShareToken = artifacts.require "ShareToken"
 
 config = require "../deployment_configs/testnet.json"
 
 module.exports = (deployer, network, accounts) ->
-  deployer.deploy([[
-    BetokenFund,
-    config.kyberAddress, #KyberNetwork address
-    accounts[0], #developerFeeAccount
-    config.timeOfChangeMaking,#2 * 24 * 3600, #timeOfChangeMaking
-    config.timeOfProposalMaking,#2 * 24 * 3600, #timeOfProposalMaking
-    config.timeOfWaiting, #timeOfWaiting
-    config.minStakeProportion, #minStakeProportion
-    config.maxProposals, #maxProposals
-    config.commissionRate, #commissionRate
-    config.developerFeeProportion, #developerFeeProportion
-    config.maxProposalsPerMember, #maxProposalsPerMember
-    0 #cycleNumber
-  ], [ControlToken]]).then(
+  deployer.deploy([ControlToken, ShareToken]).then(
+    () ->
+      deployer.deploy(
+        BetokenFund,
+        ControlToken.deployed().address,
+        ShareToken.deployed().address,
+        config.kyberAddress,
+        accounts[0], #developerFeeAccount
+        config.timeOfChangeMaking,
+        config.timeOfProposalMaking,
+        config.timeOfWaiting,
+        config.timeOfFinalizing,
+        config.commissionRate,
+        config.developerFeeProportion,
+        0,
+        config.functionCallReward,
+        config.controlTokenInflation,
+        config.aumThreshold
+      )
+  ).then(
     () ->
       return ControlToken.deployed().then(
         (instance) ->
@@ -25,9 +32,9 @@ module.exports = (deployer, network, accounts) ->
       )
   ).then(
     () ->
-      return BetokenFund.deployed().then(
+      return ShareToken.deployed().then(
         (instance) ->
-          instance.initializeSubcontracts(ControlToken.address)
+          instance.transferOwnership(BetokenFund.address)
       )
   )
 

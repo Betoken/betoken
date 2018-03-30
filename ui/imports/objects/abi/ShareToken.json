@@ -108,15 +108,6 @@
     },
     {
       "constant": false,
-      "inputs": [],
-      "name": "unpause",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
       "inputs": [
         {
           "name": "_to",
@@ -139,20 +130,6 @@
       "type": "function"
     },
     {
-      "constant": true,
-      "inputs": [],
-      "name": "paused",
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "constant": false,
       "inputs": [
         {
@@ -167,7 +144,7 @@
       "name": "decreaseApproval",
       "outputs": [
         {
-          "name": "success",
+          "name": "",
           "type": "bool"
         }
       ],
@@ -204,15 +181,6 @@
           "type": "bool"
         }
       ],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "pause",
-      "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
       "type": "function"
@@ -283,7 +251,7 @@
       "name": "increaseApproval",
       "outputs": [
         {
-          "name": "success",
+          "name": "",
           "type": "bool"
         }
       ],
@@ -329,11 +297,6 @@
       "type": "function"
     },
     {
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "fallback"
-    },
-    {
       "anonymous": false,
       "inputs": [
         {
@@ -347,19 +310,7 @@
           "type": "uint256"
         }
       ],
-      "name": "OwnerCollectFrom",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "Pause",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "Unpause",
+      "name": "OwnerBurn",
       "type": "event"
     },
     {
@@ -458,22 +409,13 @@
           "type": "uint256"
         }
       ],
-      "name": "ownerCollectFrom",
+      "name": "ownerBurn",
       "outputs": [
         {
           "name": "",
           "type": "bool"
         }
       ],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "burnOwnerBalance",
-      "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
       "type": "function"

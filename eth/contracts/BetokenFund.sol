@@ -191,6 +191,10 @@ contract BetokenFund is Pausable, Utils {
     return userProposals[_userAddr].length;
   }
 
+  function proposals(address _userAddr) public view returns(Proposal[] _proposals) {
+    return userProposals[_userAddr];
+  }
+
   /**
    * Meta functions
    */
@@ -566,7 +570,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Called by user to sell the assets a proposal invested in
+   * @dev Called by user to sell the assets a proposal invested in. Returns the staked Kairo plus rewards.
    * @param _proposalId the ID of the proposal
    */
   function sellProposalAsset(uint256 _proposalId)

@@ -28,28 +28,27 @@ userAddress = new ReactiveVar("Not Available")
 userBalance = new ReactiveVar(BigNumber(0))
 kairoBalance = new ReactiveVar(BigNumber(0))
 kairoTotalSupply = new ReactiveVar(BigNumber(0))
+sharesBalance = new ReactiveVar(BigNumber(0))
+sharesTotalSupply = new ReactiveVar(BigNumber(0))
+
 cyclePhase = new ReactiveVar(0)
 startTimeOfCyclePhase = new ReactiveVar(0)
 timeOfChangeMaking = new ReactiveVar(0)
+timeOfProposalMaking = new ReactiveVar(0)
 timeOfWaiting = new ReactiveVar(0)
 timeOfFinalizing = new ReactiveVar(0)
 timeBetweenCycles = new ReactiveVar(0)
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
-supportedProposalList = new ReactiveVar([])
-againstProposalList = new ReactiveVar([])
-memberList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
-minStakeProportion = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
-cycleTotalForStake = new ReactiveVar(BigNumber(0))
 allowEmergencyWithdraw = new ReactiveVar(false)
 
 #Displayed variables
 kairoAddr = new ReactiveVar("")
+sharesAddr = new ReactiveVar("")
 kyberAddr = new ReactiveVar("")
-oraclizeAddr = new ReactiveVar("")
 displayedKairoBalance = new ReactiveVar(BigNumber(0))
 displayedKairoUnit = new ReactiveVar("KRO")
 countdownDay = new ReactiveVar(0)
@@ -133,10 +132,12 @@ clock = () ->
         when 0
           target = startTimeOfCyclePhase.get() + timeOfChangeMaking.get()
         when 1
-          target = startTimeOfCyclePhase.get() + timeOfWaiting.get()
+          target = startTimeOfCyclePhase.get() + timeOfProposalMaking.get()
         when 2
-          target = startTimeOfCyclePhase.get() + timeOfFinalizing.get()
+          target = startTimeOfCyclePhase.get() + timeOfWaiting.get()
         when 3
+          target = startTimeOfCyclePhase.get() + timeOfFinalizing.get()
+        when 4
           target = startTimeOfCyclePhase.get() + timeBetweenCycles.get()
 
       distance = target - now
@@ -158,9 +159,6 @@ clock = () ->
 
 loadFundData = () ->
   proposals = []
-  supportedProposals = []
-  againstProposals = []
-  members = []
   receivedROICount = 0
 
   #Get Network ID
@@ -216,33 +214,33 @@ loadFundData = () ->
       transactionHistory.set([])
       betoken.contracts.betokenFund.getPastEvents("Deposit",
         fromBlock: 0
+        filter: {_sender: _userAddress}
       ).then(
         (_events) ->
           for _event in _events
             data = _event.returnValues
-            if data._sender == _userAddress
-              tmp = transactionHistory.get()
-              tmp.push(
-                type: "Deposit"
-                amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
-                timestamp: new Date(+data._timestamp * 1e3).toString()
-              )
-              transactionHistory.set(tmp)
+            tmp = transactionHistory.get()
+            tmp.push(
+              type: "Deposit"
+              amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
+              timestamp: new Date(+data._timestamp * 1e3).toString()
+            )
+            transactionHistory.set(tmp)
       )
       betoken.contracts.betokenFund.getPastEvents("Withdraw",
         fromBlock: 0
+        filter: {_sender: _userAddress}
       ).then(
         (_events) ->
           for _event in _events
             data = _event.returnValues
-            if data._sender == _userAddress
-              tmp = transactionHistory.get()
-              tmp.push(
-                type: "Withdraw"
-                amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
-                timestamp: new Date(+data._timestamp * 1e3).toString()
-              )
-              transactionHistory.set(tmp)
+            tmp = transactionHistory.get()
+            tmp.push(
+              type: "Withdraw"
+              amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
+              timestamp: new Date(+data._timestamp * 1e3).toString()
+            )
+            transactionHistory.set(tmp)
       )
   )
 
@@ -256,6 +254,9 @@ loadFundData = () ->
   betoken.getPrimitiveVar("timeOfChangeMaking").then(
     (_time) -> timeOfChangeMaking.set(+_time)
   )
+  betoken.getPrimitiveVar("timeOfProposalMaking").then(
+    (_time) -> timeOfProposalMaking.set(+_time)
+  )
   betoken.getPrimitiveVar("timeOfWaiting").then(
     (_time) -> timeOfWaiting.set(+_time)
   )
@@ -268,9 +269,6 @@ loadFundData = () ->
   betoken.getPrimitiveVar("commissionRate").then(
     (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
   )
-  betoken.getPrimitiveVar("minStakeProportion").then(
-    (_result) -> minStakeProportion.set(BigNumber(_result).div(1e18))
-  )
   betoken.getPrimitiveVar("paused").then(
     (_result) -> paused.set(_result)
   )
@@ -280,12 +278,10 @@ loadFundData = () ->
 
   #Get contract addresses
   kairoAddr.set(betoken.addrs.controlToken)
+  sharesAddr.set(betoken.addrs.shareToken)
   betoken.getPrimitiveVar("kyberAddr").then(
     (_kyberAddr) ->
       kyberAddr.set(_kyberAddr)
-  )
-  betoken.getPrimitiveVar("oraclizeAddr").then(
-    (_result) -> oraclizeAddr.set(_result)
   )
 
   #Get statistics
@@ -352,126 +348,27 @@ loadFundData = () ->
       #Get total funds
       (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
     ),
-    betoken.getPrimitiveVar("cycleTotalForStake").then(
-      (_result) -> cycleTotalForStake.set(BigNumber(_result))
-    )
   ]).then(
     () ->
-      Promise.all([
-        betoken.getArray("proposals").then(
-          (_proposals) ->
-            allPromises = []
-            if _proposals.length > 0
-              getProposal = (i) ->
-                if _proposals[i].numFor > 0
-                  proposal = null
-                  return betoken.getMappingOrArrayItem("forStakedControlOfProposal", i).then(
-                    (_stake) ->
-                      investment = BigNumber(_stake).dividedBy(cycleTotalForStake.get()).times(web3.utils.fromWei(totalFunds.get().toString()))
-                      # TODO get token symbol using ERC20 contract
-                      proposal =
-                        id: i
-                        #token_symbol: _proposals[i].tokenSymbol
-                        address: _proposals[i].tokenAddress
-                        investment: investment.toFormat(4)
-                        for_stake: BigNumber(_stake).div(1e18).toFormat(4)
-                        supporters: _proposals[i].numFor
-                        opposers: _proposals[i].numAgainst
-                        is_sold: _proposals[i].isSold
-                        buy_price: +_proposals[i].buyPriceInWeis
-                  ).then(() -> betoken.getMappingOrArrayItem("againstStakedControlOfProposal", i).then(
-                    (_stake) ->
-                      proposal.against_stake = BigNumber(_stake).div(1e18).toFormat(4)
-                      proposals.push(proposal)
-                  ))
-              allPromises = (getProposal(i) for i in [0.._proposals.length - 1])
-            return Promise.all(allPromises)
-        ).then(
-          () ->
-            proposalList.set(proposals)
+      betoken.getPrimitiveVar("proposals").then(
+        (_proposals) ->
+          proposals = _proposals
+          if proposals.length == 0
             return
-        ).then(
-          () ->
-            #Filter out proposals the user supported
-            allPromises = []
-            filterProposal = (proposal) ->
-              betoken.getDoubleMapping("forStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
-                (_stake) ->
-                  _stake = BigNumber(web3.utils.fromWei(_stake))
-                  if _stake.greaterThan(0)
-                    proposal.user_stake = _stake
-                    supportedProposals.push(proposal)
-              )
-            allPromises = (filterProposal(proposal) for proposal in proposalList.get())
-            return Promise.all(allPromises)
-        ).then(
-          () ->
-            supportedProposalList.set(supportedProposals)
-            return
-        ).then(
-          () ->
-            #Filter out proposals the user is against
-            allPromises = []
-            filterProposal = (proposal) ->
-              betoken.getDoubleMapping("againstStakedControlOfProposalOfUser", proposal.id, userAddress.get()).then(
-                (_stake) ->
-                  _stake = BigNumber(web3.utils.fromWei(_stake))
-                  if _stake.greaterThan(0)
-                    proposal.user_stake = _stake
-                    againstProposals.push(proposal)
-              )
-            allPromises = (filterProposal(proposal) for proposal in proposalList.get())
-            return Promise.all(allPromises)
-        ).then(
-          () ->
-            againstProposalList.set(againstProposals)
-            return
-        ),
-        betoken.getArray("participants").then(
-          (_array) ->
-            #Get member addresses
-            members = new Array(_array.length)
-            if _array.length > 0
-              for i in [0.._array.length - 1]
-                members[i] = new Object()
-                members[i].address = _array[i]
-            return
-        ).then(
-          () ->
-            #Get member ETH balances
-            if members.length > 0
-              setBalance = (id) ->
-                betoken.getMappingOrArrayItem("balanceOf", members[id].address).then(
-                  (_eth_balance) ->
-                    members[id].eth_balance = BigNumber(web3.utils.fromWei(_eth_balance, "ether")).toFormat(4)
-                    return
-                )
-              allPromises = (setBalance(i) for i in [0..members.length - 1])
-              return Promise.all(allPromises)
-        ).then(
-          () ->
-            #Get member KRO balances
-            if members.length > 0
-              setBalance = (id) ->
-                betoken.getKairoBalance(members[id].address).then(
-                  (_kro_balance) ->
-                    members[id].kro_balance = BigNumber(web3.utils.fromWei(_kro_balance, "ether")).toFormat(4)
-                    return
-                )
-              allPromises = (setBalance(i) for i in [0..members.length - 1])
-              return Promise.all(allPromises)
-        ).then(
-          () ->
-            #Get member KRO proportions
-            for member in members
-              member.kro_proportion = BigNumber(member.kro_balance).dividedBy(web3.utils.fromWei(kairoTotalSupply.get().toString())).times(100).toPrecision(4)
-            return
-        ).then(
-          () ->
-            #Update reactive_list
-            memberList.set(members)
-        )
-      ])
+
+          handleProposal = (id) ->
+            betoken.getTokenSymbol(proposals[id]).then(
+              (_symbol) ->
+                proposals[id].id = id
+                proposals[id].tokenSymbol = _symbol
+                proposals[id].investment = BigNumber(proposals[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get())
+            )
+          handleAllProposals = (handleProposal(i) for i in [0..proposals.length])
+          Promise.all(getAllSymbols)
+      ).then(
+        () ->
+          proposalList.set(proposals)
+      )
   )
 
   return
@@ -547,6 +444,7 @@ Template.top_bar.helpers(
   allow_emergency_withdraw: () -> if allowEmergencyWithdraw.get() then "" else "disabled"
   betoken_addr: () -> betoken_addr.get()
   kairo_addr: () -> kairoAddr.get()
+  shares_addr: () -> sharesAddr.get()
   kyber_addr: () -> kyberAddr.get()
   network_prefix: () -> networkPrefix.get()
 )
@@ -574,9 +472,6 @@ Template.top_bar.events(
         catch error
           showError("Oops! That wasn't a valid contract address!")
     ).modal("show")
-
-  "click .refresh_button": (event) ->
-    loadFundData()
 
   "click .info_button": (event) ->
     $("#contract_info_modal").modal("show")
@@ -630,9 +525,9 @@ Template.transact_box.onCreated(
 
 Template.transact_box.helpers(
   is_disabled: (_type) ->
-    if cyclePhase.get() != 0 || (cycleNumber.get() == 1 && _type == "withdraw")
-      return "disabled"
-    return ""
+    if cyclePhase.get() != 0 || (cycleNumber.get() == 1 && _type == "withdraw")\
+        || (cycleNumber.get() == 4 && _type == "kairo")
+      "disabled"
 
   has_error: (input_id) ->
     hasError = false
@@ -647,8 +542,7 @@ Template.transact_box.helpers(
         hasError = Template.instance().kairoRecipientInputHasError.get()
 
     if hasError
-      return "error"
-    return ""
+      "error"
 
   transaction_history: () -> transactionHistory.get()
 )
@@ -708,23 +602,7 @@ Template.transact_box.events(
       Template.instance().kairoAmountInputHasError.set(true)
 )
 
-Template.staked_props_box.helpers(
-  supported_proposals: () -> supportedProposalList.get()
-  against_proposals: () -> againstProposalList.get()
-
-  is_disabled: () ->
-    if cyclePhase.get() != 1
-      return "disabled"
-    return ""
-)
-
-Template.staked_props_box.events(
-  "click .cancel_stake_button": (event) ->
-    betoken.cancelStake(this.id, showTransaction)
-)
-
 Template.stats_tab.helpers(
-  member_count: () -> memberList.get().length
   cycle_length: () -> BigNumber(timeOfChangeMaking.get() + timeOfProposalMaking.get() + timeOfWaiting.get()).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
@@ -735,58 +613,21 @@ Template.stats_tab.helpers(
 
 Template.proposals_tab.helpers(
   proposal_list: () -> proposalList.get()
+  should_have_actions: () -> cyclePhase.get() == 3
+  wei_to_eth: (_weis) -> BigNumber(_weis).div(1e18).toFormat(4)
 
-  is_disabled: (_id, _isSold, _buyPrice) ->
-    if _id == "support" || _id == "against"
-      if cyclePhase.get() != 0
-        return "disabled"
-    else if _id == "execute"
-      if (cyclePhase.get() != 1 && cyclePhase.get() != 2) \
-          || (cyclePhase.get() == 1 && _buyPrice > 0) \
-          || (cyclePhase.get() == 2 && _isSold == true)
-        return "disabled"
-    return ""
+  redeem_kro_is_disabled: (_isSold) ->
+    if _isSold then "disabled" else ""
+
+  new_proposal_is_disabled: () ->
+    if cyclePhase.get() == 1 then "" else "disabled"
 )
 
 Template.proposals_tab.events(
-  "click .support_proposal": (event) ->
-    id = this.id
-    if checkIfStakedOnOtherSide(id, true)
-      showError(STAKE_BOTH_SIDES_ERR)
-      return
-
-    $("#stake_proposal_modal_" + id).modal(
-      onApprove: (e) ->
-        try
-          kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
-          checkKairoAmountError(kairoAmountInWeis)
-          betoken.stakeProposal(id, kairoAmountInWeis, true, showTransaction)
-        catch error
-          showError(error.toString() || INPUT_ERR)
-    ).modal("show")
-
-  "click .against_proposal": (event) ->
-    id = this.id
-    if checkIfStakedOnOtherSide(id, false)
-      showError(STAKE_BOTH_SIDES_ERR)
-      return
-    $("#stake_proposal_modal_" + id).modal(
-      onApprove: (e) ->
-        try
-          kairoAmountInWeis = BigNumber($("#stake_input_" + id)[0].value).times("1e18")
-          checkKairoAmountError(kairoAmountInWeis)
-          betoken.stakeProposal(id, kairoAmountInWeis, false, showTransaction)
-        catch error
-          showError(error.toString() || INPUT_ERR)
-    ).modal("show")
-
   "click .execute_proposal": (event) ->
     id = this.id
-    switch cyclePhase.get()
-      when 1
-        betoken.executeProposal(id, showTransaction)
-      when 2
-        betoken.sellProposalAsset(id, showTransaction)
+    if cyclePhase.get() == 3
+      betoken.sellProposalAsset(id, showTransaction)
 
   "click .new_proposal": (event) ->
     $("#new_proposal_modal").modal(
@@ -799,28 +640,14 @@ Template.proposals_tab.events(
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)
 
-          betoken.createProposal(address, tickerSymbol, decimals, kairoAmountInWeis, showTransaction)
+          betoken.createProposal(address, kairoAmountInWeis, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
     ).modal("show")
 )
-
-checkIfStakedOnOtherSide = (_id, _pendingSupport) ->
-  proposals = if _pendingSupport then againstProposalList.get() else supportedProposalList.get()
-  for p in proposals
-    if p.id == _id
-      return true
-  return false
 
 checkKairoAmountError = (kairoAmountInWeis) ->
   if !kairoAmountInWeis.greaterThan(0)
     throw "Stake amount should be positive."
   if kairoAmountInWeis.greaterThan(kairoBalance.get())
     throw "You can't stake more Kairos than you have!"
-  if kairoAmountInWeis.dividedBy(kairoBalance.get()).lessThan(minStakeProportion.get())
-    throw "You need to stake at least #{minStakeProportion.get().mul(100)}% of you Kairo balance (#{kairoBalance.get().times(minStakeProportion.get()).dividedBy(1e18)} KRO)!"
-
-Template.members_tab.helpers(
-  member_list: () -> memberList.get()
-  network_prefix: () -> networkPrefix.get()
-)

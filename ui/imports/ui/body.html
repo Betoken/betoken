@@ -15,8 +15,7 @@
       <!-- Tabs -->
       <div class="ui top attached tabular menu">
         <a class="item active" data-tab="t1">Statistics</a>
-        <a class="item" data-tab="t2">Proposals</a>
-        <a class="item" data-tab="t3">Members</a>
+        <a class="item" data-tab="t2">My Decisions</a>
       </div>
 
       <!-- Tab contents -->
@@ -26,10 +25,6 @@
 
       <div class="ui bottom attached tab segment" data-tab="t2">
         {{> proposals_tab}}
-      </div>
-
-      <div class="ui bottom attached tab segment" data-tab="t3">
-        {{> members_tab}}
       </div>
     </div>
 
@@ -105,9 +100,6 @@
         <button class="circular ui icon button change_contract" style="float: right;">
           <i class="settings icon"></i>
         </button>
-        <button class="circular ui icon button refresh_button" style="float: right;">
-          <i class="refresh icon"></i>
-        </button>
         <button class="circular ui icon button info_button" style="float: right;">
           <i class="info icon"></i>
         </button>
@@ -145,6 +137,8 @@
         BetokenFund: <a href="https://{{network_prefix}}etherscan.io/address/{{betoken_addr}}">{{betoken_addr}}</a>
         <p></p>
         Kairo: <a href="https://{{network_prefix}}etherscan.io/address/{{kairo_addr}}">{{kairo_addr}}</a>
+        <p></p>
+        Shares: <a href="https://{{network_prefix}}etherscan.io/address/{{shares_addr}}">{{shares_addr}}</a>
         <p></p>
         KyberNetwork: <a href="https://{{network_prefix}}etherscan.io/address/{{kyber_addr}}">{{kyber_addr}}</a>
       </h5>
@@ -200,8 +194,8 @@
     </div>
     <div class="{{phase_active 1}} step">
       <div class="content">
-        <div class="title">Make Investments</div>
-        <div class="description">Create or stake in investment proposals</div>
+        <div class="title">Make Decisions</div>
+        <div class="description">Decide what tokens the fund should invest in</div>
       </div>
     </div>
     <div class="{{phase_active 2}} step">
@@ -212,8 +206,14 @@
     </div>
     <div class="{{phase_active 3}} step">
       <div class="content">
-        <div class="title">Cycle Finalized</div>
-        <div class="description">Cycle complete, wait for next cycle</div>
+        <div class="title">Redeem Stakes</div>
+        <div class="description">Redeem the Kairos you staked into your decisions</div>
+      </div>
+    </div>
+    <div class="{{phase_active 4}} step">
+      <div class="content">
+        <div class="title">Redeem Commission</div>
+        <div class="description">Redeem commission based on how much Kairos you hold</div>
       </div>
     </div>
   </div>
@@ -289,10 +289,6 @@
   <div class="row">
     {{> transact_box}}
   </div>
-
-  <div class="row">
-    {{> staked_props_box}}
-  </div>
 </template>
 
 <template name="transact_box">
@@ -350,7 +346,7 @@
 
     <div class="ui horizontal divider"></div>
 
-    <button class="kairo_send_button ui primary button fluid">Send</button>
+    <button class="kairo_send_button {{is_disabled "kairo"}} ui primary button fluid">Send</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="history">
@@ -377,76 +373,6 @@
       </tbody>
     </table>
   </div>
-</template>
-
-<template name="staked_props_box">
-  <h3>My Proposals</h3>
-
-  <div class="ui top attached tabular menu">
-    <a class="item active header" data-tab="for">For</a>
-    <a class="item header" data-tab="against">Against</a>
-  </div>
-
-  <div class="ui bottom attached tab segment active" data-tab="for">
-    <table class="ui tablet stackable table celled sortable">
-      <!-- Table header -->
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Symbol</th>
-          <th>Stake/KRO</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-
-      <!-- Actual table rows go here -->
-      <tbody>
-      {{#each supported_proposals}}
-        <tr>
-          <td>{{id}}</td>
-          <td>{{token_symbol}}</td>
-          <td>{{user_stake}}</td>
-          <td>
-            <button class="cancel_stake_button ui negative icon button {{is_disabled}}">
-              <i class="remove icon" style="text-align: center;"></i>
-            </button>
-          </td>
-        </tr>
-      {{/each}}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="ui bottom attached tab segment" data-tab="against">
-    <table class="ui tablet stackable table celled sortable">
-      <!-- Table header -->
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Symbol</th>
-          <th>Stake/KRO</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-
-      <!-- Actual table rows go here -->
-      <tbody>
-      {{#each against_proposals}}
-        <tr>
-          <td>{{id}}</td>
-          <td>{{token_symbol}}</td>
-          <td>{{user_stake}}</td>
-          <td>
-            <button class="cancel_stake_button ui negative icon button {{is_disabled}}">
-              <i class="remove icon" style="text-align: center;"></i>
-            </button>
-          </td>
-        </tr>
-      {{/each}}
-      </tbody>
-    </table>
-  </div>
-
 </template>
 
 <template name="stats_tab">
@@ -487,15 +413,6 @@
         <p></p>
         <div class="ui mini statistic">
           <div class="label">
-            Member Count
-          </div>
-          <div class="value">
-            {{member_count}}
-          </div>
-        </div>
-        <p></p>
-        <div class="ui mini statistic">
-          <div class="label">
             Cycle Length
           </div>
           <div class="value">
@@ -528,7 +445,7 @@
 <template name="proposals_tab">
   <div class="ui menu">
     <div class="item">
-      <div class="ui button new_proposal {{is_disabled}}">
+      <div class="ui button new_proposal {{new_proposal_is_disabled}}">
         New Proposal
       </div>
     </div>
@@ -541,9 +458,10 @@
       <th>#</th>
       <th>Token</th>
       <th>Current Investment</th>
-      <th>Opposition/KRO</th>
-      <th><i class="thumbs outline up icon"></i> / <i class="thumbs outline down icon"></i></th>
-      <th>Actions</th>
+      <th>Buy Price/ETH</th>
+      {{#if should_have_actions}}
+        <th>Action</th>
+      {{/if}}
     </tr>
     </thead>
 
@@ -554,7 +472,7 @@
           <td>{{id}}</td>
           <td>
             <h5 style="text-align: center;">
-              {{token_symbol}} @ <a href="https://etherscan.io/address/{{address}}">{{address}}</a>
+              {{tokenSymbol}} @ <a href="https://etherscan.io/address/{{tokenAddress}}">{{tokenAddress}}</a>
             </h5>
             <script type="text/javascript">
               baseUrl = "https://widgets.cryptocompare.com/";
@@ -566,47 +484,22 @@
                 var s = document.createElement("script");
                 s.type = "text/javascript";
                 s.async = true;
-                var theUrl = baseUrl+'serve/v1/coin/chart?fsym={{token_symbol}}&tsym=USD';
+                var theUrl = baseUrl+'serve/v1/coin/chart?fsym={{tokenSymbol}}&tsym=USD';
                 s.src = theUrl + ( theUrl.indexOf("?") >= 0 ? "&" : "?") + "app=" + appName;
                 embedder.parentNode.appendChild(s);
               })();
             </script>
           </td>
-          <td>{{investment}} ETH / {{for_stake}} KRO</td>
-          <td>{{against_stake}}</td>
-          <td>{{supporters}} / {{opposers}}</td>
-          <td>
-            <div class="ui positive icon button {{is_disabled "support" false 0}} support_proposal">
-              <i class="thumbs outline up icon"></i>
-            </div>
-            <p></p>
-            <div class="ui negative icon button {{is_disabled "against" false 0}} against_proposal">
-              <i class="thumbs outline down icon"></i>
-            </div>
-            <p></p>
-            <div class="ui yellow icon button {{is_disabled "execute" is_sold buy_price}} execute_proposal">
-              <i class="bolt icon"></i>
-            </div>
-          </td>
+          <td>{{investment}} ETH / {{stake}} KRO</td>
+          <td>{{wei_to_eth buyPriceInWeis}}</td>
+          {{#if should_have_actions}}
+            <td>
+              <div class="ui yellow icon button {{redeem_kro_is_disabled isSold}} execute_proposal">
+                <i class="bolt icon"></i>
+              </div>
+            </td>
+          {{/if}}
         </tr>
-        <!--Stake Proposal Modal-->
-        <div class="ui basic modal" id="stake_proposal_modal_{{id}}">
-          <div class="ui icon header">
-            <i class="line chart icon"></i>
-            Stake into an investment proposal
-          </div>
-          <div class="content">
-            <div class="ui left fluid inverted transparent input">
-              <input id="stake_input_{{id}}"  placeholder="Amount of KRO you want to stake into this proposal..." type="text">
-            </div>
-          </div>
-          <div class="actions">
-            <div class="ui green ok inverted button fluid">
-              <i class="checkmark icon"></i>
-              Stake
-            </div>
-          </div>
-        </div>
       {{/each}}
     </tbody>
   </table>
@@ -623,7 +516,7 @@
       </div>
       <div class="ui divider"></div>
       <div class="ui left fluid inverted transparent input">
-        <input id="stake_input_new"  placeholder="Amount of KRO you want to stake in support of this proposal..." type="text">
+        <input id="stake_input_new"  placeholder="How much KRO would you bet that this token will perform the best?" type="text">
       </div>
     </div>
     <div class="actions">
@@ -633,34 +526,4 @@
       </div>
     </div>
   </div>
-</template>
-
-<template name="members_tab">
-  <!-- Table for the Participants goes here -->
-  <table class="ui tablet stackable table celled sortable">
-
-    <!-- Table header -->
-    <thead>
-      <tr>
-        <th>Address</th>
-        <th>Ether Balance</th>
-        <th>Kairo Balance</th>
-        <th>Kairo Proportion</th>
-      </tr>
-    </thead>
-
-    <!-- Actual table rows go here -->
-    <tbody>
-      {{#each member_list}}
-        <tr>
-          <td>
-            <a href="https://{{network_prefix}}etherscan.io/address/{{address}}">{{address}}</a>
-          </td>
-          <td>{{eth_balance}} ETH</td>
-          <td>{{kro_balance}} KRO</td>
-          <td>{{kro_proportion}}%</td>
-        </tr>
-      {{/each}}
-    </tbody>
-  </table>
 </template>
