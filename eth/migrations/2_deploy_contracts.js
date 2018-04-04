@@ -12,7 +12,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.deploy([ControlToken, ShareToken]).then(function() {
-      return deployer.deploy(BetokenFund, ControlToken.deployed().address, ShareToken.deployed().address, config.kyberAddress, accounts[0], config.timeOfChangeMaking, config.timeOfProposalMaking, config.timeOfWaiting, config.timeOfFinalizing, config.commissionRate, config.developerFeeProportion, 0, config.functionCallReward, config.controlTokenInflation, config.aumThreshold);
+      return deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, config.kyberAddress, accounts[0], 0, config.aumThreshold, config.phaseLengths, config.commissionRate, config.developerFeeProportion, config.functionCallReward, config.controlTokenInflation);
     }).then(function() {
       return ControlToken.deployed().then(function(instance) {
         return instance.transferOwnership(BetokenFund.address);

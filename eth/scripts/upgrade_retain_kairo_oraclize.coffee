@@ -33,16 +33,13 @@ module.exports = (callback) ->
         shareTokenAddr,
         config.kyberAddress, #KyberNetwork address
         dev_fee_address, #developerFeeAccount
-        config.timeOfChangeMaking,
-        config.timeOfProposalMaking,
-        config.timeOfWaiting,
-        config.timeOfFinalizing,
+        start_cycle_number,
+        config.aumThreshold,
+        config.phaseLengths,
         config.commissionRate,
         config.developerFeeProportion,
-        start_cycle_number,
         config.functionCallReward,
-        config.controlTokenInflation,
-        config.aumThreshold
+        config.controlTokenInflation
       ).then(
         (_instance) ->
           new_contract = _instance

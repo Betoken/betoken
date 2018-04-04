@@ -30,7 +30,7 @@
       });
     }).then(function() {
       //Deploy new BetokenFund
-      return BetokenFund.new(controlTokenAddr, shareTokenAddr, config.kyberAddress, dev_fee_address, config.timeOfChangeMaking, config.timeOfProposalMaking, config.timeOfWaiting, config.timeOfFinalizing, config.commissionRate, config.developerFeeProportion, start_cycle_number, config.functionCallReward, config.controlTokenInflation, config.aumThreshold).then(function(_instance) { //KyberNetwork address //developerFeeAccount
+      return BetokenFund.new(controlTokenAddr, shareTokenAddr, config.kyberAddress, dev_fee_address, start_cycle_number, config.aumThreshold, config.phaseLengths, config.commissionRate, config.developerFeeProportion, config.functionCallReward, config.controlTokenInflation).then(function(_instance) { //KyberNetwork address //developerFeeAccount
         new_contract = _instance;
         return console.log("Created new BetokenFund at " + _instance.address);
       });

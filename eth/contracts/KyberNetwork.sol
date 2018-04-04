@@ -16,7 +16,5 @@ contract KyberNetwork {
     payable
     returns(uint);
 
-  function findBestRate(DetailedERC20 src, DetailedERC20 dest, uint srcQty) public view returns(uint, uint);
-
   function getExpectedRate(DetailedERC20 src, DetailedERC20 dest, uint srcQty) public view returns (uint expectedRate, uint slippageRate);
 }

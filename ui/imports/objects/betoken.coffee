@@ -6,6 +6,8 @@ if typeof web3 != "undefined"
 else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
+ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+
 ###*
  * Sets the first account as defaultAccount
  * @return {Promise} .then(()->)
@@ -67,7 +69,17 @@ export Betoken = (_address) ->
     return self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call()
 
   self.getTokenSymbol = (_tokenAddr) ->
+    _tokenAddr = web3.utils.toHex(_tokenAddr)
+    if _tokenAddr == ETH_TOKEN_ADDRESS
+      return Promise.resolve().then(() -> "ETH")
     return ERC20(_tokenAddr).methods.symbol().call()
+
+  self.getTokenDecimals = (_tokenAddr) ->
+    _tokenAddr = web3.utils.toHex(_tokenAddr)
+    if _tokenAddr == ETH_TOKEN_ADDRESS
+      return Promise.resolve().then(() -> 18)
+    return ERC20(_tokenAddr).methods.decimals().call()
+
 
   ###*
    * Gets the Kairo balance of an address
@@ -101,22 +113,10 @@ export Betoken = (_address) ->
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
   ###
-  self.endPhase = (_currentPhase, _callback) ->
-    funcName = null
-    switch _currentPhase
-      when 0
-        funcName = "endChangeMakingTime"
-      when 1
-        funcName = "endProposalMakingTime"
-      when 2
-        funcName = "endWaitingPhase"
-      when 3
-        funcName = "finalizeCycle"
-      when 4
-        funcName = "startNewCycle"
+  self.endPhase = (_callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.betokenFund.methods[funcName]().send({from: web3.eth.defaultAccount}).on(
+        return self.contracts.betokenFund.methods.nextPhase().send({from: web3.eth.defaultAccount}).on(
           "transactionHash", _callback
         )
     )

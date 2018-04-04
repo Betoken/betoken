@@ -35,11 +35,6 @@ contract BetokenFund is Pausable, Utils {
     _;
   }
 
-  modifier rewardCaller {
-    cToken.mint(msg.sender, functionCallReward);
-    _;
-  }
-
   // Address of the control token contract.
   address public controlTokenAddr;
 
@@ -64,18 +59,6 @@ contract BetokenFund is Pausable, Utils {
   // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
 
-  // Temporal length of change making period at start of each cycle, in seconds.
-  uint256 public timeOfChangeMaking;
-
-  uint256 public timeOfProposalMaking;
-
-  // Temporal length of waiting period, in seconds.
-  uint256 public timeOfWaiting;
-
-  uint256 public timeOfFinalizing;
-
-  uint256 public timeBetweenCycles;
-
   // The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
   uint256 public commissionRate;
 
@@ -97,6 +80,8 @@ contract BetokenFund is Pausable, Utils {
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
+  uint256[5] phaseLengths;
+
   // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
 
@@ -111,23 +96,17 @@ contract BetokenFund is Pausable, Utils {
   ShareToken internal sToken;
   KyberNetwork internal kyber;
 
-  event CycleStarted(uint256 indexed _cycleNumber, uint256 _timestamp);
+  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
+
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _amount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _amount, uint256 _timestamp);
-  event ChangeMakingTimeEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
 
-  event NewProposal(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
-  event ProposalMakingTimeEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
-
-  event WaitingPhaseEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
-
-  event ProposalSold(uint256 indexed _cycleNumber, address indexed _sender, uint256 _proposalId, uint256 _receivedKairos);
-  event SellingPhaseEnded(uint256 indexed _cycleNumber, uint256 _timestamp);
+  event CreatedProposal(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
+  event RedeemedProposal(uint256 indexed _cycleNumber, address indexed _sender, uint256 _proposalId, uint256 _receivedKairos);
 
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInWeis);
-  event CycleFinalized(uint256 indexed _cycleNumber, uint256 _timestamp);
 
   /**
    * Contract initialization functions
@@ -139,17 +118,13 @@ contract BetokenFund is Pausable, Utils {
     address _sTokenAddr,
     address _kyberAddr,
     address _developerFeeAccount,
-    uint256 _timeOfChangeMaking,
-    uint256 _timeOfProposalMaking,
-    uint256 _timeOfWaiting,
-    uint256 _timeOfFinalizing,
-    uint256 _timeBetweenCycles,
+    uint256 _cycleNumber,
+    uint256 _aumThresholdInWeis,
+    uint256[5] _phaseLengths,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
-    uint256 _cycleNumber,
     uint256 _functionCallReward,
-    uint256 _controlTokenInflation,
-    uint256 _aumThresholdInWeis
+    uint256 _controlTokenInflation
   )
     public
   {
@@ -163,11 +138,7 @@ contract BetokenFund is Pausable, Utils {
     kyber = KyberNetwork(_kyberAddr);
 
     developerFeeAccount = _developerFeeAccount;
-    timeOfChangeMaking = _timeOfChangeMaking;
-    timeOfProposalMaking = _timeOfProposalMaking;
-    timeOfWaiting = _timeOfWaiting;
-    timeOfFinalizing = _timeOfFinalizing;
-    timeBetweenCycles = _timeBetweenCycles;
+    phaseLengths = _phaseLengths;
     commissionRate = _commissionRate;
     developerFeeProportion = _developerFeeProportion;
     startTimeOfCyclePhase = 0;
@@ -193,6 +164,10 @@ contract BetokenFund is Pausable, Utils {
 
   function proposals(address _userAddr) public view returns(Proposal[] _proposals) {
     return userProposals[_userAddr];
+  }
+
+  function getPhaseLengths() public view returns(uint256[5] _phaseLengths) {
+    return phaseLengths;
   }
 
   /**
@@ -307,6 +282,10 @@ contract BetokenFund is Pausable, Utils {
     controlTokenInflation = _newVal;
   }
 
+  function changeCallReward(uint256 _newVal) public onlyOwner {
+    functionCallReward = _newVal;
+  }
+
   /**
    * @dev Changes the owner of the ControlToken contract.
    * @param  _newOwner the new owner address
@@ -325,27 +304,41 @@ contract BetokenFund is Pausable, Utils {
     sToken.transferOwnership(_newOwner);
   }
 
-  /**
-   * Start cycle functions
-   */
+  function nextPhase()
+    public
+    whenNotPaused
+  {
+    require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
-  /**
-   * @dev Starts a new investment cycle.
-   */
-  function startNewCycle() public during(CyclePhase.Finalized) whenNotPaused rewardCaller {
-    require(now >= startTimeOfCyclePhase.add(timeBetweenCycles));
+    if (cyclePhase == CyclePhase.Finalized) {
+      // Start new cycle
+      cycleNumber = cycleNumber.add(1);
 
-    // Update values
-    cyclePhase = CyclePhase.ChangeMaking;
-    startTimeOfCyclePhase = now;
-    cycleNumber = cycleNumber.add(1);
+      if (cToken.paused()) {
+        cToken.unpause();
+      }
+    } else if (cyclePhase == CyclePhase.ChangeMaking) {
+      // End ChangeMakingTime
+      if (cycleNumber == 1) {
+        require(totalFundsInWeis >= aumThresholdInWeis);
+      }
+    } else if (cyclePhase == CyclePhase.Finalizing) {
+      // Finalize cycle
 
-    if (cToken.paused()) {
-      cToken.unpause();
+      // Burn any Kairo left in BetokenFund's account
+      cToken.burnOwnerBalance();
+
+      cToken.pause();
+      __distributeFundsAfterCycleEnd();
     }
 
-    // Emit event
-    CycleStarted(cycleNumber, now);
+    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 5));
+    startTimeOfCyclePhase = now;
+
+    // Reward caller
+    cToken.mint(msg.sender, functionCallReward);
+
+    ChangedPhase(cycleNumber, uint(cyclePhase), now);
   }
 
   /**
@@ -473,22 +466,6 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Ends the ChangeMaking phase.
-   */
-  function endChangeMakingTime() public during(CyclePhase.ChangeMaking) whenNotPaused rewardCaller {
-    require(now >= startTimeOfCyclePhase.add(timeOfChangeMaking));
-
-    if (cycleNumber == 1) {
-      require(totalFundsInWeis >= aumThresholdInWeis);
-    }
-
-    startTimeOfCyclePhase = now;
-    cyclePhase = CyclePhase.ProposalMaking;
-
-    ChangeMakingTimeEnded(cycleNumber, now);
-  }
-
-  /**
    * Proposal Making time functions
    */
 
@@ -530,39 +507,7 @@ contract BetokenFund is Pausable, Utils {
     userProposals[msg.sender][proposalId].tokenAmount = token.balanceOf(this) - beforeTokenAmount;
 
     // Emit event
-    NewProposal(cycleNumber, msg.sender, proposalsCount(msg.sender) - 1, _tokenAddress, _stakeInWeis);
-  }
-
-  function endProposalMakingTime()
-    public
-    during(CyclePhase.ProposalMaking)
-    whenNotPaused
-    rewardCaller
-  {
-    require(now >= startTimeOfCyclePhase.add(timeOfProposalMaking));
-
-    startTimeOfCyclePhase = now;
-    cyclePhase = CyclePhase.Waiting;
-
-    ProposalMakingTimeEnded(cycleNumber, now);
-  }
-
-  /**
-   * Waiting phase functions
-   */
-
-  function endWaitingPhase()
-    public
-    during(CyclePhase.Waiting)
-    whenNotPaused
-    rewardCaller
-  {
-    require(now >= startTimeOfCyclePhase.add(timeOfWaiting));
-
-    startTimeOfCyclePhase = now;
-    cyclePhase = CyclePhase.Finalizing;
-
-    WaitingPhaseEnded(cycleNumber, now);
+    CreatedProposal(cycleNumber, msg.sender, proposalsCount(msg.sender) - 1, _tokenAddress, _stakeInWeis);
   }
 
   /**
@@ -590,29 +535,7 @@ contract BetokenFund is Pausable, Utils {
     uint256 receiveKairoAmount = prop.stake.mul(multiplier).div(PRECISION);
     cToken.mint(msg.sender, receiveKairoAmount);
 
-    ProposalSold(cycleNumber, msg.sender, _proposalId, receiveKairoAmount);
-  }
-
-  /**
-   * @dev Finalize the cycle by redistributing user balances and settling investment proposals.
-   */
-  function finalizeCycle() public during(CyclePhase.Finalizing) whenNotPaused rewardCaller {
-    require(now >= startTimeOfCyclePhase.add(timeOfFinalizing));
-
-    // Update cycle values
-    startTimeOfCyclePhase = now;
-    cyclePhase = CyclePhase.Finalized;
-
-    // Burn any Kairo left in BetokenFund's account
-    cToken.burnOwnerBalance();
-
-    cToken.pause();
-
-    // Distribute funds
-    __distributeFundsAfterCycleEnd();
-
-    // Emit event
-    CycleFinalized(cycleNumber, now);
+    RedeemedProposal(cycleNumber, msg.sender, _proposalId, receiveKairoAmount);
   }
 
   /**

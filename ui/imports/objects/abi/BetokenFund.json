@@ -92,35 +92,7 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "timeOfChangeMaking",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
       "name": "cycleNumber",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "timeOfFinalizing",
       "outputs": [
         {
           "name": "",
@@ -144,20 +116,6 @@
       "constant": true,
       "inputs": [],
       "name": "controlTokenInflation",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "timeOfWaiting",
       "outputs": [
         {
           "name": "",
@@ -353,34 +311,6 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "timeOfProposalMaking",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "timeBetweenCycles",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
       "name": "controlTokenAddr",
       "outputs": [
         {
@@ -439,24 +369,16 @@
           "type": "address"
         },
         {
-          "name": "_timeOfChangeMaking",
+          "name": "_cycleNumber",
           "type": "uint256"
         },
         {
-          "name": "_timeOfProposalMaking",
+          "name": "_aumThresholdInWeis",
           "type": "uint256"
         },
         {
-          "name": "_timeOfWaiting",
-          "type": "uint256"
-        },
-        {
-          "name": "_timeOfFinalizing",
-          "type": "uint256"
-        },
-        {
-          "name": "_timeBetweenCycles",
-          "type": "uint256"
+          "name": "_phaseLengths",
+          "type": "uint256[5]"
         },
         {
           "name": "_commissionRate",
@@ -467,19 +389,11 @@
           "type": "uint256"
         },
         {
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
           "name": "_functionCallReward",
           "type": "uint256"
         },
         {
           "name": "_controlTokenInflation",
-          "type": "uint256"
-        },
-        {
-          "name": "_aumThresholdInWeis",
           "type": "uint256"
         }
       ],
@@ -501,12 +415,17 @@
           "type": "uint256"
         },
         {
+          "indexed": true,
+          "name": "_newPhase",
+          "type": "uint256"
+        },
+        {
           "indexed": false,
           "name": "_timestamp",
           "type": "uint256"
         }
       ],
-      "name": "CycleStarted",
+      "name": "ChangedPhase",
       "type": "event"
     },
     {
@@ -582,23 +501,6 @@
           "type": "uint256"
         },
         {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "ChangeMakingTimeEnded",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
           "indexed": true,
           "name": "_sender",
           "type": "address"
@@ -619,41 +521,7 @@
           "type": "uint256"
         }
       ],
-      "name": "NewProposal",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "ProposalMakingTimeEnded",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "WaitingPhaseEnded",
+      "name": "CreatedProposal",
       "type": "event"
     },
     {
@@ -680,24 +548,7 @@
           "type": "uint256"
         }
       ],
-      "name": "ProposalSold",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "SellingPhaseEnded",
+      "name": "RedeemedProposal",
       "type": "event"
     },
     {
@@ -759,23 +610,6 @@
         }
       ],
       "name": "TotalCommissionPaid",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "CycleFinalized",
       "type": "event"
     },
     {
@@ -869,6 +703,20 @@
           ],
           "name": "_proposals",
           "type": "tuple[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "getPhaseLengths",
+      "outputs": [
+        {
+          "name": "_phaseLengths",
+          "type": "uint256[5]"
         }
       ],
       "payable": false,
@@ -1009,6 +857,20 @@
       "constant": false,
       "inputs": [
         {
+          "name": "_newVal",
+          "type": "uint256"
+        }
+      ],
+      "name": "changeCallReward",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
           "name": "_newOwner",
           "type": "address"
         }
@@ -1036,7 +898,7 @@
     {
       "constant": false,
       "inputs": [],
-      "name": "startNewCycle",
+      "name": "nextPhase",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -1103,15 +965,6 @@
     },
     {
       "constant": false,
-      "inputs": [],
-      "name": "endChangeMakingTime",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
       "inputs": [
         {
           "name": "_tokenAddress",
@@ -1130,24 +983,6 @@
     },
     {
       "constant": false,
-      "inputs": [],
-      "name": "endProposalMakingTime",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "endWaitingPhase",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
       "inputs": [
         {
           "name": "_proposalId",
@@ -1155,15 +990,6 @@
         }
       ],
       "name": "sellProposalAsset",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "finalizeCycle",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",

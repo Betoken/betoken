@@ -234,14 +234,27 @@
       </div>
 
       <div class="ui item">
-        <div class="ui horizontal divider">Ether Deposit Balance</div>
-        <div class="ui mini horizontal statistic">
-          <div class="value copyable">
-            {{user_balance}}
+        <div class="ui horizontal divider">Investment Balance</div>
+
+        <div class="ui grid stackable">
+          <div class="ui container ten wide column">
+            <div class="ui mini horizontal statistic">
+              <div class="value copyable">
+                {{user_balance}}
+              </div>
+              <div class="label">
+                {{balance_unit}}
+              </div>
+            </div>
           </div>
-          <div class="label">
-            ETH
+
+          <div class="ui container six wide column">
+            <div class="ui slider checkbox" style="float: right;">
+              <input type="checkbox" class="balance_unit_switch">
+              <label>ETH/BTKS</label>
+            </div>
           </div>
+
         </div>
       </div>
 
@@ -266,7 +279,6 @@
               <label>KRO/%</label>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -280,6 +292,11 @@
             ETH
           </div>
         </div>
+        {{#if can_redeem_commission}}
+          <button class="ui positive button fluid redeem_commission">
+            Redeem Commission
+          </button>
+        {{/if}}
       </div>
     </div>
   </div>
@@ -296,7 +313,7 @@
   <div class="ui top attached tabular menu">
     <a class="item active header" data-tab="deposit">Deposit</a>
     <a class="item header" data-tab="withdraw">Withdraw</a>
-    <a class="item header" data-tab="kairo">Send KRO</a>
+    <a class="item header" data-tab="send_token">Send KRO/BTF</a>
     <a class="item header" data-tab="history">Records</a>
   </div>
 
@@ -329,24 +346,25 @@
     <button class="withdraw_button {{is_disabled 'withdraw'}} ui primary button fluid">Withdraw</button>
   </div>
 
-  <div class="ui bottom attached tab segment" data-tab="kairo">
+  <div class="ui bottom attached tab segment" data-tab="send_token">
     <!--Amount Input-->
     <div class="{{has_error 2}} ui right labeled input fluid">
-      <input id="kairo_amount_input" placeholder="Send Amount..." type="text">
-      <div class="ui label">
-        KRO
-      </div>
+      <input id="send_token_amount_input" placeholder="Send Amount..." type="text">
+      <select id="send_token_type" class="ui selection compact dropdown">
+        <option selected="">KRO</option>
+        <option>BTKS</option>
+      </select>
     </div>
 
     <div class="ui horizontal divider"></div>
 
     <div class="{{has_error 3}} ui right input fluid">
-      <input id="kairo_recipient_input" placeholder="Recipient Address..." type="text">
+      <input id="send_token_recipient_input" placeholder="Recipient Address..." type="text">
     </div>
 
     <div class="ui horizontal divider"></div>
 
-    <button class="kairo_send_button {{is_disabled "kairo"}} ui primary button fluid">Send</button>
+    <button class="token_send_button {{is_disabled "token"}} ui primary button fluid">Send</button>
   </div>
 
   <div class="ui bottom attached tab segment" data-tab="history">
@@ -356,7 +374,8 @@
       <thead>
       <tr>
         <th>Type</th>
-        <th>Amount/ETH</th>
+        <th>Token</th>
+        <th>Amount</th>
         <th>Timestamp</th>
       </tr>
       </thead>
@@ -366,6 +385,7 @@
         {{#each transaction_history}}
           <tr>
             <td>{{type}}</td>
+            <td>{{token}}</td>
             <td>{{amount}}</td>
             <td>{{timestamp}}</td>
           </tr>
@@ -446,7 +466,7 @@
   <div class="ui menu">
     <div class="item">
       <div class="ui button new_proposal {{new_proposal_is_disabled}}">
-        New Proposal
+        New Decision
       </div>
     </div>
   </div>

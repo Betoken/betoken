@@ -9,20 +9,17 @@ module.exports = (deployer, network, accounts) ->
     () ->
       deployer.deploy(
         BetokenFund,
-        ControlToken.deployed().address,
-        ShareToken.deployed().address,
+        ControlToken.address,
+        ShareToken.address,
         config.kyberAddress,
         accounts[0], #developerFeeAccount
-        config.timeOfChangeMaking,
-        config.timeOfProposalMaking,
-        config.timeOfWaiting,
-        config.timeOfFinalizing,
+        0,
+        config.aumThreshold,
+        config.phaseLengths,
         config.commissionRate,
         config.developerFeeProportion,
-        0,
         config.functionCallReward,
-        config.controlTokenInflation,
-        config.aumThreshold
+        config.controlTokenInflation
       )
   ).then(
     () ->

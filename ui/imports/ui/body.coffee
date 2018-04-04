@@ -20,12 +20,11 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 #Fund object
-betoken_addr = new ReactiveVar("0x03e68717e1d5a6373f99c346cb51bb6e7509033d")
+betoken_addr = new ReactiveVar("0x6ca70247ee747078103902f37d2afc3ad0b57c73")
 betoken = new Betoken(betoken_addr.get())
 
 #Session data
 userAddress = new ReactiveVar("Not Available")
-userBalance = new ReactiveVar(BigNumber(0))
 kairoBalance = new ReactiveVar(BigNumber(0))
 kairoTotalSupply = new ReactiveVar(BigNumber(0))
 sharesBalance = new ReactiveVar(BigNumber(0))
@@ -33,22 +32,22 @@ sharesTotalSupply = new ReactiveVar(BigNumber(0))
 
 cyclePhase = new ReactiveVar(0)
 startTimeOfCyclePhase = new ReactiveVar(0)
-timeOfChangeMaking = new ReactiveVar(0)
-timeOfProposalMaking = new ReactiveVar(0)
-timeOfWaiting = new ReactiveVar(0)
-timeOfFinalizing = new ReactiveVar(0)
-timeBetweenCycles = new ReactiveVar(0)
+phaseLengths = new ReactiveVar([])
 totalFunds = new ReactiveVar(BigNumber(0))
 proposalList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
 allowEmergencyWithdraw = new ReactiveVar(false)
+lastCommissionRedemption = new ReactiveVar(0)
+cycleTotalCommission = new ReactiveVar(BigNumber(0))
 
 #Displayed variables
 kairoAddr = new ReactiveVar("")
 sharesAddr = new ReactiveVar("")
 kyberAddr = new ReactiveVar("")
+displayedInvestmentBalance = new ReactiveVar(BigNumber(0))
+displayedInvestmentUnit = new ReactiveVar("ETH")
 displayedKairoBalance = new ReactiveVar(BigNumber(0))
 displayedKairoUnit = new ReactiveVar("KRO")
 countdownDay = new ReactiveVar(0)
@@ -63,7 +62,7 @@ chart = null
 prevROI = new ReactiveVar(BigNumber(0))
 avgROI = new ReactiveVar(BigNumber(0))
 prevCommission = new ReactiveVar(BigNumber(0))
-totalCommission = new ReactiveVar(BigNumber(0))
+historicalTotalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
@@ -127,19 +126,7 @@ clock = () ->
   setInterval(
     () ->
       now = Math.floor(new Date().getTime() / 1000)
-      target = 0
-      switch cyclePhase.get()
-        when 0
-          target = startTimeOfCyclePhase.get() + timeOfChangeMaking.get()
-        when 1
-          target = startTimeOfCyclePhase.get() + timeOfProposalMaking.get()
-        when 2
-          target = startTimeOfCyclePhase.get() + timeOfWaiting.get()
-        when 3
-          target = startTimeOfCyclePhase.get() + timeOfFinalizing.get()
-        when 4
-          target = startTimeOfCyclePhase.get() + timeBetweenCycles.get()
-
+      target = startTimeOfCyclePhase.get() + phaseLengths.get()[cyclePhase.get()]
       distance = target - now
 
       if distance > 0
@@ -198,49 +185,170 @@ loadFundData = () ->
       if typeof _userAddress != "undefined"
         userAddress.set(_userAddress)
 
-      betoken.getMappingOrArrayItem("balanceOf", _userAddress).then(
-        (_balance) ->
-          #Get user Ether deposit balance
-          userBalance.set(BigNumber(web3.utils.fromWei(_balance, "ether")))
+      betoken.getShareTotalSupply().then(
+        (_totalSupply) -> sharesTotalSupply.set(BigNumber(_totalSupply))
+      ).then(
+        () ->
+          betoken.getShareBalance(_userAddress).then(
+            (_sharesBalance) ->
+              #Get user's Shares balance
+              sharesBalance.set(BigNumber(_sharesBalance))
+              if !sharesTotalSupply.get().isZero()
+                displayedInvestmentBalance.set(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()).div(1e18))
+          )
       )
+
       betoken.getKairoBalance(_userAddress).then(
         (_kairoBalance) ->
           #Get user's Kairo balance
           kairoBalance.set(BigNumber(_kairoBalance))
-          displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")).toFormat(18))
+          displayedKairoBalance.set(BigNumber(web3.utils.fromWei(_kairoBalance, "ether")))
+      )
+
+      betoken.getMappingOrArrayItem("lastCommissionRedemption", _userAddress).then(
+        (_result) -> lastCommissionRedemption.set(_result)
+      )
+
+      #Get proposals & participants
+      Promise.all([
+        betoken.getKairoTotalSupply().then(
+          (_kairoTotalSupply) ->
+            #Get Kairo's total supply
+            kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
+            return
+        ),
+        betoken.getPrimitiveVar("totalFundsInWeis").then(
+          #Get total funds
+          (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
+        ),
+      ]).then(
+        () ->
+          ###betoken.getMappingOrArrayItem("proposals", userAddress.get()).then(
+            (_proposals) ->
+              proposals = _proposals
+              if proposals.length == 0
+                return
+
+              handleProposal = (id) ->
+                betoken.getTokenSymbol(proposals[id]).then(
+                  (_symbol) ->
+                    proposals[id].id = id
+                    proposals[id].tokenSymbol = _symbol
+                    proposals[id].investment = BigNumber(proposals[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get())
+                )
+              handleAllProposals = (handleProposal(i) for i in [0..proposals.length])
+              Promise.all(getAllSymbols)
+          ).then(
+            () ->
+              proposalList.set(proposals)
+          )###
       )
 
       #Listen for transactions
       transactionHistory.set([])
-      betoken.contracts.betokenFund.getPastEvents("Deposit",
+
+      getTransactionHistory = (_type) ->
+        betoken.contracts.betokenFund.getPastEvents(_type,
+          fromBlock: 0
+          filter: {_sender: _userAddress}
+        ).then(
+          (_events) ->
+            for _event in _events
+              data = _event.returnValues
+              entry =
+                type: _type
+                timestamp: new Date(+data._timestamp * 1e3).toString()
+              betoken.getTokenSymbol(data._tokenAddress).then(
+                (_tokenSymbol) ->
+                  entry.token = _tokenSymbol
+              ).then(() -> betoken.getTokenDecimals(data._tokenAddress)).then(
+                (_tokenDecimals) ->
+                  entry.amount = BigNumber(data._amount).div(10**(+_tokenDecimals)).toFormat(4)
+              ).then(
+                () ->
+                  tmp = transactionHistory.get()
+                  tmp.push(entry)
+                  transactionHistory.set(tmp)
+              )
+        )
+      getTransactionHistory("Deposit")
+      getTransactionHistory("Withdraw")
+
+      betoken.contracts.controlToken.getPastEvents("Transfer",
         fromBlock: 0
-        filter: {_sender: _userAddress}
+        filter: {from: _userAddress}
       ).then(
         (_events) ->
           for _event in _events
             data = _event.returnValues
-            tmp = transactionHistory.get()
-            tmp.push(
-              type: "Deposit"
-              amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
-              timestamp: new Date(+data._timestamp * 1e3).toString()
+            entry =
+              type: "Transfer Out"
+              token: "KRO"
+              amount: BigNumber(data.value).div(1e18).toFormat(4)
+            web3.eth.getBlock(_event.blockNumber).then(
+              (_block) ->
+                entry.timestamp = new Date(_block.timestamp * 1e3).toString()
+                tmp = transactionHistory.get()
+                tmp.push(entry)
+                transactionHistory.set(tmp)
             )
-            transactionHistory.set(tmp)
       )
-      betoken.contracts.betokenFund.getPastEvents("Withdraw",
+      betoken.contracts.controlToken.getPastEvents("Transfer",
         fromBlock: 0
-        filter: {_sender: _userAddress}
+        filter: {to: _userAddress}
       ).then(
         (_events) ->
           for _event in _events
             data = _event.returnValues
-            tmp = transactionHistory.get()
-            tmp.push(
-              type: "Withdraw"
-              amount: BigNumber(data._amountInWeis).div(1e18).toFormat(4)
-              timestamp: new Date(+data._timestamp * 1e3).toString()
+            entry =
+              type: "Transfer In"
+              token: "KRO"
+              amount: BigNumber(data.value).div(1e18).toFormat(4)
+            web3.eth.getBlock(_event.blockNumber).then(
+              (_block) ->
+                entry.timestamp = new Date(_block.timestamp * 1e3).toString()
+                tmp = transactionHistory.get()
+                tmp.push(entry)
+                transactionHistory.set(tmp)
             )
-            transactionHistory.set(tmp)
+      )
+      betoken.contracts.shareToken.getPastEvents("Transfer",
+        fromBlock: 0
+        filter: {from: _userAddress}
+      ).then(
+        (_events) ->
+          for _event in _events
+            data = _event.returnValues
+            entry =
+              type: "Transfer Out"
+              token: "BTKS"
+              amount: BigNumber(data.value).div(1e18).toFormat(4)
+            web3.eth.getBlock(_event.blockNumber).then(
+              (_block) ->
+                entry.timestamp = new Date(_block.timestamp * 1e3).toString()
+                tmp = transactionHistory.get()
+                tmp.push(entry)
+                transactionHistory.set(tmp)
+            )
+      )
+      betoken.contracts.controlToken.getPastEvents("Transfer",
+        fromBlock: 0
+        filter: {to: _userAddress}
+      ).then(
+        (_events) ->
+          for _event in _events
+            data = _event.returnValues
+            entry =
+              type: "Transfer In"
+              token: "BTKS"
+              amount: BigNumber(data.value).div(1e18).toFormat(4)
+            web3.eth.getBlock(_event.blockNumber).then(
+              (_block) ->
+                entry.timestamp = new Date(_block.timestamp * 1e3).toString()
+                tmp = transactionHistory.get()
+                tmp.push(entry)
+                transactionHistory.set(tmp)
+            )
       )
   )
 
@@ -251,20 +359,8 @@ loadFundData = () ->
   betoken.getPrimitiveVar("startTimeOfCyclePhase").then(
     (_startTime) -> startTimeOfCyclePhase.set(+_startTime)
   )
-  betoken.getPrimitiveVar("timeOfChangeMaking").then(
-    (_time) -> timeOfChangeMaking.set(+_time)
-  )
-  betoken.getPrimitiveVar("timeOfProposalMaking").then(
-    (_time) -> timeOfProposalMaking.set(+_time)
-  )
-  betoken.getPrimitiveVar("timeOfWaiting").then(
-    (_time) -> timeOfWaiting.set(+_time)
-  )
-  betoken.getPrimitiveVar("timeOfFinalizing").then(
-    (_time) -> timeOfFinalizing.set(+_time)
-  )
-  betoken.getPrimitiveVar("timeBetweenCycles").then(
-    (_time) -> timeBetweenCycles.set(+_time)
+  betoken.getPrimitiveVar("getPhaseLengths").then(
+    (_phaseLengths) -> phaseLengths.set(_phaseLengths.map((x) -> +x))
   )
   betoken.getPrimitiveVar("commissionRate").then(
     (_result) -> commissionRate.set(BigNumber(_result).div(1e18))
@@ -274,6 +370,9 @@ loadFundData = () ->
   )
   betoken.getPrimitiveVar("allowEmergencyWithdraw").then(
     (_result) -> allowEmergencyWithdraw.set(_result)
+  )
+  betoken.getPrimitiveVar("totalCommission").then(
+    (_result) -> cycleTotalCommission.set(BigNumber(_result))
   )
 
   #Get contract addresses
@@ -288,7 +387,7 @@ loadFundData = () ->
   prevROI.set(BigNumber(0))
   avgROI.set(BigNumber(0))
   prevCommission.set(BigNumber(0))
-  totalCommission.set(BigNumber(0))
+  historicalTotalCommission.set(BigNumber(0))
   betoken.getPrimitiveVar("cycleNumber").then(
     (_result) ->
       cycleNumber.set(+_result)
@@ -332,42 +431,7 @@ loadFundData = () ->
               prevCommission.set(commission)
 
             #Update total commission
-            totalCommission.set(totalCommission.get().add(commission))
-      )
-  )
-
-  #Get proposals & participants
-  Promise.all([
-    betoken.getKairoTotalSupply().then(
-      (_kairoTotalSupply) ->
-        #Get Kairo's total supply
-        kairoTotalSupply.set(BigNumber(_kairoTotalSupply))
-        return
-    ),
-    betoken.getPrimitiveVar("totalFundsInWeis").then(
-      #Get total funds
-      (_totalFunds) -> totalFunds.set(BigNumber(_totalFunds))
-    ),
-  ]).then(
-    () ->
-      betoken.getPrimitiveVar("proposals").then(
-        (_proposals) ->
-          proposals = _proposals
-          if proposals.length == 0
-            return
-
-          handleProposal = (id) ->
-            betoken.getTokenSymbol(proposals[id]).then(
-              (_symbol) ->
-                proposals[id].id = id
-                proposals[id].tokenSymbol = _symbol
-                proposals[id].investment = BigNumber(proposals[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get())
-            )
-          handleAllProposals = (handleProposal(i) for i in [0..proposals.length])
-          Promise.all(getAllSymbols)
-      ).then(
-        () ->
-          proposalList.set(proposals)
+            historicalTotalCommission.set(historicalTotalCommission.get().add(commission))
       )
   )
 
@@ -494,11 +558,17 @@ Template.phase_indicator.helpers(
 Template.sidebar.helpers(
   network_name: () -> networkName.get()
   user_address: () -> userAddress.get()
-  user_balance: () -> userBalance.get().toFormat(18)
-  user_kairo_balance: () -> displayedKairoBalance.get()
+  user_balance: () -> displayedInvestmentBalance.get().toFormat(18)
+  balance_unit: () -> displayedInvestmentUnit.get()
+  user_kairo_balance: () -> displayedKairoBalance.get().toFormat(18)
   kairo_unit: () -> displayedKairoUnit.get()
+  can_redeem_commission: () -> cyclePhase.get() == 4 && lastCommissionRedemption.get() < cycleNumber.get()
   expected_commission: () ->
     if kairoTotalSupply.get().greaterThan(0)
+      if cyclePhase.get() == 4
+        # Actual commission that will be redeemed
+        return kairoBalance.get().div(kairoTotalSupply.get()).mul(cycleTotalCommission.get()).div(1e18).toFormat(18)
+      # Expected commission based on previous average ROI
       return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(avgROI.get().div(100)).mul(commissionRate.get()).toFormat(18)
     return BigNumber(0).toFormat(18)
 )
@@ -507,26 +577,38 @@ Template.sidebar.events(
   "click .kairo_unit_switch": (event) ->
     if event.target.checked
       #Display proportion
-      displayedKairoBalance.set(kairoBalance.get().dividedBy(kairoTotalSupply.get()).times("100").toFormat(18))
+      if !kairoTotalSupply.get().isZero()
+        displayedKairoBalance.set(kairoBalance.get().div(kairoTotalSupply.get()).times("100"))
       displayedKairoUnit.set("%")
     else
       #Display Kairo
-      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get().toString(), "ether")).toFormat(18))
+      displayedKairoBalance.set(BigNumber(web3.utils.fromWei(kairoBalance.get().toString(), "ether")))
       displayedKairoUnit.set("KRO")
+
+  "click .balance_unit_switch": (event) ->
+    if event.target.checked
+      #Display BTKS
+      displayedInvestmentBalance.set(sharesBalance.get().div(1e18))
+      displayedInvestmentUnit.set("BTKS")
+    else
+      #Display ETH
+      if !sharesTotalSupply.get().isZero()
+        displayedInvestmentBalance.set(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()).div(1e18))
+      displayedInvestmentUnit.set("ETH")
 )
 
 Template.transact_box.onCreated(
   () ->
     Template.instance().depositInputHasError = new ReactiveVar(false)
     Template.instance().withdrawInputHasError = new ReactiveVar(false)
-    Template.instance().kairoAmountInputHasError = new ReactiveVar(false)
-    Template.instance().kairoRecipientInputHasError = new ReactiveVar(false)
+    Template.instance().sendTokenAmountInputHasError = new ReactiveVar(false)
+    Template.instance().sendTokenRecipientInputHasError = new ReactiveVar(false)
 )
 
 Template.transact_box.helpers(
   is_disabled: (_type) ->
-    if cyclePhase.get() != 0 || (cycleNumber.get() == 1 && _type == "withdraw")\
-        || (cycleNumber.get() == 4 && _type == "kairo")
+    if (cyclePhase.get() != 0 && _type != "token") || (cycleNumber.get() == 1 && _type == "withdraw")\
+        || (cyclePhase.get() == 4 && _type == "token")
       "disabled"
 
   has_error: (input_id) ->
@@ -537,9 +619,9 @@ Template.transact_box.helpers(
       when 1
         hasError = Template.instance().withdrawInputHasError.get()
       when 2
-        hasError = Template.instance().kairoAmountInputHasError.get()
+        hasError = Template.instance().sendTokenAmountInputHasError.get()
       when 3
-        hasError = Template.instance().kairoRecipientInputHasError.get()
+        hasError = Template.instance().sendTokenRecipientInputHasError.get()
 
     if hasError
       "error"
@@ -554,7 +636,7 @@ Template.transact_box.events(
       amount = BigNumber(web3.utils.toWei($("#deposit_input")[0].value))
 
       if !amount.greaterThan(0)
-        Template.instance().kairoAmountInputHasError.set(true)
+        Template.instance().sendTokenAmountInputHasError.set(true)
         return
 
       betoken.deposit(amount, showTransaction)
@@ -567,48 +649,57 @@ Template.transact_box.events(
       amount = BigNumber(web3.utils.toWei($("#withdraw_input")[0].value))
 
       if !amount.greaterThan(0)
-        Template.instance().kairoAmountInputHasError.set(true)
+        Template.instance().sendTokenAmountInputHasError.set(true)
         return
 
       # Check that Betoken balance is > withdraw amount
-      if amount.greaterThan(userBalance.get().times(1e18))
+      if amount.greaterThan(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()))
         showError("Oops! You tried to withdraw more Ether than you have in your account!")
         Template.instance().withdrawInputHasError.set(true)
         return
 
       betoken.withdraw(amount, showTransaction)
     catch error
-      console.log userBalance
       Template.instance().withdrawInputHasError.set(true)
 
-  "click .kairo_send_button": (event) ->
+  "click .token_send_button": (event) ->
     try
-      Template.instance().kairoAmountInputHasError.set(false)
-      Template.instance().kairoRecipientInputHasError.set(false)
+      Template.instance().sendTokenAmountInputHasError.set(false)
+      Template.instance().sendTokenRecipientInputHasError.set(false)
 
-      amount = BigNumber(web3.utils.toWei($("#kairo_amount_input")[0].value))
-      toAddress = $("#kairo_recipient_input")[0].value
+      amount = BigNumber(web3.utils.toWei($("#send_token_amount_input")[0].value))
+      toAddress = $("#send_token_recipient_input")[0].value
+      tokenType = $("#send_token_type")[0].value
 
-      if !amount.greaterThan(0) || amount.greaterThan(kairoBalance.get())
-        Template.instance().kairoAmountInputHasError.set(true)
+      if !amount.greaterThan(0)
+        Template.instance().sendTokenAmountInputHasError.set(true)
         return
 
       if !web3.utils.isAddress(toAddress)
-        Template.instance().kairoRecipientInputHasError.set(true)
+        Template.instance().sendTokenRecipientInputHasError.set(true)
         return
 
-      betoken.sendKairo(toAddress, amount, showTransaction)
+      if tokenType == "KRO"
+        if amount.greaterThan(kairoBalance.get())
+          Template.instance().sendTokenAmountInputHasError.set(true)
+          return
+        betoken.sendKairo(toAddress, amount, showTransaction)
+      else if tokenType == "BTKS"
+        if amount.greaterThan(sharesBalance.get())
+          Template.instance().sendTokenAmountInputHasError.set(true)
+          return
+        betoken.sendShares(toAddress, amount, showTransaction)
     catch
-      Template.instance().kairoAmountInputHasError.set(true)
+      Template.instance().sendTokenAmountInputHasError.set(true)
 )
 
 Template.stats_tab.helpers(
-  cycle_length: () -> BigNumber(timeOfChangeMaking.get() + timeOfProposalMaking.get() + timeOfWaiting.get()).div(24 * 60 * 60).toDigits(3)
+  cycle_length: () -> BigNumber(phaseLengths.get().reduce((t, n) -> t+n)).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
   avg_roi: () -> avgROI.get().toFormat(2)
   prev_commission: () -> prevCommission.get().div(1e18).toFormat(2)
-  historical_commission: () -> totalCommission.get().div(1e18).toFormat(2)
+  historical_commission: () -> historicalTotalCommission.get().div(1e18).toFormat(2)
 )
 
 Template.proposals_tab.helpers(

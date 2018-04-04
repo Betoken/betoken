@@ -4,7 +4,7 @@
  * Sets the first account as defaultAccount
  * @return {Promise} .then(()->)
  */
-var ERC20, Web3, getDefaultAccount, web3;
+var ERC20, ETH_TOKEN_ADDRESS, Web3, getDefaultAccount, web3;
 
 Web3 = require('web3');
 
@@ -15,6 +15,8 @@ if (typeof web3 !== "undefined") {
 } else {
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"));
 }
+
+ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 getDefaultAccount = function() {
   return web3.eth.getAccounts().then(function(accounts) {
@@ -76,7 +78,22 @@ export var Betoken = function(_address) {
     return self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call();
   };
   self.getTokenSymbol = function(_tokenAddr) {
+    _tokenAddr = web3.utils.toHex(_tokenAddr);
+    if (_tokenAddr === ETH_TOKEN_ADDRESS) {
+      return Promise.resolve().then(function() {
+        return "ETH";
+      });
+    }
     return ERC20(_tokenAddr).methods.symbol().call();
+  };
+  self.getTokenDecimals = function(_tokenAddr) {
+    _tokenAddr = web3.utils.toHex(_tokenAddr);
+    if (_tokenAddr === ETH_TOKEN_ADDRESS) {
+      return Promise.resolve().then(function() {
+        return 18;
+      });
+    }
+    return ERC20(_tokenAddr).methods.decimals().call();
   };
   /**
    * Gets the Kairo balance of an address
@@ -109,27 +126,9 @@ export var Betoken = function(_address) {
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
    */
-  self.endPhase = function(_currentPhase, _callback) {
-    var funcName;
-    funcName = null;
-    switch (_currentPhase) {
-      case 0:
-        funcName = "endChangeMakingTime";
-        break;
-      case 1:
-        funcName = "endProposalMakingTime";
-        break;
-      case 2:
-        funcName = "endWaitingPhase";
-        break;
-      case 3:
-        funcName = "finalizeCycle";
-        break;
-      case 4:
-        funcName = "startNewCycle";
-    }
+  self.endPhase = function(_callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods[funcName]().send({
+      return self.contracts.betokenFund.methods.nextPhase().send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
