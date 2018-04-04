@@ -88,6 +88,12 @@ contract BetokenFund is Pausable, Utils {
   // List of proposals in the current cycle.
   mapping(address => Proposal[]) public userProposals;
 
+  // Records if a token is a stable coin. Users can't make proposals with stable coins.
+  mapping(address => bool) public isStableCoin;
+
+  // Records if a token's contract maliciously treats the BetokenFund differently when calling transfer(), transferFrom(), or approve().
+  mapping(address => bool) public isMaliciousCoin;
+
   // The current cycle phase.
   CyclePhase public cyclePhase;
 
@@ -124,7 +130,8 @@ contract BetokenFund is Pausable, Utils {
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _functionCallReward,
-    uint256 _controlTokenInflation
+    uint256 _controlTokenInflation,
+    address[] _stableCoins
   )
     public
   {
@@ -148,6 +155,10 @@ contract BetokenFund is Pausable, Utils {
     controlTokenInflation = _controlTokenInflation;
     aumThresholdInWeis = _aumThresholdInWeis;
     allowEmergencyWithdraw = false;
+
+    for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
+      isStableCoin[_stableCoins[i]] = true;
+    }
   }
 
   /**
@@ -304,6 +315,20 @@ contract BetokenFund is Pausable, Utils {
     sToken.transferOwnership(_newOwner);
   }
 
+  function addStableCoin(address _stableCoin) public onlyOwner whenPaused {
+    require(_stableCoin != address(0));
+    isStableCoin[_stableCoin] = true;
+  }
+
+  function setMaliciousCoinStatus(address _coin, bool _status) public onlyOwner whenPaused {
+    require(_coin != address(0));
+    isMaliciousCoin[_coin] = _status;
+  }
+
+
+  /**
+   * @dev Moves the fund to the next phase in the investment cycle.
+   */
   function nextPhase()
     public
     whenNotPaused
@@ -485,6 +510,7 @@ contract BetokenFund is Pausable, Utils {
     // Check if token is valid
     DetailedERC20 token = DetailedERC20(_tokenAddress);
     require(token.totalSupply() > 0);
+    require(!isStableCoin[_tokenAddress]);
 
     // Collect stake
     cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
@@ -650,6 +676,7 @@ contract BetokenFund is Pausable, Utils {
       beforeBalance = destToken.balanceOf(this);
 
       // Do trade
+      destToken.approve(kyberAddr, 0);
       destToken.approve(kyberAddr, _srcAmount);
       actualDestAmount = kyber.trade(
         destToken,
