@@ -14,7 +14,7 @@ import './Utils.sol';
 contract BetokenFund is Pausable, Utils {
   using SafeMath for uint256;
 
-  enum CyclePhase { ChangeMaking, ProposalMaking, Waiting, Finalizing, Finalized }
+  enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
 
   struct Proposal {
     address tokenAddress;
@@ -47,6 +47,9 @@ contract BetokenFund is Pausable, Utils {
   // Address to which the developer fees will be paid.
   address public developerFeeAccount;
 
+  // Address of the DAI stable-coin contract.
+  address public daiAddr;
+
   // The number of the current investment cycle.
   uint256 public cycleNumber;
 
@@ -71,16 +74,13 @@ contract BetokenFund is Pausable, Utils {
   // Amount of commission to be paid out this cycle
   uint256 public totalCommission;
 
-  // Inflation rate of control token (KRO). Fixed point decimal.
-  uint256 public controlTokenInflation;
-
-  // The AUM (Asset Under Management) threshold for progressing to ProposalMakingTime in the first cycle.
+  // The AUM (Asset Under Management) threshold for progressing to MakeDecisionsTime in the first cycle.
   uint256 public aumThresholdInWeis;
 
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
-  uint256[5] phaseLengths;
+  uint256[3] phaseLengths;
 
   // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
@@ -101,6 +101,7 @@ contract BetokenFund is Pausable, Utils {
   ControlToken internal cToken;
   ShareToken internal sToken;
   KyberNetwork internal kyber;
+  DetailedERC20 internal dai;
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
 
@@ -123,14 +124,14 @@ contract BetokenFund is Pausable, Utils {
     address _cTokenAddr,
     address _sTokenAddr,
     address _kyberAddr,
+    address _daiAddr,
     address _developerFeeAccount,
     uint256 _cycleNumber,
     uint256 _aumThresholdInWeis,
-    uint256[5] _phaseLengths,
+    uint256[3] _phaseLengths,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _functionCallReward,
-    uint256 _controlTokenInflation,
     address[] _stableCoins
   )
     public
@@ -140,6 +141,7 @@ contract BetokenFund is Pausable, Utils {
     controlTokenAddr = _cTokenAddr;
     shareTokenAddr = _sTokenAddr;
     kyberAddr = _kyberAddr;
+    daiAddr = _daiAddr;
     cToken = ControlToken(_cTokenAddr);
     sToken = ShareToken(_sTokenAddr);
     kyber = KyberNetwork(_kyberAddr);
@@ -149,10 +151,9 @@ contract BetokenFund is Pausable, Utils {
     commissionRate = _commissionRate;
     developerFeeProportion = _developerFeeProportion;
     startTimeOfCyclePhase = 0;
-    cyclePhase = CyclePhase.Finalized;
+    cyclePhase = CyclePhase.RedeemCommission;
     cycleNumber = _cycleNumber;
     functionCallReward = _functionCallReward;
-    controlTokenInflation = _controlTokenInflation;
     aumThresholdInWeis = _aumThresholdInWeis;
     allowEmergencyWithdraw = false;
 
@@ -177,7 +178,7 @@ contract BetokenFund is Pausable, Utils {
     return userProposals[_userAddr];
   }
 
-  function getPhaseLengths() public view returns(uint256[5] _phaseLengths) {
+  function getPhaseLengths() public view returns(uint256[3] _phaseLengths) {
     return phaseLengths;
   }
 
@@ -195,7 +196,7 @@ contract BetokenFund is Pausable, Utils {
   function emergencyDumpToken(address _tokenAddr)
     public
     onlyOwner
-    during(CyclePhase.Finalized)
+    during(CyclePhase.RedeemCommission)
     whenPaused
   {
     __transactToken(_tokenAddr, ERC20(_tokenAddr).balanceOf(this), false);
@@ -268,6 +269,12 @@ contract BetokenFund is Pausable, Utils {
     developerFeeAccount = _newAddr;
   }
 
+  function changeDAIAddress(address _newAddr) public onlyOwner whenPaused {
+    require(_newAddr != address(0));
+    daiAddr = _newAddr;
+    dai = DetailedERC20(_newAddr);
+  }
+
   /**
    * @dev Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
@@ -285,16 +292,12 @@ contract BetokenFund is Pausable, Utils {
     commissionRate = _newProp;
   }
 
-  /**
-   * @dev Changes the inflation rate of control tokens. Only callable by owner.
-   * @param _newVal the new inflation value, fixed point decimal
-   */
-  function changeControlTokenInflation(uint256 _newVal) public onlyOwner {
-    controlTokenInflation = _newVal;
-  }
-
   function changeCallReward(uint256 _newVal) public onlyOwner {
     functionCallReward = _newVal;
+  }
+
+  function changePhaseLengths(uint256[3] _newVal) public onlyOwner {
+    phaseLengths = _newVal;
   }
 
   /**
@@ -335,21 +338,19 @@ contract BetokenFund is Pausable, Utils {
   {
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
-    if (cyclePhase == CyclePhase.Finalized) {
+    if (cyclePhase == CyclePhase.RedeemCommission) {
       // Start new cycle
       cycleNumber = cycleNumber.add(1);
 
       if (cToken.paused()) {
         cToken.unpause();
       }
-    } else if (cyclePhase == CyclePhase.ChangeMaking) {
-      // End ChangeMakingTime
+    } else if (cyclePhase == CyclePhase.DepositWithdraw) {
+      // End DepositWithdraw phase
       if (cycleNumber == 1) {
         require(totalFundsInWeis >= aumThresholdInWeis);
       }
-    } else if (cyclePhase == CyclePhase.Finalizing) {
-      // Finalize cycle
-
+    } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
       cToken.burnOwnerBalance();
 
@@ -367,7 +368,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * ChangeMakingTime functions
+   * DepositWithdraw phase functions
    */
 
   /**
@@ -376,7 +377,7 @@ contract BetokenFund is Pausable, Utils {
   function deposit()
     public
     payable
-    during(CyclePhase.ChangeMaking)
+    during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
     // Register investment
@@ -399,7 +400,7 @@ contract BetokenFund is Pausable, Utils {
 
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
-    during(CyclePhase.ChangeMaking)
+    during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
     require(_tokenAddr != address(ETH_TOKEN_ADDRESS));
@@ -444,7 +445,7 @@ contract BetokenFund is Pausable, Utils {
    */
   function withdraw(uint256 _amountInWeis)
     public
-    during(CyclePhase.ChangeMaking)
+    during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
     require(cycleNumber != 1);
@@ -462,7 +463,7 @@ contract BetokenFund is Pausable, Utils {
 
   function withdrawToken(address _tokenAddr, uint256 _amountInWeis)
     public
-    during(CyclePhase.ChangeMaking)
+    during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
     require(cycleNumber != 1);
@@ -491,7 +492,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Proposal Making time functions
+   * MakeDecisions phase functions
    */
 
   /**
@@ -504,7 +505,7 @@ contract BetokenFund is Pausable, Utils {
     uint256 _stakeInWeis
   )
     public
-    during(CyclePhase.ProposalMaking)
+    during(CyclePhase.MakeDecisions)
     whenNotPaused
   {
     // Check if token is valid
@@ -537,16 +538,12 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Finalizing phase functions
-   */
-
-  /**
    * @dev Called by user to sell the assets a proposal invested in. Returns the staked Kairo plus rewards.
    * @param _proposalId the ID of the proposal
    */
   function sellProposalAsset(uint256 _proposalId)
     public
-    during(CyclePhase.Finalizing)
+    during(CyclePhase.MakeDecisions)
     whenNotPaused
   {
     Proposal storage prop = userProposals[msg.sender][_proposalId];
@@ -557,15 +554,21 @@ contract BetokenFund is Pausable, Utils {
     __handleInvestment(_proposalId, false);
     prop.isSold = true;
 
-    uint256 multiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis).add(controlTokenInflation);
+    uint256 multiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis);
     uint256 receiveKairoAmount = prop.stake.mul(multiplier).div(PRECISION);
-    cToken.mint(msg.sender, receiveKairoAmount);
+    if (receiveKairoAmount > prop.stake) {
+      cToken.transfer(msg.sender, prop.stake);
+      cToken.mint(msg.sender, receiveKairoAmount.sub(prop.stake));
+    } else {
+      cToken.transfer(msg.sender, receiveKairoAmount);
+      cToken.burnOwnerTokens(prop.stake.sub(receiveKairoAmount));
+    }
 
     RedeemedProposal(cycleNumber, msg.sender, _proposalId, receiveKairoAmount);
   }
 
   /**
-   * Finalized phase functions
+   * RedeemCommission phase functions
    */
 
   /**
@@ -573,7 +576,7 @@ contract BetokenFund is Pausable, Utils {
    */
   function redeemCommission()
     public
-    during(CyclePhase.Finalized)
+    during(CyclePhase.RedeemCommission)
     whenNotPaused
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
@@ -581,7 +584,6 @@ contract BetokenFund is Pausable, Utils {
     uint256 commission = totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply());
     msg.sender.transfer(commission);
 
-    // Reset data
     delete userProposals[msg.sender];
 
     CommissionPaid(cycleNumber, msg.sender, commission);
@@ -593,7 +595,7 @@ contract BetokenFund is Pausable, Utils {
    */
   function sellLeftoverToken(address _tokenAddr)
     public
-    during(CyclePhase.Finalized)
+    during(CyclePhase.RedeemCommission)
     whenNotPaused
   {
     uint256 beforeBalance = this.balance;

@@ -24,7 +24,6 @@ contract ControlToken is MintableToken, PausableToken {
    */
   function ownerCollectFrom(address _from, uint256 _value) public onlyOwner returns(bool) {
     require(_from != address(0));
-    require(_value <= balances[_from]);
 
     // SafeMath.sub will throw if there is not enough balance.
     balances[_from] = balances[_from].sub(_value);
@@ -39,6 +38,12 @@ contract ControlToken is MintableToken, PausableToken {
   function burnOwnerBalance() public onlyOwner {
     totalSupply_ = totalSupply_.sub(balances[owner]);
     delete balances[owner];
+  }
+
+  function burnOwnerTokens(uint256 _value) public onlyOwner returns(bool) {
+    // SafeMath.sub will throw if there is not enough balance.
+    balances[owner] = balances[owner].sub(_value);
+    totalSupply_ = totalSupply_.sub(_value);
   }
 
   function() public {
