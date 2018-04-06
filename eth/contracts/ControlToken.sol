@@ -35,9 +35,10 @@ contract ControlToken is MintableToken, PausableToken {
   /**
    * @dev Burns the owner's token balance.
    */
-  function burnOwnerBalance() public onlyOwner {
+  function burnOwnerBalance() public onlyOwner returns(bool) {
     totalSupply_ = totalSupply_.sub(balances[owner]);
     delete balances[owner];
+    return true;
   }
 
   function burnOwnerTokens(uint256 _value) public onlyOwner returns(bool) {

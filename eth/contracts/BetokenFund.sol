@@ -16,7 +16,7 @@ contract BetokenFund is Pausable, Utils {
 
   enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
 
-  struct Proposal {
+  struct Investment {
     address tokenAddress;
     uint256 cycleNumber;
     uint256 stake;
@@ -53,9 +53,6 @@ contract BetokenFund is Pausable, Utils {
   // The number of the current investment cycle.
   uint256 public cycleNumber;
 
-  // 10^{decimals} used for representing fixed point numbers with {decimals} decimals.
-  uint256 public PRECISION;
-
   // The amount of funds held by the fund.
   uint256 public totalFundsInWeis;
 
@@ -68,7 +65,7 @@ contract BetokenFund is Pausable, Utils {
   // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
   uint256 public developerFeeProportion;
 
-  // Amount of Kairo rewarded to the user who calls a phase transition/proposal handling function
+  // Amount of Kairo rewarded to the user who calls a phase transition/investment handling function
   uint256 public functionCallReward;
 
   // Amount of commission to be paid out this cycle
@@ -85,10 +82,10 @@ contract BetokenFund is Pausable, Utils {
   // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
 
-  // List of proposals in the current cycle.
-  mapping(address => Proposal[]) public userProposals;
+  // List of investments in the current cycle.
+  mapping(address => Investment[]) public userInvestments;
 
-  // Records if a token is a stable coin. Users can't make proposals with stable coins.
+  // Records if a token is a stable coin. Users can't make investments with stable coins.
   mapping(address => bool) public isStableCoin;
 
   // Records if a token's contract maliciously treats the BetokenFund differently when calling transfer(), transferFrom(), or approve().
@@ -108,8 +105,8 @@ contract BetokenFund is Pausable, Utils {
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _amount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _amount, uint256 _timestamp);
 
-  event CreatedProposal(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
-  event RedeemedProposal(uint256 indexed _cycleNumber, address indexed _sender, uint256 _proposalId, uint256 _receivedKairos);
+  event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
+  event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairos);
 
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
@@ -167,15 +164,15 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * Returns the length of the proposals array.
-   * @return length of proposals array
+   * Returns the length of the investments array.
+   * @return length of investments array
    */
-  function proposalsCount(address _userAddr) public view returns(uint256 _count) {
-    return userProposals[_userAddr].length;
+  function investmentsCount(address _userAddr) public view returns(uint256 _count) {
+    return userInvestments[_userAddr].length;
   }
 
-  function proposals(address _userAddr) public view returns(Proposal[] _proposals) {
-    return userProposals[_userAddr];
+  function investments(address _userAddr) public view returns(Investment[] _investments) {
+    return userInvestments[_userAddr];
   }
 
   function getPhaseLengths() public view returns(uint256[3] _phaseLengths) {
@@ -203,15 +200,15 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Return staked Kairos for a proposal under emergency situations.
+   * @dev Return staked Kairos for a investment under emergency situations.
    */
-  function emergencyRedeemStake(uint256 _proposalId) whenPaused public {
+  function emergencyRedeemStake(uint256 _investmentId) whenPaused public {
     require(allowEmergencyWithdraw);
-    Proposal storage prop = userProposals[msg.sender][_proposalId];
-    require(prop.cycleNumber == cycleNumber);
-    uint256 stake = prop.stake;
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    require(investment.cycleNumber == cycleNumber);
+    uint256 stake = investment.stake;
     require(stake > 0);
-    delete prop.stake;
+    delete investment.stake;
     cToken.transfer(msg.sender, stake);
   }
 
@@ -352,7 +349,7 @@ contract BetokenFund is Pausable, Utils {
       }
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
-      cToken.burnOwnerBalance();
+      require(cToken.burnOwnerBalance());
 
       cToken.pause();
       __distributeFundsAfterCycleEnd();
@@ -496,11 +493,11 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Creates a new investment proposal for an ERC20 token.
+   * @dev Creates a new investment investment for an ERC20 token.
    * @param _tokenAddress address of the ERC20 token contract
-   * @param _stakeInWeis amount of Kairos to be staked in support of the proposal
+   * @param _stakeInWeis amount of Kairos to be staked in support of the investment
    */
-  function createProposal(
+  function createInvestment(
     address _tokenAddress,
     uint256 _stakeInWeis
   )
@@ -514,10 +511,10 @@ contract BetokenFund is Pausable, Utils {
     require(!isStableCoin[_tokenAddress]);
 
     // Collect stake
-    cToken.ownerCollectFrom(msg.sender, _stakeInWeis);
+    require(cToken.ownerCollectFrom(msg.sender, _stakeInWeis));
 
-    // Add proposal to list
-    userProposals[msg.sender].push(Proposal({
+    // Add investment to list
+    userInvestments[msg.sender].push(Investment({
       tokenAddress: _tokenAddress,
       cycleNumber: cycleNumber,
       stake: _stakeInWeis,
@@ -529,42 +526,42 @@ contract BetokenFund is Pausable, Utils {
 
     // Invest
     uint256 beforeTokenAmount = token.balanceOf(this);
-    uint256 proposalId = proposalsCount(msg.sender) - 1;
-    __handleInvestment(proposalId, true);
-    userProposals[msg.sender][proposalId].tokenAmount = token.balanceOf(this) - beforeTokenAmount;
+    uint256 investmentId = investmentsCount(msg.sender) - 1;
+    __handleInvestment(investmentId, true);
+    userInvestments[msg.sender][investmentId].tokenAmount = token.balanceOf(this) - beforeTokenAmount;
 
     // Emit event
-    CreatedProposal(cycleNumber, msg.sender, proposalsCount(msg.sender) - 1, _tokenAddress, _stakeInWeis);
+    CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender) - 1, _tokenAddress, _stakeInWeis);
   }
 
   /**
-   * @dev Called by user to sell the assets a proposal invested in. Returns the staked Kairo plus rewards.
-   * @param _proposalId the ID of the proposal
+   * @dev Called by user to sell the assets a investment invested in. Returns the staked Kairo plus rewards.
+   * @param _investmentId the ID of the investment
    */
-  function sellProposalAsset(uint256 _proposalId)
+  function sellInvestmentAsset(uint256 _investmentId)
     public
     during(CyclePhase.MakeDecisions)
     whenNotPaused
   {
-    Proposal storage prop = userProposals[msg.sender][_proposalId];
-    require(prop.buyPriceInWeis > 0);
-    require(prop.cycleNumber == cycleNumber);
-    require(!prop.isSold);
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    require(investment.buyPriceInWeis > 0);
+    require(investment.cycleNumber == cycleNumber);
+    require(!investment.isSold);
 
-    __handleInvestment(_proposalId, false);
-    prop.isSold = true;
+    __handleInvestment(_investmentId, false);
+    investment.isSold = true;
 
-    uint256 multiplier = prop.sellPriceInWeis.mul(PRECISION).div(prop.buyPriceInWeis);
-    uint256 receiveKairoAmount = prop.stake.mul(multiplier).div(PRECISION);
-    if (receiveKairoAmount > prop.stake) {
-      cToken.transfer(msg.sender, prop.stake);
-      cToken.mint(msg.sender, receiveKairoAmount.sub(prop.stake));
+    uint256 multiplier = investment.sellPriceInWeis.mul(PRECISION).div(investment.buyPriceInWeis);
+    uint256 receiveKairoAmount = investment.stake.mul(multiplier).div(PRECISION);
+    if (receiveKairoAmount > investment.stake) {
+      cToken.transfer(msg.sender, investment.stake);
+      cToken.mint(msg.sender, receiveKairoAmount.sub(investment.stake));
     } else {
       cToken.transfer(msg.sender, receiveKairoAmount);
-      cToken.burnOwnerTokens(prop.stake.sub(receiveKairoAmount));
+      require(cToken.burnOwnerTokens(investment.stake.sub(receiveKairoAmount)));
     }
 
-    RedeemedProposal(cycleNumber, msg.sender, _proposalId, receiveKairoAmount);
+    SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount);
   }
 
   /**
@@ -584,7 +581,7 @@ contract BetokenFund is Pausable, Utils {
     uint256 commission = totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply());
     msg.sender.transfer(commission);
 
-    delete userProposals[msg.sender];
+    delete userInvestments[msg.sender];
 
     CommissionPaid(cycleNumber, msg.sender, commission);
   }
@@ -631,19 +628,19 @@ contract BetokenFund is Pausable, Utils {
     TotalCommissionPaid(cycleNumber, totalCommission);
   }
 
-  function __handleInvestment(uint256 _proposalId, bool _buy) internal {
-    Proposal storage prop = userProposals[msg.sender][_proposalId];
+  function __handleInvestment(uint256 _investmentId, bool _buy) internal {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
     uint256 srcAmount;
     if (_buy) {
-      srcAmount = totalFundsInWeis.mul(prop.stake).div(cToken.totalSupply());
+      srcAmount = totalFundsInWeis.mul(investment.stake).div(cToken.totalSupply());
     } else {
-      srcAmount = prop.tokenAmount;
+      srcAmount = investment.tokenAmount;
     }
-    uint256 actualRate = __transactToken(prop.tokenAddress, srcAmount, _buy);
+    uint256 actualRate = __transactToken(investment.tokenAddress, srcAmount, _buy);
     if (_buy) {
-      prop.buyPriceInWeis = actualRate;
+      investment.buyPriceInWeis = actualRate;
     } else {
-      prop.sellPriceInWeis = actualRate;
+      investment.sellPriceInWeis = actualRate;
     }
   }
 
