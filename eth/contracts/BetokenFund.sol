@@ -1,7 +1,6 @@
 pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
-import 'zeppelin-solidity/contracts/math/Math.sol';
 import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
 import './ControlToken.sol';
 import './ShareToken.sol';
@@ -21,8 +20,8 @@ contract BetokenFund is Pausable, Utils {
     uint256 cycleNumber;
     uint256 stake;
     uint256 tokenAmount;
-    uint256 buyPriceInWeis;
-    uint256 sellPriceInWeis;
+    uint256 buyPrice;
+    uint256 sellPrice;
     bool isSold;
   }
 
@@ -54,7 +53,7 @@ contract BetokenFund is Pausable, Utils {
   uint256 public cycleNumber;
 
   // The amount of funds held by the fund.
-  uint256 public totalFundsInWeis;
+  uint256 public totalFundsInDAI;
 
   // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
@@ -72,7 +71,7 @@ contract BetokenFund is Pausable, Utils {
   uint256 public totalCommission;
 
   // The AUM (Asset Under Management) threshold for progressing to MakeDecisionsTime in the first cycle.
-  uint256 public aumThresholdInWeis;
+  uint256 public aumThresholdInDAI;
 
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
@@ -102,11 +101,11 @@ contract BetokenFund is Pausable, Utils {
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
 
-  event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _amount, uint256 _timestamp);
-  event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _amount, uint256 _timestamp);
+  event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
+  event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 daiAmount, uint256 _timestamp);
 
-  event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis);
-  event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairos);
+  event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis, uint256 _buyPrice, uint256 _costDAIAmount);
+  event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairos, uint256 _sellPrice, uint256 _earnedDAIAmount);
 
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
@@ -124,7 +123,7 @@ contract BetokenFund is Pausable, Utils {
     address _daiAddr,
     address _developerFeeAccount,
     uint256 _cycleNumber,
-    uint256 _aumThresholdInWeis,
+    uint256 _aumThresholdInDAI,
     uint256[3] _phaseLengths,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
@@ -151,7 +150,7 @@ contract BetokenFund is Pausable, Utils {
     cyclePhase = CyclePhase.RedeemCommission;
     cycleNumber = _cycleNumber;
     functionCallReward = _functionCallReward;
-    aumThresholdInWeis = _aumThresholdInWeis;
+    aumThresholdInDAI = _aumThresholdInDAI;
     allowEmergencyWithdraw = false;
 
     for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
@@ -196,7 +195,8 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.RedeemCommission)
     whenPaused
   {
-    __transactToken(_tokenAddr, ERC20(_tokenAddr).balanceOf(this), false);
+    DetailedERC20 token = DetailedERC20(_tokenAddr);
+    __kyberTrade(token, token.balanceOf(this), dai);
   }
 
   /**
@@ -216,7 +216,7 @@ contract BetokenFund is Pausable, Utils {
    * @dev Update current fund balance
    */
   function emergencyUpdateBalance() onlyOwner whenPaused public {
-    totalFundsInWeis = this.balance;
+    totalFundsInDAI = dai.balanceOf(this);
   }
 
   function setAllowEmergencyWithdraw(bool _val) onlyOwner whenPaused public {
@@ -232,15 +232,15 @@ contract BetokenFund is Pausable, Utils {
   {
     require(allowEmergencyWithdraw);
 
-    uint256 amountInWeis = sToken.balanceOf(msg.sender).mul(totalFundsInWeis).div(sToken.totalSupply());
+    uint256 amountInDAI = sToken.balanceOf(msg.sender).mul(totalFundsInDAI).div(sToken.totalSupply());
     sToken.ownerBurn(msg.sender, sToken.balanceOf(msg.sender));
-    totalFundsInWeis = totalFundsInWeis.sub(amountInWeis);
+    totalFundsInDAI = totalFundsInDAI.sub(amountInDAI);
 
     // Transfer
-    msg.sender.transfer(amountInWeis);
+    dai.transfer(msg.sender, amountInDAI);
 
     // Emit event
-    Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, amountInWeis, now);
+    Withdraw(cycleNumber, msg.sender, daiAddr, amountInDAI, amountInDAI, now);
   }
 
   /**
@@ -345,7 +345,7 @@ contract BetokenFund is Pausable, Utils {
     } else if (cyclePhase == CyclePhase.DepositWithdraw) {
       // End DepositWithdraw phase
       if (cycleNumber == 1) {
-        require(totalFundsInWeis >= aumThresholdInWeis);
+        require(totalFundsInDAI >= aumThresholdInDAI);
       }
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
@@ -377,22 +377,34 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
-    // Register investment
-    if (cycleNumber == 1) {
-      sToken.mint(msg.sender, msg.value);
-    } else {
-      sToken.mint(msg.sender, msg.value.mul(sToken.totalSupply()).div(totalFundsInWeis));
+    // Buy DAI with ETH
+    uint256 actualDAIDeposited;
+    uint256 actualETHDeposited;
+    uint256 beforeETHBalance = this.balance;
+    uint256 beforeDAIBalance = dai.balanceOf(this);
+    __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+    actualETHDeposited = beforeETHBalance.sub(this.balance);
+    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
+    if (leftOverETH > 0) {
+      msg.sender.transfer(leftOverETH);
     }
-    totalFundsInWeis = totalFundsInWeis.add(msg.value);
+    actualDAIDeposited = dai.balanceOf(this).sub(beforeDAIBalance);
+    require(actualDAIDeposited > 0);
+
+    // Give Shares
+    if (cycleNumber == 1) {
+      sToken.mint(msg.sender, actualDAIDeposited);
+    } else {
+      sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
 
     // Give control tokens proportional to investment
-    // Uncomment if statement if not test version
-    // if (cycleNumber == 1) {
-      cToken.mint(msg.sender, msg.value);
-    // }
+    // Only in test version
+    cToken.mint(msg.sender, actualDAIDeposited);
 
     // Emit event
-    Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, msg.value, now);
+    Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
   }
 
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
@@ -400,92 +412,112 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
+    require(!isMaliciousCoin[_tokenAddr]);
     require(_tokenAddr != address(ETH_TOKEN_ADDRESS));
     DetailedERC20 token = DetailedERC20(_tokenAddr);
     require(token.totalSupply() > 0);
 
     require(token.transferFrom(msg.sender, this, _tokenAmount));
 
-    uint256 beforeTokenBalance = token.balanceOf(this);
-    uint256 beforeEthBalance = this.balance;
-    __transactToken(_tokenAddr, _tokenAmount, false);
-    uint256 actualTokenAmount = beforeTokenBalance - token.balanceOf(this);
-    uint256 leftOverTokens = _tokenAmount - actualTokenAmount;
-    if (leftOverTokens > 0) {
-      require(token.transfer(msg.sender, leftOverTokens));
-    }
+    uint256 actualDAIDeposited;
+    uint256 actualTokenDeposited;
+    if (_tokenAddr == daiAddr) {
+      actualDAIDeposited = _tokenAmount;
+      actualTokenDeposited = _tokenAmount;
+    } else {
+      uint256 beforeTokenBalance = token.balanceOf(this);
+      uint256 beforeDAIBalance = dai.balanceOf(this);
+      __kyberTrade(token, _tokenAmount, dai);
+      actualTokenDeposited = beforeTokenBalance.sub(token.balanceOf(this));
+      uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
+      if (leftOverTokens > 0) {
+        require(token.transfer(msg.sender, leftOverTokens));
+      }
 
-    uint256 depositInWeis = this.balance - beforeEthBalance;
-    require(depositInWeis > 0);
+      actualDAIDeposited = dai.balanceOf(this).sub(beforeDAIBalance);
+      require(actualDAIDeposited > 0);
+    }
 
     // Register investment
     if (cycleNumber == 1) {
-      sToken.mint(msg.sender, depositInWeis);
+      sToken.mint(msg.sender, actualDAIDeposited);
     } else {
-      sToken.mint(msg.sender, depositInWeis.mul(sToken.totalSupply()).div(totalFundsInWeis));
+      sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
     }
-    totalFundsInWeis = totalFundsInWeis.add(depositInWeis);
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
 
     // Give control tokens proportional to investment
     // Uncomment if statement if not test version
     // if (cycleNumber == 1) {
-    cToken.mint(msg.sender, depositInWeis);
+    cToken.mint(msg.sender, actualDAIDeposited);
     // }
-
-    // Emit event
-    Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenAmount, now);
+    Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
   }
 
   /**
    * @dev Withdraws a certain amount of Ether from the user's account. Cannot be called during the first cycle.
-   * @param _amountInWeis amount of Ether to be withdrawn
+   * @param _amountInDAI amount of Ether to be withdrawn
    */
-  function withdraw(uint256 _amountInWeis)
+  function withdraw(uint256 _amountInDAI)
     public
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
     require(cycleNumber != 1);
 
-    // Subtract from account
-    sToken.ownerBurn(msg.sender, _amountInWeis.mul(sToken.totalSupply()).div(totalFundsInWeis));
-    totalFundsInWeis = totalFundsInWeis.sub(_amountInWeis);
+    // Buy ETH
+    uint256 actualETHWithdrawn;
+    uint256 actualDAIWithdrawn;
+    uint256 beforeETHBalance = this.balance;
+    uint256 beforeDaiBalance = dai.balanceOf(this);
+    __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
+    actualETHWithdrawn = this.balance.sub(beforeETHBalance);
+    actualDAIWithdrawn = beforeDaiBalance.sub(dai.balanceOf(this));
+    require(actualDAIWithdrawn > 0);
+
+    // Burn shares
+    sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer Ether to user
-    msg.sender.transfer(_amountInWeis);
+    msg.sender.transfer(actualETHWithdrawn);
 
     // Emit event
-    Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, _amountInWeis, now);
+    Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHWithdrawn, actualDAIWithdrawn, now);
   }
 
-  function withdrawToken(address _tokenAddr, uint256 _amountInWeis)
+  function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
     public
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
     require(cycleNumber != 1);
+    require(!isMaliciousCoin[_tokenAddr]);
     require(_tokenAddr != address(ETH_TOKEN_ADDRESS));
 
     DetailedERC20 token = DetailedERC20(_tokenAddr);
     require(token.totalSupply() > 0);
 
-    // Buy desired tokens
-    uint256 beforeTokenBalance = token.balanceOf(this);
-    uint256 beforeEthBalance = this.balance;
-    __transactToken(_tokenAddr, _amountInWeis, true);
-    uint256 actualTokenAmount = token.balanceOf(this) - beforeTokenBalance;
+    uint256 actualTokenWithdrawn;
+    uint256 actualDAIWithdrawn;
+    if (_tokenAddr == daiAddr) {
+      actualDAIWithdrawn = _amountInDAI;
+      actualTokenWithdrawn = _amountInDAI;
+    } else {
+      // Buy desired tokens
+      uint256 beforeTokenBalance = token.balanceOf(this);
+      uint256 beforeDaiBalance = dai.balanceOf(this);
+      __kyberTrade(dai, _amountInDAI, token);
+      actualTokenWithdrawn = token.balanceOf(this).sub(beforeTokenBalance);
+      actualDAIWithdrawn = beforeDaiBalance.sub(dai.balanceOf(this));
+      require(actualDAIWithdrawn > 0);
+    }
+    sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
-    // Subtract from account
-    uint256 actualAmountInWeis = beforeEthBalance - this.balance;
-    require(actualAmountInWeis > 0);
-    sToken.ownerBurn(msg.sender, actualAmountInWeis.mul(sToken.totalSupply()).div(totalFundsInWeis));
-    totalFundsInWeis = totalFundsInWeis.sub(actualAmountInWeis);
+    token.transfer(msg.sender, actualTokenWithdrawn);
 
-    // Transfer tokens
-    token.transfer(msg.sender, actualTokenAmount);
-
-    // Emit event
-    Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenAmount, now);
+    Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
   }
 
   /**
@@ -495,11 +527,11 @@ contract BetokenFund is Pausable, Utils {
   /**
    * @dev Creates a new investment investment for an ERC20 token.
    * @param _tokenAddress address of the ERC20 token contract
-   * @param _stakeInWeis amount of Kairos to be staked in support of the investment
+   * @param _stake amount of Kairos to be staked in support of the investment
    */
   function createInvestment(
     address _tokenAddress,
-    uint256 _stakeInWeis
+    uint256 _stake
   )
     public
     during(CyclePhase.MakeDecisions)
@@ -511,31 +543,32 @@ contract BetokenFund is Pausable, Utils {
     require(!isStableCoin[_tokenAddress]);
 
     // Collect stake
-    require(cToken.ownerCollectFrom(msg.sender, _stakeInWeis));
+    require(cToken.ownerCollectFrom(msg.sender, _stake));
 
     // Add investment to list
     userInvestments[msg.sender].push(Investment({
       tokenAddress: _tokenAddress,
       cycleNumber: cycleNumber,
-      stake: _stakeInWeis,
+      stake: _stake,
       tokenAmount: 0,
-      buyPriceInWeis: 0,
-      sellPriceInWeis: 0,
+      buyPrice: 0,
+      sellPrice: 0,
       isSold: false
     }));
 
     // Invest
     uint256 beforeTokenAmount = token.balanceOf(this);
-    uint256 investmentId = investmentsCount(msg.sender) - 1;
+    uint256 beforeDAIBalance = dai.balanceOf(this);
+    uint256 investmentId = investmentsCount(msg.sender).sub(1);
     __handleInvestment(investmentId, true);
-    userInvestments[msg.sender][investmentId].tokenAmount = token.balanceOf(this) - beforeTokenAmount;
+    userInvestments[msg.sender][investmentId].tokenAmount = token.balanceOf(this).sub(beforeTokenAmount);
 
     // Emit event
-    CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender) - 1, _tokenAddress, _stakeInWeis);
+    CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1), _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, beforeDAIBalance.sub(dai.balanceOf(this)));
   }
 
   /**
-   * @dev Called by user to sell the assets a investment invested in. Returns the staked Kairo plus rewards.
+   * @dev Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards.
    * @param _investmentId the ID of the investment
    */
   function sellInvestmentAsset(uint256 _investmentId)
@@ -544,14 +577,15 @@ contract BetokenFund is Pausable, Utils {
     whenNotPaused
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
-    require(investment.buyPriceInWeis > 0);
+    require(investment.buyPrice > 0);
     require(investment.cycleNumber == cycleNumber);
     require(!investment.isSold);
 
+    uint256 beforeDAIBalance = dai.balanceOf(this);
     __handleInvestment(_investmentId, false);
     investment.isSold = true;
 
-    uint256 multiplier = investment.sellPriceInWeis.mul(PRECISION).div(investment.buyPriceInWeis);
+    uint256 multiplier = investment.sellPrice.mul(PRECISION).div(investment.buyPrice);
     uint256 receiveKairoAmount = investment.stake.mul(multiplier).div(PRECISION);
     if (receiveKairoAmount > investment.stake) {
       cToken.transfer(msg.sender, investment.stake);
@@ -561,7 +595,7 @@ contract BetokenFund is Pausable, Utils {
       require(cToken.burnOwnerTokens(investment.stake.sub(receiveKairoAmount)));
     }
 
-    SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount);
+    SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, dai.balanceOf(this).sub(beforeDAIBalance));
   }
 
   /**
@@ -579,7 +613,7 @@ contract BetokenFund is Pausable, Utils {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
     uint256 commission = totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply());
-    msg.sender.transfer(commission);
+    dai.transfer(msg.sender, commission);
 
     delete userInvestments[msg.sender];
 
@@ -595,9 +629,10 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.RedeemCommission)
     whenNotPaused
   {
-    uint256 beforeBalance = this.balance;
-    __transactToken(_tokenAddr, ERC20(_tokenAddr).balanceOf(this), false);
-    totalFundsInWeis = totalFundsInWeis.add(this.balance.sub(beforeBalance));
+    uint256 beforeBalance = dai.balanceOf(this);
+    DetailedERC20 token = DetailedERC20(_tokenAddr);
+    __kyberTrade(token, token.balanceOf(this), dai);
+    totalFundsInDAI = totalFundsInDAI.add(dai.balanceOf(this).sub(beforeBalance));
   }
 
   /**
@@ -610,19 +645,19 @@ contract BetokenFund is Pausable, Utils {
    */
   function __distributeFundsAfterCycleEnd() internal {
     uint256 profit = 0;
-    if (this.balance > totalFundsInWeis) {
-      profit = this.balance - totalFundsInWeis;
+    if (dai.balanceOf(this) > totalFundsInDAI) {
+      profit = dai.balanceOf(this).sub(totalFundsInDAI);
     }
     totalCommission = commissionRate.mul(profit).div(PRECISION);
-    uint256 devFee = developerFeeProportion.mul(this.balance).div(PRECISION);
-    uint256 newTotalFunds = this.balance.sub(totalCommission).sub(devFee);
+    uint256 devFee = developerFeeProportion.mul(dai.balanceOf(this)).div(PRECISION);
+    uint256 newTotalFunds = dai.balanceOf(this).sub(totalCommission).sub(devFee);
 
     // Update values
-    ROI(cycleNumber, totalFundsInWeis, newTotalFunds);
-    totalFundsInWeis = newTotalFunds;
+    ROI(cycleNumber, totalFundsInDAI, newTotalFunds);
+    totalFundsInDAI = newTotalFunds;
 
     // Transfer fees
-    developerFeeAccount.transfer(devFee);
+    dai.transfer(developerFeeAccount, devFee);
 
     // Emit event
     TotalCommissionPaid(cycleNumber, totalCommission);
@@ -632,66 +667,44 @@ contract BetokenFund is Pausable, Utils {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
     uint256 srcAmount;
     if (_buy) {
-      srcAmount = totalFundsInWeis.mul(investment.stake).div(cToken.totalSupply());
+      srcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
     } else {
       srcAmount = investment.tokenAmount;
     }
-    uint256 actualRate = __transactToken(investment.tokenAddress, srcAmount, _buy);
+    DetailedERC20 token = DetailedERC20(investment.tokenAddress);
     if (_buy) {
-      investment.buyPriceInWeis = actualRate;
+      investment.buyPrice = __kyberTrade(dai, srcAmount, token);
     } else {
-      investment.sellPriceInWeis = actualRate;
+      investment.sellPrice = invert(__kyberTrade(token, srcAmount, dai));
     }
   }
 
-  function __transactToken(address _tokenAddr, uint256 _srcAmount, bool _buy) internal returns(uint256 _actualRate) {
+  function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc) {
     uint256 actualDestAmount;
-    uint256 beforeBalance;
-    address destAddr = _tokenAddr;
-    DetailedERC20 destToken = DetailedERC20(destAddr);
+    uint256 beforeSrcBalance;
 
-    if (_buy) {
-      // Make buy orders
-
-      beforeBalance = this.balance;
-
-      // Do trade
-      actualDestAmount = kyber.trade.value(_srcAmount)(
-        ETH_TOKEN_ADDRESS,
-        _srcAmount,
-        destToken,
-        this,
-        MAX_QTY,
-        1,
-        0
-      );
-
-      // Record buy price
-      require(actualDestAmount > 0);
-      _actualRate = beforeBalance.sub(this.balance).mul(PRECISION).mul(10**uint256(destToken.decimals())).div(actualDestAmount.mul(10**18));
+    if (_srcToken != ETH_TOKEN_ADDRESS) {
+      beforeSrcBalance = _srcToken.balanceOf(this);
+      _srcToken.approve(kyberAddr, 0);
+      _srcToken.approve(kyberAddr, _srcAmount);
     } else {
-      // Make sell orders
-
-      beforeBalance = destToken.balanceOf(this);
-
-      // Do trade
-      destToken.approve(kyberAddr, 0);
-      destToken.approve(kyberAddr, _srcAmount);
-      actualDestAmount = kyber.trade(
-        destToken,
-        _srcAmount,
-        ETH_TOKEN_ADDRESS,
-        this,
-        MAX_QTY,
-        1,
-        0
-      );
-      destToken.approve(kyberAddr, 0);
-
-      // Record sell price
-      require(beforeBalance > destToken.balanceOf(this));
-      _actualRate = actualDestAmount.mul(PRECISION).mul(10**18).div(beforeBalance.sub(destToken.balanceOf(this)).mul(10**uint256(destToken.decimals())));
+      beforeSrcBalance = this.balance;
     }
+    actualDestAmount = kyber.trade(
+      _srcToken,
+      _srcAmount,
+      _destToken,
+      this,
+      MAX_QTY,
+      1,
+      0
+    );
+    require(actualDestAmount > 0);
+    if (_srcToken != ETH_TOKEN_ADDRESS) {
+      _srcToken.approve(kyberAddr, 0);
+    }
+
+    _destPriceInSrc = beforeSrcBalance.sub(_srcToken.balanceOf(this)).mul(PRECISION).mul(10**uint256(_destToken.decimals())).div(actualDestAmount.mul(10**18));
   }
 
   function() public payable {

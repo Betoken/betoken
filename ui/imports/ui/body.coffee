@@ -263,7 +263,7 @@ loadFundData = () ->
                   entry.token = _tokenSymbol
               ).then(() -> betoken.getTokenDecimals(data._tokenAddress)).then(
                 (_tokenDecimals) ->
-                  entry.amount = BigNumber(data._amount).div(10**(+_tokenDecimals)).toFormat(4)
+                  entry.amount = BigNumber(data._tokenAmount).div(10**(+_tokenDecimals)).toFormat(4)
               ).then(
                 () ->
                   tmp = transactionHistory.get()

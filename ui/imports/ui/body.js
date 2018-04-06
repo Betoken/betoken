@@ -308,7 +308,7 @@ loadFundData = function() {
           }).then(function() {
             return betoken.getTokenDecimals(data._tokenAddress);
           }).then(function(_tokenDecimals) {
-            return entry.amount = BigNumber(data._amount).div(Math.pow(10, +_tokenDecimals)).toFormat(4);
+            return entry.amount = BigNumber(data._tokenAmount).div(Math.pow(10, +_tokenDecimals)).toFormat(4);
           }).then(function() {
             var tmp;
             tmp = transactionHistory.get();
