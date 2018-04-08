@@ -34,6 +34,17 @@ contract BetokenFund is Pausable, Utils {
     _;
   }
 
+  /**
+   * @dev Checks if a token address is valid.
+   * @param token the token's address
+   */
+  modifier isValidToken(address token) {
+    require(!isMaliciousCoin[token]);
+    require(token != address(ETH_TOKEN_ADDRESS));
+    require(ERC20(token).totalSupply() > 0);
+    _;
+  }
+
   // Address of the control token contract.
   address public controlTokenAddr;
 
@@ -76,6 +87,7 @@ contract BetokenFund is Pausable, Utils {
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
+  // Stores the lengths of each cycle phase in seconds.
   uint256[3] phaseLengths;
 
   // The last cycle where a user redeemed commission.
@@ -163,17 +175,25 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * Returns the length of the investments array.
-   * @return length of investments array
+   * Returns the length of the user's investments array.
+   * @return length of the user's investments array
    */
   function investmentsCount(address _userAddr) public view returns(uint256 _count) {
     return userInvestments[_userAddr].length;
   }
 
+  /**
+   * Returns the user's investments array.
+   * @return the user's investments array
+   */
   function investments(address _userAddr) public view returns(Investment[] _investments) {
     return userInvestments[_userAddr];
   }
 
+  /**
+   * Returns the phaseLengths array.
+   * @return the phaseLengths array
+   */
   function getPhaseLengths() public view returns(uint256[3] _phaseLengths) {
     return phaseLengths;
   }
@@ -187,7 +207,8 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev In case the fund is invested in tokens, sell all tokens.
+   * @dev Sells token in emergency situations. Only callable by owner.
+   * @param _tokenAddr the address of the token to be sold
    */
   function emergencyDumpToken(address _tokenAddr)
     public
@@ -200,7 +221,8 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Return staked Kairos for a investment under emergency situations.
+   * @dev Return staked Kairos for a investment under emergency situations. Should be called by users.
+   * @param _investmentId the ID of the investment
    */
   function emergencyRedeemStake(uint256 _investmentId) whenPaused public {
     require(allowEmergencyWithdraw);
@@ -213,18 +235,22 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Update current fund balance
+   * @dev Updates the current fund balance. Only callable by owner.
    */
   function emergencyUpdateBalance() onlyOwner whenPaused public {
     totalFundsInDAI = dai.balanceOf(this);
   }
 
-  function setAllowEmergencyWithdraw(bool _val) onlyOwner whenPaused public {
-    allowEmergencyWithdraw = _val;
+  /**
+   * @dev Changes whether emergency withdrawals are allowed. Only callable by owner.
+   * @param _newVal the new value
+   */
+  function setAllowEmergencyWithdraw(bool _newVal) onlyOwner whenPaused public {
+    allowEmergencyWithdraw = _newVal;
   }
 
   /**
-   * @dev Function for withdrawing all funds in times of emergency. Only callable when fund is paused.
+   * @dev Function for withdrawing all funds in times of emergency. Only callable when fund is paused and allowEmergencyWithdraw is true.
    */
   function emergencyWithdraw()
     public
@@ -249,7 +275,7 @@ contract BetokenFund is Pausable, Utils {
 
   /**
    * @dev Changes the address of the KyberNetwork contract used in the contract. Only callable by owner.
-   * @param _newAddr new address of KyberNetwork contract
+   * @param _newAddr the new address of KyberNetwork contract
    */
   function changeKyberNetworkAddress(address _newAddr) public onlyOwner whenPaused {
     require(_newAddr != address(0));
@@ -259,13 +285,17 @@ contract BetokenFund is Pausable, Utils {
 
   /**
    * @dev Changes the address to which the developer fees will be sent. Only callable by owner.
-   * @param _newAddr new developer fee address
+   * @param _newAddr the new developer fee address
    */
   function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
     require(_newAddr != address(0));
     developerFeeAccount = _newAddr;
   }
 
+  /**
+  * @dev Changes the address of the DAI token smart contract. Only callable by owner.
+  * @param _newAddr the new DAI smart contract address
+  */
   function changeDAIAddress(address _newAddr) public onlyOwner whenPaused {
     require(_newAddr != address(0));
     daiAddr = _newAddr;
@@ -289,16 +319,24 @@ contract BetokenFund is Pausable, Utils {
     commissionRate = _newProp;
   }
 
+  /**
+   * @dev Changes the amount of Kairo rewarded to whomever calls nextPhase() the first. Only callable by owner.
+   * @param _newVal the new reward value in Kairo, 18 decimals
+   */
   function changeCallReward(uint256 _newVal) public onlyOwner {
     functionCallReward = _newVal;
   }
 
+  /**
+   * @dev Changes the lengths of the phases in an investment cycle. Only callable by owner.
+   * @param _newVal the new set of phase lengths, in the order of DepositWithdraw, MakeDecisions, RedeemCommission, in seconds
+   */
   function changePhaseLengths(uint256[3] _newVal) public onlyOwner {
     phaseLengths = _newVal;
   }
 
   /**
-   * @dev Changes the owner of the ControlToken contract.
+   * @dev Changes the owner of the ControlToken contract. Only callable by owner.
    * @param  _newOwner the new owner address
    */
   function changeControlTokenOwner(address _newOwner) public onlyOwner whenPaused {
@@ -307,7 +345,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the owner of the ShareToken contract.
+   * @dev Changes the owner of the ShareToken contract. Only callable by owner.
    * @param  _newOwner the new owner address
    */
   function changeShareTokenOwner(address _newOwner) public onlyOwner whenPaused {
@@ -315,11 +353,20 @@ contract BetokenFund is Pausable, Utils {
     sToken.transferOwnership(_newOwner);
   }
 
+  /**
+   * @dev Adds a stable-coin to the manifest. Only callable by owner.
+   * @param  _stableCoin the stable-coin's address
+   */
   function addStableCoin(address _stableCoin) public onlyOwner whenPaused {
     require(_stableCoin != address(0));
     isStableCoin[_stableCoin] = true;
   }
 
+  /**
+   * @dev Changes the maliciousness status of a token. Only callable by owner.
+   * @param _coin the token's address
+   * @param _status the new maliciousness status
+   */
   function setMaliciousCoinStatus(address _coin, bool _status) public onlyOwner whenPaused {
     require(_coin != address(0));
     isMaliciousCoin[_coin] = _status;
@@ -369,7 +416,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Deposit Ether into the fund.
+   * @dev Deposit Ether into the fund. Ether will be converted into DAI.
    */
   function deposit()
     public
@@ -391,7 +438,7 @@ contract BetokenFund is Pausable, Utils {
     actualDAIDeposited = dai.balanceOf(this).sub(beforeDAIBalance);
     require(actualDAIDeposited > 0);
 
-    // Give Shares
+    // Register investment
     if (cycleNumber == 1) {
       sToken.mint(msg.sender, actualDAIDeposited);
     } else {
@@ -399,32 +446,36 @@ contract BetokenFund is Pausable, Utils {
     }
     totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
 
-    // Give control tokens proportional to investment
-    // Only in test version
+    // Only for test version. Remove for release.
     cToken.mint(msg.sender, actualDAIDeposited);
 
     // Emit event
     Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
   }
 
+  /**
+   * @dev Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
+   * @param _tokenAddr the address of the token to be deposited
+   * @param _tokenAmount The amount of tokens to be deposited. May be different from actual deposited amount.
+   */
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
     during(CyclePhase.DepositWithdraw)
+    isValidToken(_tokenAddr)
     whenNotPaused
   {
-    require(!isMaliciousCoin[_tokenAddr]);
-    require(_tokenAddr != address(ETH_TOKEN_ADDRESS));
     DetailedERC20 token = DetailedERC20(_tokenAddr);
-    require(token.totalSupply() > 0);
 
     require(token.transferFrom(msg.sender, this, _tokenAmount));
 
+    // Convert token into DAI
     uint256 actualDAIDeposited;
     uint256 actualTokenDeposited;
     if (_tokenAddr == daiAddr) {
       actualDAIDeposited = _tokenAmount;
       actualTokenDeposited = _tokenAmount;
     } else {
+      // Buy DAI with tokens
       uint256 beforeTokenBalance = token.balanceOf(this);
       uint256 beforeDAIBalance = dai.balanceOf(this);
       __kyberTrade(token, _tokenAmount, dai);
@@ -433,7 +484,6 @@ contract BetokenFund is Pausable, Utils {
       if (leftOverTokens > 0) {
         require(token.transfer(msg.sender, leftOverTokens));
       }
-
       actualDAIDeposited = dai.balanceOf(this).sub(beforeDAIBalance);
       require(actualDAIDeposited > 0);
     }
@@ -446,25 +496,22 @@ contract BetokenFund is Pausable, Utils {
     }
     totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
 
-    // Give control tokens proportional to investment
-    // Uncomment if statement if not test version
-    // if (cycleNumber == 1) {
+    // Only for test version. Remove for release.
     cToken.mint(msg.sender, actualDAIDeposited);
-    // }
+
+    // Emit event
     Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
   }
 
   /**
-   * @dev Withdraws a certain amount of Ether from the user's account. Cannot be called during the first cycle.
-   * @param _amountInDAI amount of Ether to be withdrawn
+   * @dev Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
    */
   function withdraw(uint256 _amountInDAI)
     public
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
   {
-    require(cycleNumber != 1);
-
     // Buy ETH
     uint256 actualETHWithdrawn;
     uint256 actualDAIWithdrawn;
@@ -486,18 +533,21 @@ contract BetokenFund is Pausable, Utils {
     Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHWithdrawn, actualDAIWithdrawn, now);
   }
 
+  /**
+   * @dev Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
+   * @param _tokenAddr the address of the token to be withdrawn into the caller's account
+   * @param _amountInDAI The amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
   function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
     public
     during(CyclePhase.DepositWithdraw)
+    isValidToken(_tokenAddr)
     whenNotPaused
   {
     require(cycleNumber != 1);
-    require(!isMaliciousCoin[_tokenAddr]);
-    require(_tokenAddr != address(ETH_TOKEN_ADDRESS));
-
     DetailedERC20 token = DetailedERC20(_tokenAddr);
-    require(token.totalSupply() > 0);
 
+    // Convert DAI into desired tokens
     uint256 actualTokenWithdrawn;
     uint256 actualDAIWithdrawn;
     if (_tokenAddr == daiAddr) {
@@ -512,11 +562,15 @@ contract BetokenFund is Pausable, Utils {
       actualDAIWithdrawn = beforeDaiBalance.sub(dai.balanceOf(this));
       require(actualDAIWithdrawn > 0);
     }
+
+    // Burn Shares
     sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
+    // Transfer tokens to user
     token.transfer(msg.sender, actualTokenWithdrawn);
 
+    // Emit event
     Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
   }
 
@@ -535,11 +589,10 @@ contract BetokenFund is Pausable, Utils {
   )
     public
     during(CyclePhase.MakeDecisions)
+    isValidToken(_tokenAddress)
     whenNotPaused
   {
-    // Check if token is valid
     DetailedERC20 token = DetailedERC20(_tokenAddress);
-    require(token.totalSupply() > 0);
     require(!isStableCoin[_tokenAddress]);
 
     // Collect stake
@@ -568,7 +621,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards.
+   * @dev Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties.
    * @param _investmentId the ID of the investment
    */
   function sellInvestmentAsset(uint256 _investmentId)
@@ -581,10 +634,12 @@ contract BetokenFund is Pausable, Utils {
     require(investment.cycleNumber == cycleNumber);
     require(!investment.isSold);
 
+    // Sell asset
     uint256 beforeDAIBalance = dai.balanceOf(this);
     __handleInvestment(_investmentId, false);
     investment.isSold = true;
 
+    // Return Kairo
     uint256 multiplier = investment.sellPrice.mul(PRECISION).div(investment.buyPrice);
     uint256 receiveKairoAmount = investment.stake.mul(multiplier).div(PRECISION);
     if (receiveKairoAmount > investment.stake) {
@@ -595,6 +650,7 @@ contract BetokenFund is Pausable, Utils {
       require(cToken.burnOwnerTokens(investment.stake.sub(receiveKairoAmount)));
     }
 
+    // Emit event
     SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, dai.balanceOf(this).sub(beforeDAIBalance));
   }
 
@@ -621,16 +677,18 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Sells tokens left over due to manager not selling or KyberNetwork not having enough demand.
+   * @dev Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone.
    * @param _tokenAddr address of the token to be sold
    */
   function sellLeftoverToken(address _tokenAddr)
     public
     during(CyclePhase.RedeemCommission)
+    isValidToken(_tokenAddr)
     whenNotPaused
   {
     uint256 beforeBalance = dai.balanceOf(this);
     DetailedERC20 token = DetailedERC20(_tokenAddr);
+    require(_tokenAddr != daiAddr);
     __kyberTrade(token, token.balanceOf(this), dai);
     totalFundsInDAI = totalFundsInDAI.add(dai.balanceOf(this).sub(beforeBalance));
   }
@@ -640,8 +698,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Distributes the funds accourding to previously held proportions. Pays commission to Kairo holders,
-   * and developer fees to developers.
+   * @dev Update fund statistics, and pay developer fees.
    */
   function __distributeFundsAfterCycleEnd() internal {
     uint256 profit = 0;
@@ -679,6 +736,13 @@ contract BetokenFund is Pausable, Utils {
     }
   }
 
+  /**
+   * @dev Wrapper function for doing token conversion on Kyber Network
+   * @param _srcToken the token to convert from
+   * @param _srcAmount the amount of tokens to be converted
+   * @param _destToken the destination token
+   * @return _destPriceInSrc the price of the destination token, in terms of source tokens
+   */
   function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc) {
     uint256 actualDestAmount;
     uint256 beforeSrcBalance;
