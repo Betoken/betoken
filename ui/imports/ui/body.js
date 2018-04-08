@@ -629,7 +629,7 @@ Template.top_bar.events({
   "click .next_phase": function(event) {
     var error;
     try {
-      return betoken.endPhase(cyclePhase.get(), showTransaction);
+      return betoken.nextPhase(showTransaction);
     } catch (error1) {
       error = error1;
       return console.log(error);
@@ -706,11 +706,11 @@ Template.sidebar.helpers({
     return displayedKairoUnit.get();
   },
   can_redeem_commission: function() {
-    return cyclePhase.get() === 4 && lastCommissionRedemption.get() < cycleNumber.get();
+    return cyclePhase.get() === 2 && lastCommissionRedemption.get() < cycleNumber.get();
   },
   expected_commission: function() {
     if (kairoTotalSupply.get().greaterThan(0)) {
-      if (cyclePhase.get() === 4) {
+      if (cyclePhase.get() === 2) {
         // Actual commission that will be redeemed
         return kairoBalance.get().div(kairoTotalSupply.get()).mul(cycleTotalCommission.get()).div(1e18).toFormat(18);
       }
@@ -757,7 +757,7 @@ Template.transact_box.onCreated(function() {
 
 Template.transact_box.helpers({
   is_disabled: function(_type) {
-    if ((cyclePhase.get() !== 0 && _type !== "token") || (cycleNumber.get() === 1 && _type === "withdraw") || (cyclePhase.get() === 4 && _type === "token")) {
+    if ((cyclePhase.get() !== 0 && _type !== "token") || (cyclePhase.get() === 2 && _type === "token")) {
       return "disabled";
     }
   },
@@ -885,7 +885,7 @@ Template.proposals_tab.helpers({
     return proposalList.get();
   },
   should_have_actions: function() {
-    return cyclePhase.get() === 3;
+    return cyclePhase.get() === 1;
   },
   wei_to_eth: function(_weis) {
     return BigNumber(_weis).div(1e18).toFormat(4);
@@ -910,7 +910,7 @@ Template.proposals_tab.events({
   "click .execute_proposal": function(event) {
     var id;
     id = this.id;
-    if (cyclePhase.get() === 3) {
+    if (cyclePhase.get() === 1) {
       return betoken.sellProposalAsset(id, showTransaction);
     }
   },

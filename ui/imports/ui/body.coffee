@@ -516,7 +516,7 @@ Template.top_bar.helpers(
 Template.top_bar.events(
   "click .next_phase": (event) ->
     try
-      betoken.endPhase(cyclePhase.get(), showTransaction)
+      betoken.nextPhase(showTransaction)
     catch error
       console.log error
 
@@ -562,10 +562,10 @@ Template.sidebar.helpers(
   balance_unit: () -> displayedInvestmentUnit.get()
   user_kairo_balance: () -> displayedKairoBalance.get().toFormat(18)
   kairo_unit: () -> displayedKairoUnit.get()
-  can_redeem_commission: () -> cyclePhase.get() == 4 && lastCommissionRedemption.get() < cycleNumber.get()
+  can_redeem_commission: () -> cyclePhase.get() == 2 && lastCommissionRedemption.get() < cycleNumber.get()
   expected_commission: () ->
     if kairoTotalSupply.get().greaterThan(0)
-      if cyclePhase.get() == 4
+      if cyclePhase.get() == 2
         # Actual commission that will be redeemed
         return kairoBalance.get().div(kairoTotalSupply.get()).mul(cycleTotalCommission.get()).div(1e18).toFormat(18)
       # Expected commission based on previous average ROI
@@ -607,8 +607,7 @@ Template.transact_box.onCreated(
 
 Template.transact_box.helpers(
   is_disabled: (_type) ->
-    if (cyclePhase.get() != 0 && _type != "token") || (cycleNumber.get() == 1 && _type == "withdraw")\
-        || (cyclePhase.get() == 4 && _type == "token")
+    if (cyclePhase.get() != 0 && _type != "token") || (cyclePhase.get() == 2 && _type == "token")
       "disabled"
 
   has_error: (input_id) ->
@@ -704,7 +703,7 @@ Template.stats_tab.helpers(
 
 Template.proposals_tab.helpers(
   proposal_list: () -> proposalList.get()
-  should_have_actions: () -> cyclePhase.get() == 3
+  should_have_actions: () -> cyclePhase.get() == 1
   wei_to_eth: (_weis) -> BigNumber(_weis).div(1e18).toFormat(4)
 
   redeem_kro_is_disabled: (_isSold) ->
@@ -717,7 +716,7 @@ Template.proposals_tab.helpers(
 Template.proposals_tab.events(
   "click .execute_proposal": (event) ->
     id = this.id
-    if cyclePhase.get() == 3
+    if cyclePhase.get() == 1
       betoken.sellProposalAsset(id, showTransaction)
 
   "click .new_proposal": (event) ->

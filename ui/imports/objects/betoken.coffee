@@ -109,11 +109,10 @@ export Betoken = (_address) ->
 
   ###*
    * Ends the current phase
-   * @param  {Number} _currentPhase the current cycle phase
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
   ###
-  self.endPhase = (_callback) ->
+  self.nextPhase = (_callback) ->
     return getDefaultAccount().then(
       () ->
         return self.contracts.betokenFund.methods.nextPhase().send({from: web3.eth.defaultAccount}).on(
@@ -227,7 +226,7 @@ export Betoken = (_address) ->
     Finalizing Phase functions
   ###
 
-  self.redeemKairo = (_proposalId, _callback) ->
+  self.sellAsset = (_proposalId, _callback) ->
     return getDefaultAccount().then(
       () ->
         return self.contracts.betokenFund.methods.sellProposalAsset(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
