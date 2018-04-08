@@ -13,17 +13,14 @@ module.exports = (callback) ->
   controlTokenAddr = null
   shareTokenAddr = null
 
-  old_contract.pause().then(
+  old_contract.controlTokenAddr().then(
+    (_addr) ->
+      controlTokenAddr = _addr
+  ).then(
     () ->
-      old_contract.controlTokenAddr().then(
+      old_contract.shareTokenAddr().then(
         (_addr) ->
-          controlTokenAddr = _addr
-      ).then(
-        () ->
-          old_contract.shareTokenAddr().then(
-            (_addr) ->
-              shareTokenAddr = _addr
-          )
+          shareTokenAddr = _addr
       )
   ).then(
     () ->

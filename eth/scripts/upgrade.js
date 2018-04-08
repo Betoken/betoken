@@ -20,13 +20,11 @@
     new_contract = null;
     controlTokenAddr = null;
     shareTokenAddr = null;
-    return old_contract.pause().then(function() {
-      return old_contract.controlTokenAddr().then(function(_addr) {
-        return controlTokenAddr = _addr;
-      }).then(function() {
-        return old_contract.shareTokenAddr().then(function(_addr) {
-          return shareTokenAddr = _addr;
-        });
+    return old_contract.controlTokenAddr().then(function(_addr) {
+      return controlTokenAddr = _addr;
+    }).then(function() {
+      return old_contract.shareTokenAddr().then(function(_addr) {
+        return shareTokenAddr = _addr;
       });
     }).then(function() {
       //Deploy new BetokenFund
