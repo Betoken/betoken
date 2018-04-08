@@ -8,7 +8,9 @@ import './KyberNetwork.sol';
 import './Utils.sol';
 
 /**
- * The main contract of the Betoken hedge fund
+ * @title The main smart contract of the Betoken hedge fund
+ * @author Zefram Lou (Zebang Liu)
+ * @dev Need to remove Kairo minting before release
  */
 contract BetokenFund is Pausable, Utils {
   using SafeMath for uint256;
@@ -26,7 +28,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Executes function only during the given cycle phase.
+   * @notice Executes function only during the given cycle phase.
    * @param phase the cycle phase during which the function may be called
    */
   modifier during(CyclePhase phase) {
@@ -35,7 +37,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Checks if a token address is valid.
+   * @notice Checks if `token` is a valid token.
    * @param token the token's address
    */
   modifier isValidToken(address token) {
@@ -170,7 +172,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * Returns the length of the user's investments array.
+   * @notice Returns the length of the user's investments array.
    * @return length of the user's investments array
    */
   function investmentsCount(address _userAddr) public view returns(uint256 _count) {
@@ -178,7 +180,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Returns the user's investments array.
+   * @notice Returns the user's investments array.
    * @return the user's investments array
    */
   function investments(address _userAddr) public view returns(Investment[] _investments) {
@@ -186,7 +188,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * Returns the phaseLengths array.
+   * @notice Returns the phaseLengths array.
    * @return the phaseLengths array
    */
   function getPhaseLengths() public view returns(uint256[3] _phaseLengths) {
@@ -202,7 +204,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Sells token in emergency situations. Only callable by owner.
+   * @notice Sells token in emergency situations. Only callable by owner.
    * @param _tokenAddr the address of the token to be sold
    */
   function emergencyDumpToken(address _tokenAddr)
@@ -216,7 +218,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Return staked Kairos for a investment under emergency situations. Should be called by users.
+   * @notice Return staked Kairos for a investment under emergency situations. Should be called by users.
    * @param _investmentId the ID of the investment
    */
   function emergencyRedeemStake(uint256 _investmentId) whenPaused public {
@@ -230,14 +232,14 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Updates the current fund balance. Only callable by owner.
+   * @notice Updates the current fund balance. Only callable by owner.
    */
   function emergencyUpdateBalance() onlyOwner whenPaused public {
     totalFundsInDAI = dai.balanceOf(this);
   }
 
   /**
-   * @dev Changes whether emergency withdrawals are allowed. Only callable by owner.
+   * @notice Changes whether emergency withdrawals are allowed. Only callable by owner.
    * @param _newVal the new value
    */
   function setAllowEmergencyWithdraw(bool _newVal) onlyOwner whenPaused public {
@@ -245,7 +247,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Function for withdrawing all funds in times of emergency. Only callable when fund is paused and allowEmergencyWithdraw is true.
+   * @notice Function for withdrawing all funds in times of emergency. Only callable when fund is paused and allowEmergencyWithdraw is true.
    */
   function emergencyWithdraw()
     public
@@ -269,7 +271,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Changes the address of the KyberNetwork contract used in the contract. Only callable by owner.
+   * @notice Changes the address of the KyberNetwork contract used in the contract. Only callable by owner.
    * @param _newAddr the new address of KyberNetwork contract
    */
   function changeKyberNetworkAddress(address _newAddr) public onlyOwner whenPaused {
@@ -279,7 +281,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the address to which the developer fees will be sent. Only callable by owner.
+   * @notice Changes the address to which the developer fees will be sent. Only callable by owner.
    * @param _newAddr the new developer fee address
    */
   function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
@@ -288,7 +290,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-  * @dev Changes the address of the DAI token smart contract. Only callable by owner.
+  * @notice Changes the address of the DAI token smart contract. Only callable by owner.
   * @param _newAddr the new DAI smart contract address
   */
   function changeDAIAddress(address _newAddr) public onlyOwner whenPaused {
@@ -298,7 +300,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
+   * @notice Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
    */
   function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
@@ -307,7 +309,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the proportion of fund balance given to Kairo holders each cycle. Only callable by owner.
+   * @notice Changes the proportion of fund balance given to Kairo holders each cycle. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
    */
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
@@ -315,7 +317,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the amount of Kairo rewarded to whomever calls nextPhase() the first. Only callable by owner.
+   * @notice Changes the amount of Kairo rewarded to whomever calls nextPhase() the first. Only callable by owner.
    * @param _newVal the new reward value in Kairo, 18 decimals
    */
   function changeCallReward(uint256 _newVal) public onlyOwner {
@@ -323,7 +325,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the lengths of the phases in an investment cycle. Only callable by owner.
+   * @notice Changes the lengths of the phases in an investment cycle. Only callable by owner.
    * @param _newVal the new set of phase lengths, in the order of DepositWithdraw, MakeDecisions, RedeemCommission, in seconds
    */
   function changePhaseLengths(uint256[3] _newVal) public onlyOwner {
@@ -331,7 +333,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the owner of the ControlToken contract. Only callable by owner.
+   * @notice Changes the owner of the ControlToken contract. Only callable by owner.
    * @param  _newOwner the new owner address
    */
   function changeControlTokenOwner(address _newOwner) public onlyOwner whenPaused {
@@ -340,7 +342,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the owner of the ShareToken contract. Only callable by owner.
+   * @notice Changes the owner of the ShareToken contract. Only callable by owner.
    * @param  _newOwner the new owner address
    */
   function changeShareTokenOwner(address _newOwner) public onlyOwner whenPaused {
@@ -349,7 +351,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Adds a stable-coin to the manifest. Only callable by owner.
+   * @notice Adds a stable-coin to the manifest. Only callable by owner.
    * @param  _stableCoin the stable-coin's address
    */
   function addStableCoin(address _stableCoin) public onlyOwner whenPaused {
@@ -358,7 +360,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Changes the maliciousness status of a token. Only callable by owner.
+   * @notice Changes the maliciousness status of a token. Only callable by owner.
    * @param _coin the token's address
    * @param _status the new maliciousness status
    */
@@ -369,7 +371,7 @@ contract BetokenFund is Pausable, Utils {
 
 
   /**
-   * @dev Moves the fund to the next phase in the investment cycle.
+   * @notice Moves the fund to the next phase in the investment cycle.
    */
   function nextPhase()
     public
@@ -406,7 +408,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Deposit Ether into the fund. Ether will be converted into DAI.
+   * @notice Deposit Ether into the fund. Ether will be converted into DAI.
    */
   function deposit()
     public
@@ -444,7 +446,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
+   * @notice Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
    * @param _tokenAddr the address of the token to be deposited
    * @param _tokenAmount The amount of tokens to be deposited. May be different from actual deposited amount.
    */
@@ -494,7 +496,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Withdraws Ether by burning Shares.
+   * @notice Withdraws Ether by burning Shares.
    * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
    */
   function withdraw(uint256 _amountInDAI)
@@ -524,7 +526,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
+   * @notice Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
    * @param _tokenAddr the address of the token to be withdrawn into the caller's account
    * @param _amountInDAI The amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
    */
@@ -569,7 +571,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Creates a new investment investment for an ERC20 token.
+   * @notice Creates a new investment investment for an ERC20 token.
    * @param _tokenAddress address of the ERC20 token contract
    * @param _stake amount of Kairos to be staked in support of the investment
    */
@@ -611,7 +613,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties.
+   * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties.
    * @param _investmentId the ID of the investment
    */
   function sellInvestmentAsset(uint256 _investmentId)
@@ -649,7 +651,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Redeems commission.
+   * @notice Redeems commission.
    */
   function redeemCommission()
     public
@@ -667,7 +669,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone.
+   * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone.
    * @param _tokenAddr address of the token to be sold
    */
   function sellLeftoverToken(address _tokenAddr)
@@ -688,7 +690,7 @@ contract BetokenFund is Pausable, Utils {
    */
 
   /**
-   * @dev Update fund statistics, and pay developer fees.
+   * @notice Update fund statistics, and pay developer fees.
    */
   function __distributeFundsAfterCycleEnd() internal {
     uint256 profit = 0;
@@ -727,7 +729,7 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @dev Wrapper function for doing token conversion on Kyber Network
+   * @notice Wrapper function for doing token conversion on Kyber Network
    * @param _srcToken the token to convert from
    * @param _srcAmount the amount of tokens to be converted
    * @param _destToken the destination token
