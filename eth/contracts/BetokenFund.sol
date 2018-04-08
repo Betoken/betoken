@@ -81,9 +81,6 @@ contract BetokenFund is Pausable, Utils {
   // Amount of commission to be paid out this cycle
   uint256 public totalCommission;
 
-  // The AUM (Asset Under Management) threshold for progressing to MakeDecisionsTime in the first cycle.
-  uint256 public aumThresholdInDAI;
-
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
@@ -135,7 +132,6 @@ contract BetokenFund is Pausable, Utils {
     address _daiAddr,
     address _developerFeeAccount,
     uint256 _cycleNumber,
-    uint256 _aumThresholdInDAI,
     uint256[3] _phaseLengths,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
@@ -162,7 +158,6 @@ contract BetokenFund is Pausable, Utils {
     cyclePhase = CyclePhase.RedeemCommission;
     cycleNumber = _cycleNumber;
     functionCallReward = _functionCallReward;
-    aumThresholdInDAI = _aumThresholdInDAI;
     allowEmergencyWithdraw = false;
 
     for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
@@ -388,11 +383,6 @@ contract BetokenFund is Pausable, Utils {
 
       if (cToken.paused()) {
         cToken.unpause();
-      }
-    } else if (cyclePhase == CyclePhase.DepositWithdraw) {
-      // End DepositWithdraw phase
-      if (cycleNumber == 1) {
-        require(totalFundsInDAI >= aumThresholdInDAI);
       }
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
