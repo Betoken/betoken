@@ -13,11 +13,11 @@ module.exports = (deployer, network, accounts) ->
         ShareToken.address,
         config.kyberAddress,
         accounts[0], #developerFeeAccount
-        0,
         config.phaseLengths,
         config.commissionRate,
         config.developerFeeProportion,
-        config.functionCallReward
+        config.functionCallReward,
+        "0x0"
       )
   ).then(
     () ->

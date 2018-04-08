@@ -13,8 +13,6 @@ contract Utils {
   DetailedERC20 constant internal ETH_TOKEN_ADDRESS = DetailedERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   uint  constant internal PRECISION = (10**18);
   uint  constant internal MAX_QTY   = (10**28); // 10B tokens
-  uint  constant internal MAX_RATE  = (PRECISION * 10**6); // up to 1M tokens per ETH
-  uint  constant internal MAX_DECIMALS = 18;
   uint  constant internal ETH_DECIMALS = 18;
 
   /**
@@ -23,5 +21,12 @@ contract Utils {
    */
   function invert(uint256 x) internal pure returns(uint256) {
     return PRECISION.mul(PRECISION).div(x);
+  }
+
+  function getDecimals(DetailedERC20 _token) internal view returns(uint256) {
+    if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
+      return uint256(ETH_DECIMALS);
+    }
+    return uint256(_token.decimals());
   }
 }

@@ -62,6 +62,9 @@ contract BetokenFund is Pausable, Utils {
   // Address of the DAI stable-coin contract.
   address public daiAddr;
 
+  // Address of the previous version of BetokenFund.
+  address public previousVersion;
+
   // The number of the current investment cycle.
   uint256 public cycleNumber;
 
@@ -133,12 +136,12 @@ contract BetokenFund is Pausable, Utils {
     address _kyberAddr,
     address _daiAddr,
     address _developerFeeAccount,
-    uint256 _cycleNumber,
     uint256[3] _phaseLengths,
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _functionCallReward,
-    address[] _stableCoins
+    address[] _stableCoins,
+    address _previousVersion
   )
     public
   {
@@ -158,8 +161,8 @@ contract BetokenFund is Pausable, Utils {
     developerFeeProportion = _developerFeeProportion;
     startTimeOfCyclePhase = 0;
     cyclePhase = CyclePhase.RedeemCommission;
-    cycleNumber = _cycleNumber;
     functionCallReward = _functionCallReward;
+    previousVersion = _previousVersion;
     allowEmergencyWithdraw = false;
 
     for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
@@ -342,19 +345,10 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @notice Changes the owner of the ShareToken contract. Only callable by owner.
-   * @param  _newOwner the new owner address
-   */
-  function changeShareTokenOwner(address _newOwner) public onlyOwner whenPaused {
-    require(_newOwner != address(0));
-    sToken.transferOwnership(_newOwner);
-  }
-
-  /**
    * @notice Adds a stable-coin to the manifest. Only callable by owner.
    * @param  _stableCoin the stable-coin's address
    */
-  function addStableCoin(address _stableCoin) public onlyOwner whenPaused {
+  function addStableCoin(address _stableCoin) public onlyOwner {
     require(_stableCoin != address(0));
     isStableCoin[_stableCoin] = true;
   }
@@ -364,7 +358,7 @@ contract BetokenFund is Pausable, Utils {
    * @param _coin the token's address
    * @param _status the new maliciousness status
    */
-  function setMaliciousCoinStatus(address _coin, bool _status) public onlyOwner whenPaused {
+  function setMaliciousCoinStatus(address _coin, bool _status) public onlyOwner {
     require(_coin != address(0));
     isMaliciousCoin[_coin] = _status;
   }
@@ -760,7 +754,7 @@ contract BetokenFund is Pausable, Utils {
       _srcToken.approve(kyberAddr, 0);
     }
 
-    _destPriceInSrc = beforeSrcBalance.sub(_srcToken.balanceOf(this)).mul(PRECISION).mul(10**uint256(_destToken.decimals())).div(actualDestAmount.mul(10**18));
+    _destPriceInSrc = beforeSrcBalance.sub(_srcToken.balanceOf(this)).mul(PRECISION).mul(10**getDecimals(_destToken)).div(actualDestAmount.mul(10**getDecimals(_srcToken)));
   }
 
   function() public payable {
