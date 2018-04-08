@@ -14,7 +14,7 @@ contract Utils {
   uint  constant internal ETH_DECIMALS = 18;
 
   /**
-   * @dev Calculates the invert of a fixed-point decimal with precision PRECISION
+   * @notice Calculates the invert of a fixed-point decimal with precision PRECISION
    * @param x the fixed-point decimal to be inverted
    */
   function invert(uint256 x) internal pure returns(uint256) {

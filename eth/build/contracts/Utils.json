@@ -1,11 +1,11 @@
 {
   "contractName": "Utils",
   "abi": [],
-  "bytecode": "0x60606040523415600e57600080fd5b603580601b6000396000f3006060604052600080fd00a165627a7a7230582070f649d9d04e994ab90303ed7420caa85c0a8787dadfeee7c6c2a7e99a60a6ae0029",
-  "deployedBytecode": "0x6060604052600080fd00a165627a7a7230582070f649d9d04e994ab90303ed7420caa85c0a8787dadfeee7c6c2a7e99a60a6ae0029",
-  "sourceMap": "156:725:4:-;;;;;;;;;;;;;;;;;",
-  "deployedSourceMap": "156:725:4:-;;;;;",
-  "source": "pragma solidity ^0.4.18;\r\n\r\nimport 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';\r\nimport 'zeppelin-solidity/contracts/math/SafeMath.sol';\r\n\r\ncontract Utils {\r\n  using SafeMath for uint256;\r\n\r\n  DetailedERC20 constant internal ETH_TOKEN_ADDRESS = DetailedERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);\r\n  uint  constant internal PRECISION = (10**18);\r\n  uint  constant internal MAX_QTY   = (10**28); // 10B tokens\r\n  uint  constant internal MAX_RATE  = (PRECISION * 10**6); // up to 1M tokens per ETH\r\n  uint  constant internal MAX_DECIMALS = 18;\r\n  uint  constant internal ETH_DECIMALS = 18;\r\n\r\n  /**\r\n   * @dev Calculates the invert of a fixed-point decimal with precision PRECISION\r\n   * @param x the fixed-point decimal to be inverted\r\n   */\r\n  function invert(uint256 x) internal pure returns(uint256) {\r\n    return PRECISION.mul(PRECISION).div(x);\r\n  }\r\n}",
+  "bytecode": "0x60606040523415600e57600080fd5b603580601b6000396000f3006060604052600080fd00a165627a7a723058202c0fd2676e6d4e9ee7a29b9a2394b4180a1a11722963d4dd834fb97f89e0c5840029",
+  "deployedBytecode": "0x6060604052600080fd00a165627a7a723058202c0fd2676e6d4e9ee7a29b9a2394b4180a1a11722963d4dd834fb97f89e0c5840029",
+  "sourceMap": "156:728:4:-;;;;;;;;;;;;;;;;;",
+  "deployedSourceMap": "156:728:4:-;;;;;",
+  "source": "pragma solidity ^0.4.18;\r\n\r\nimport 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';\r\nimport 'zeppelin-solidity/contracts/math/SafeMath.sol';\r\n\r\ncontract Utils {\r\n  using SafeMath for uint256;\r\n\r\n  DetailedERC20 constant internal ETH_TOKEN_ADDRESS = DetailedERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);\r\n  uint  constant internal PRECISION = (10**18);\r\n  uint  constant internal MAX_QTY   = (10**28); // 10B tokens\r\n  uint  constant internal MAX_RATE  = (PRECISION * 10**6); // up to 1M tokens per ETH\r\n  uint  constant internal MAX_DECIMALS = 18;\r\n  uint  constant internal ETH_DECIMALS = 18;\r\n\r\n  /**\r\n   * @notice Calculates the invert of a fixed-point decimal with precision PRECISION\r\n   * @param x the fixed-point decimal to be inverted\r\n   */\r\n  function invert(uint256 x) internal pure returns(uint256) {\r\n    return PRECISION.mul(PRECISION).div(x);\r\n  }\r\n}",
   "sourcePath": "D:\\msi-cn\\Documents\\GitHub\\betoken\\eth\\contracts\\Utils.sol",
   "ast": {
     "absolutePath": "/D/msi-cn/Documents/GitHub/betoken/eth/contracts/Utils.sol",
@@ -584,7 +584,7 @@
             "body": {
               "id": 2418,
               "nodeType": "Block",
-              "src": "827:51:4",
+              "src": "830:51:4",
               "statements": [
                 {
                   "expression": {
@@ -597,7 +597,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2405,
-                        "src": "870:1:4",
+                        "src": "873:1:4",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -621,7 +621,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": 2383,
-                            "src": "855:9:4",
+                            "src": "858:9:4",
                             "typeDescriptions": {
                               "typeIdentifier": "t_uint256",
                               "typeString": "uint256"
@@ -642,7 +642,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": 2383,
-                            "src": "841:9:4",
+                            "src": "844:9:4",
                             "typeDescriptions": {
                               "typeIdentifier": "t_uint256",
                               "typeString": "uint256"
@@ -656,7 +656,7 @@
                           "memberName": "mul",
                           "nodeType": "MemberAccess",
                           "referencedDeclaration": 2515,
-                          "src": "841:13:4",
+                          "src": "844:13:4",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_internal_pure$_t_uint256_$_t_uint256_$returns$_t_uint256_$bound_to$_t_uint256_$",
                             "typeString": "function (uint256,uint256) pure returns (uint256)"
@@ -670,7 +670,7 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "841:24:4",
+                        "src": "844:24:4",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -684,7 +684,7 @@
                       "memberName": "div",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2533,
-                      "src": "841:28:4",
+                      "src": "844:28:4",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_pure$_t_uint256_$_t_uint256_$returns$_t_uint256_$bound_to$_t_uint256_$",
                         "typeString": "function (uint256,uint256) pure returns (uint256)"
@@ -698,7 +698,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "841:31:4",
+                    "src": "844:31:4",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -707,7 +707,7 @@
                   "functionReturnParameters": 2409,
                   "id": 2417,
                   "nodeType": "Return",
-                  "src": "834:38:4"
+                  "src": "837:38:4"
                 }
               ]
             },
@@ -728,7 +728,7 @@
                   "name": "x",
                   "nodeType": "VariableDeclaration",
                   "scope": 2419,
-                  "src": "785:9:4",
+                  "src": "788:9:4",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -739,7 +739,7 @@
                     "id": 2404,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "785:7:4",
+                    "src": "788:7:4",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -749,7 +749,7 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "784:11:4"
+              "src": "787:11:4"
             },
             "payable": false,
             "returnParameters": {
@@ -762,7 +762,7 @@
                   "name": "",
                   "nodeType": "VariableDeclaration",
                   "scope": 2419,
-                  "src": "818:7:4",
+                  "src": "821:7:4",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -773,7 +773,7 @@
                     "id": 2407,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "818:7:4",
+                    "src": "821:7:4",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -783,20 +783,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "817:9:4"
+              "src": "820:9:4"
             },
             "scope": 2420,
-            "src": "769:109:4",
+            "src": "772:109:4",
             "stateMutability": "pure",
             "superFunction": null,
             "visibility": "internal"
           }
         ],
         "scope": 2421,
-        "src": "156:725:4"
+        "src": "156:728:4"
       }
     ],
-    "src": "0:881:4"
+    "src": "0:884:4"
   },
   "legacyAST": {
     "absolutePath": "/D/msi-cn/Documents/GitHub/betoken/eth/contracts/Utils.sol",
@@ -1375,7 +1375,7 @@
             "body": {
               "id": 2418,
               "nodeType": "Block",
-              "src": "827:51:4",
+              "src": "830:51:4",
               "statements": [
                 {
                   "expression": {
@@ -1388,7 +1388,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2405,
-                        "src": "870:1:4",
+                        "src": "873:1:4",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1412,7 +1412,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": 2383,
-                            "src": "855:9:4",
+                            "src": "858:9:4",
                             "typeDescriptions": {
                               "typeIdentifier": "t_uint256",
                               "typeString": "uint256"
@@ -1433,7 +1433,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": 2383,
-                            "src": "841:9:4",
+                            "src": "844:9:4",
                             "typeDescriptions": {
                               "typeIdentifier": "t_uint256",
                               "typeString": "uint256"
@@ -1447,7 +1447,7 @@
                           "memberName": "mul",
                           "nodeType": "MemberAccess",
                           "referencedDeclaration": 2515,
-                          "src": "841:13:4",
+                          "src": "844:13:4",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_internal_pure$_t_uint256_$_t_uint256_$returns$_t_uint256_$bound_to$_t_uint256_$",
                             "typeString": "function (uint256,uint256) pure returns (uint256)"
@@ -1461,7 +1461,7 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "841:24:4",
+                        "src": "844:24:4",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1475,7 +1475,7 @@
                       "memberName": "div",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2533,
-                      "src": "841:28:4",
+                      "src": "844:28:4",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_pure$_t_uint256_$_t_uint256_$returns$_t_uint256_$bound_to$_t_uint256_$",
                         "typeString": "function (uint256,uint256) pure returns (uint256)"
@@ -1489,7 +1489,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "841:31:4",
+                    "src": "844:31:4",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1498,7 +1498,7 @@
                   "functionReturnParameters": 2409,
                   "id": 2417,
                   "nodeType": "Return",
-                  "src": "834:38:4"
+                  "src": "837:38:4"
                 }
               ]
             },
@@ -1519,7 +1519,7 @@
                   "name": "x",
                   "nodeType": "VariableDeclaration",
                   "scope": 2419,
-                  "src": "785:9:4",
+                  "src": "788:9:4",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1530,7 +1530,7 @@
                     "id": 2404,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "785:7:4",
+                    "src": "788:7:4",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1540,7 +1540,7 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "784:11:4"
+              "src": "787:11:4"
             },
             "payable": false,
             "returnParameters": {
@@ -1553,7 +1553,7 @@
                   "name": "",
                   "nodeType": "VariableDeclaration",
                   "scope": 2419,
-                  "src": "818:7:4",
+                  "src": "821:7:4",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1564,7 +1564,7 @@
                     "id": 2407,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "818:7:4",
+                    "src": "821:7:4",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1574,20 +1574,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "817:9:4"
+              "src": "820:9:4"
             },
             "scope": 2420,
-            "src": "769:109:4",
+            "src": "772:109:4",
             "stateMutability": "pure",
             "superFunction": null,
             "visibility": "internal"
           }
         ],
         "scope": 2421,
-        "src": "156:725:4"
+        "src": "156:728:4"
       }
     ],
-    "src": "0:881:4"
+    "src": "0:884:4"
   },
   "compiler": {
     "name": "solc",
@@ -1595,5 +1595,5 @@
   },
   "networks": {},
   "schemaVersion": "2.0.0",
-  "updatedAt": "2018-04-08T07:41:58.831Z"
+  "updatedAt": "2018-04-08T21:29:47.851Z"
 }

@@ -17,7 +17,7 @@ contract ControlToken is MintableToken, PausableToken {
   event OwnerCollectFrom(address indexed _from, uint256 _value);
 
   /**
-   * @dev Collects tokens for the owner.
+   * @notice Collects tokens from a user and sends them to the owner.
    * @param _from The address which you want to send tokens from
    * @param _value the amount of tokens to be transferred
    * @return true if succeeded, false otherwise
@@ -33,7 +33,8 @@ contract ControlToken is MintableToken, PausableToken {
   }
 
   /**
-   * @dev Burns the owner's token balance.
+   * @notice Burns the owner's entire token balance.
+   * @return true if succeeded, false otherwise
    */
   function burnOwnerBalance() public onlyOwner returns(bool) {
     totalSupply_ = totalSupply_.sub(balances[owner]);
@@ -41,6 +42,10 @@ contract ControlToken is MintableToken, PausableToken {
     return true;
   }
 
+  /**
+   * @notice Burns `_value / 1e8` Kairos from the owner's balance.
+   * @return true if succeeded, false otherwise
+   */
   function burnOwnerTokens(uint256 _value) public onlyOwner returns(bool) {
     // SafeMath.sub will throw if there is not enough balance.
     balances[owner] = balances[owner].sub(_value);

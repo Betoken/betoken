@@ -12,7 +12,7 @@ contract ShareToken is MintableToken {
   event OwnerBurn(address indexed _from, uint256 _value);
 
   /**
-   * @dev Burns tokens.
+   * @notice Burns tokens.
    * @param _from The address whose tokens you want to burn
    * @param _value the amount of tokens to be burnt
    * @return true if succeeded, false otherwise
