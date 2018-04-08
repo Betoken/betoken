@@ -2,7 +2,11 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
 
-contract KyberNetwork {
+/**
+ * @title The interface for the Kyber Network smart contract
+ * @author Zefram Lou (Zebang Liu)
+ */
+interface KyberNetwork {
   function trade(
     DetailedERC20 src,
     uint srcAmount,
@@ -15,6 +19,4 @@ contract KyberNetwork {
     public
     payable
     returns(uint);
-
-  function getExpectedRate(DetailedERC20 src, DetailedERC20 dest, uint srcQty) public view returns (uint expectedRate, uint slippageRate);
 }

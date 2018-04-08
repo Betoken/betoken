@@ -2,6 +2,10 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 
+/**
+ * @title The ERC20 smart contract for the Share token in the Betoken fund.
+ * @author Zefram Lou (Zebang Liu)
+ */
 contract ShareToken is MintableToken {
   using SafeMath for uint256;
 

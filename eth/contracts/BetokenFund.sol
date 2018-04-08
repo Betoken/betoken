@@ -8,7 +8,7 @@ import './KyberNetwork.sol';
 import './Utils.sol';
 
 /**
- * @title The main smart contract of the Betoken hedge fund
+ * @title The main smart contract of the Betoken hedge fund.
  * @author Zefram Lou (Zebang Liu)
  * @dev Need to remove Kairo minting before release
  */

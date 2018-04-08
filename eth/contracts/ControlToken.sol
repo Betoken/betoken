@@ -5,7 +5,8 @@ import 'zeppelin-solidity/contracts/token/ERC20/PausableToken.sol';
 import './BetokenFund.sol';
 
 /**
- * ERC20 token contract for Kairo.
+ * @title The ERC20 smart contract for the Kairo token in the Betoken fund.
+ * @author Zefram Lou (Zebang Liu)
  */
 contract ControlToken is MintableToken, PausableToken {
   using SafeMath for uint256;

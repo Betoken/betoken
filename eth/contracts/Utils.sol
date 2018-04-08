@@ -3,6 +3,10 @@ pragma solidity ^0.4.18;
 import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 
+/**
+ * @title The smart contract for useful utility functions and constants.
+ * @author Zefram Lou (Zebang Liu)
+ */
 contract Utils {
   using SafeMath for uint256;
 
