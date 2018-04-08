@@ -30,7 +30,7 @@
       });
     }).then(function() {
       //Deploy new BetokenFund
-      return BetokenFund.new(controlTokenAddr, shareTokenAddr, config.kyberAddress, dev_fee_address, start_cycle_number, config.aumThreshold, config.phaseLengths, config.commissionRate, config.developerFeeProportion, config.functionCallReward, config.controlTokenInflation).then(function(_instance) { //KyberNetwork address //developerFeeAccount
+      return BetokenFund.new(controlTokenAddr, shareTokenAddr, config.kyberAddress, dev_fee_address, start_cycle_number, config.phaseLengths, config.commissionRate, config.developerFeeProportion, config.functionCallReward).then(function(_instance) {
         new_contract = _instance;
         return console.log("Created new BetokenFund at " + _instance.address);
       });
@@ -43,4 +43,4 @@
 
 }).call(this);
 
-//# sourceMappingURL=upgrade_retain_kairo_oraclize.js.map
+//# sourceMappingURL=upgrade.js.map

@@ -14,12 +14,10 @@ module.exports = (deployer, network, accounts) ->
         config.kyberAddress,
         accounts[0], #developerFeeAccount
         0,
-        config.aumThreshold,
         config.phaseLengths,
         config.commissionRate,
         config.developerFeeProportion,
-        config.functionCallReward,
-        config.controlTokenInflation
+        config.functionCallReward
       )
   ).then(
     () ->

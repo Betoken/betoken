@@ -31,15 +31,13 @@ module.exports = (callback) ->
       BetokenFund.new(
         controlTokenAddr,
         shareTokenAddr,
-        config.kyberAddress, #KyberNetwork address
-        dev_fee_address, #developerFeeAccount
+        config.kyberAddress,
+        dev_fee_address,
         start_cycle_number,
-        config.aumThreshold,
         config.phaseLengths,
         config.commissionRate,
         config.developerFeeProportion,
-        config.functionCallReward,
-        config.controlTokenInflation
+        config.functionCallReward
       ).then(
         (_instance) ->
           new_contract = _instance
