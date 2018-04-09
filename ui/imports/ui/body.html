@@ -24,7 +24,7 @@
       </div>
 
       <div class="ui bottom attached tab segment" data-tab="t2">
-        {{> proposals_tab}}
+        {{> decisions_tab}}
       </div>
     </div>
 
@@ -239,7 +239,7 @@
           <div class="ui container six wide column">
             <div class="ui slider checkbox" style="float: right;">
               <input type="checkbox" class="balance_unit_switch">
-              <label>ETH/BTKS</label>
+              <label>DAI/BTKS</label>
             </div>
           </div>
 
@@ -277,7 +277,7 @@
             {{expected_commission}}
           </div>
           <div class="label">
-            ETH
+            DAI
           </div>
         </div>
         {{#if can_redeem_commission}}
@@ -311,7 +311,7 @@
     <div class="{{has_error 0}} ui right labeled input fluid">
       <input id="deposit_input" placeholder="Deposit Amount..." type="text">
       <div class="ui label">
-        ETH
+        DAI
       </div>
     </div>
 
@@ -325,7 +325,7 @@
     <div class="{{has_error 1}} ui right labeled input fluid">
       <input id="withdraw_input" placeholder="Withdraw Amount..." type="text">
       <div class="ui label">
-        ETH
+        DAI
       </div>
     </div>
 
@@ -397,7 +397,7 @@
             Total Investment
           </div>
           <div class="value">
-            {{total_funds}} ETH
+            {{total_funds}} DAI
           </div>
         </div>
         <p></p>
@@ -433,7 +433,7 @@
             Previous Cycle Commission Payout
           </div>
           <div class="value">
-            {{prev_commission}} ETH
+            {{prev_commission}} DAI
           </div>
         </div>
         <p></p>
@@ -442,7 +442,7 @@
             Historical Commission Payout
           </div>
           <div class="value">
-            {{historical_commission}} ETH
+            {{historical_commission}} DAI
           </div>
         </div>
       </div>
@@ -450,10 +450,10 @@
   </div>
 </template>
 
-<template name="proposals_tab">
+<template name="decisions_tab">
   <div class="ui menu">
     <div class="item">
-      <div class="ui button new_proposal {{new_proposal_is_disabled}}">
+      <div class="ui button new_investment {{new_investment_is_disabled}}">
         New Decision
       </div>
     </div>
@@ -466,54 +466,66 @@
       <th>#</th>
       <th>Token</th>
       <th>Current Investment</th>
-      <th>Buy Price/ETH</th>
-      {{#if should_have_actions}}
-        <th>Action</th>
-      {{/if}}
+      <th>Buy Price/DAI</th>
+      <th>Sell Price/DAI</th>
+      <th>Status</th>
+      <th>Sell</th>
     </tr>
     </thead>
 
     <!-- Actual table rows go here -->
     <tbody>
-      {{#each proposal_list}}
-        <tr>
-          <td>{{id}}</td>
-          <td>
-            <h5 style="text-align: center;">
-              {{tokenSymbol}} @ <a href="https://etherscan.io/address/{{tokenAddress}}">{{tokenAddress}}</a>
-            </h5>
-            <script type="text/javascript">
-              baseUrl = "https://widgets.cryptocompare.com/";
-              var scripts = document.getElementsByTagName("script");
-              var embedder = scripts[ scripts.length - 1 ];
-              (function (){
-                var appName = encodeURIComponent(window.location.hostname);
-                if(appName==""){appName="local";}
-                var s = document.createElement("script");
-                s.type = "text/javascript";
-                s.async = true;
-                var theUrl = baseUrl+'serve/v1/coin/chart?fsym={{tokenSymbol}}&tsym=USD';
-                s.src = theUrl + ( theUrl.indexOf("?") >= 0 ? "&" : "?") + "app=" + appName;
-                embedder.parentNode.appendChild(s);
-              })();
-            </script>
-          </td>
-          <td>{{investment}} ETH / {{stake}} KRO</td>
-          <td>{{wei_to_eth buyPriceInWeis}}</td>
-          {{#if should_have_actions}}
+      {{#each investment_list}}
+          <tr>
+            <td>{{id}}</td>
             <td>
-              <div class="ui yellow icon button {{redeem_kro_is_disabled isSold}} execute_proposal">
-                <i class="bolt icon"></i>
+              <h5 style="text-align: center;">
+                {{tokenSymbol}} @ <a href="https://etherscan.io/address/{{tokenAddress}}">{{tokenAddress}}</a>
+              </h5>
+              <script type="text/javascript">
+                baseUrl = "https://widgets.cryptocompare.com/";
+                var scripts = document.getElementsByTagName("script");
+                var embedder = scripts[ scripts.length - 1 ];
+                (function (){
+                  var appName = encodeURIComponent(window.location.hostname);
+                  if(appName==""){appName="local";}
+                  var s = document.createElement("script");
+                  s.type = "text/javascript";
+                  s.async = true;
+                  var theUrl = baseUrl+'serve/v1/coin/chart?fsym={{tokenSymbol}}&tsym=USD';
+                  s.src = theUrl + ( theUrl.indexOf("?") >= 0 ? "&" : "?") + "app=" + appName;
+                  embedder.parentNode.appendChild(s);
+                })();
+              </script>
+            </td>
+            <td>{{investment}} DAI / {{stake}} KRO</td>
+            <td>{{wei_to_eth buyPriceInWeis}}</td>
+            <td>
+              {{#if isSold}}
+                {{wei_to_eth sellPriceInWeis}}
+              {{else}}
+                N/A
+              {{/if}}
+            </td>
+            <td>
+              {{#if isSold}}
+                Sold
+              {{else}}
+                Invested
+              {{/if}}
+            </td>
+            <td>
+              <div class="ui yellow icon button {{#if isSold}}disabled{{/if}} sell_investment">
+                <i class="dollar sign icon"></i>
               </div>
             </td>
-          {{/if}}
-        </tr>
+          </tr>
       {{/each}}
     </tbody>
   </table>
 
   <!--New Proposal Modal-->
-  <div class="ui basic modal" id="new_proposal_modal">
+  <div class="ui basic modal" id="new_investment_modal">
     <div class="ui icon header">
       <i class="line chart icon"></i>
       Propose an ERC20 token you want the fund to invest in

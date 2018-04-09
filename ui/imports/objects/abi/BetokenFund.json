@@ -3,6 +3,39 @@
     {
       "constant": true,
       "inputs": [],
+      "name": "totalFundsInDAI",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "isMaliciousCoin",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
       "name": "allowEmergencyWithdraw",
       "outputs": [
         {
@@ -22,53 +55,6 @@
         {
           "name": "",
           "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
-          "name": "",
-          "type": "address"
-        },
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "userProposals",
-      "outputs": [
-        {
-          "name": "tokenAddress",
-          "type": "address"
-        },
-        {
-          "name": "cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "name": "stake",
-          "type": "uint256"
-        },
-        {
-          "name": "tokenAmount",
-          "type": "uint256"
-        },
-        {
-          "name": "buyPriceInWeis",
-          "type": "uint256"
-        },
-        {
-          "name": "sellPriceInWeis",
-          "type": "uint256"
-        },
-        {
-          "name": "isSold",
-          "type": "bool"
         }
       ],
       "payable": false,
@@ -114,12 +100,17 @@
     },
     {
       "constant": true,
-      "inputs": [],
-      "name": "controlTokenInflation",
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "isStableCoin",
       "outputs": [
         {
           "name": "",
-          "type": "uint256"
+          "type": "bool"
         }
       ],
       "payable": false,
@@ -171,25 +162,11 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "aumThresholdInWeis",
+      "name": "daiAddr",
       "outputs": [
         {
           "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "totalFundsInWeis",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
+          "type": "address"
         }
       ],
       "payable": false,
@@ -240,12 +217,45 @@
     },
     {
       "constant": true,
-      "inputs": [],
-      "name": "kyberAddr",
-      "outputs": [
+      "inputs": [
         {
           "name": "",
           "type": "address"
+        },
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "userInvestments",
+      "outputs": [
+        {
+          "name": "tokenAddress",
+          "type": "address"
+        },
+        {
+          "name": "cycleNumber",
+          "type": "uint256"
+        },
+        {
+          "name": "stake",
+          "type": "uint256"
+        },
+        {
+          "name": "tokenAmount",
+          "type": "uint256"
+        },
+        {
+          "name": "buyPrice",
+          "type": "uint256"
+        },
+        {
+          "name": "sellPrice",
+          "type": "uint256"
+        },
+        {
+          "name": "isSold",
+          "type": "bool"
         }
       ],
       "payable": false,
@@ -255,11 +265,11 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "PRECISION",
+      "name": "kyberAddr",
       "outputs": [
         {
           "name": "",
-          "type": "uint256"
+          "type": "address"
         }
       ],
       "payable": false,
@@ -298,6 +308,20 @@
       "constant": true,
       "inputs": [],
       "name": "shareTokenAddr",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "previousVersion",
       "outputs": [
         {
           "name": "",
@@ -365,20 +389,16 @@
           "type": "address"
         },
         {
+          "name": "_daiAddr",
+          "type": "address"
+        },
+        {
           "name": "_developerFeeAccount",
           "type": "address"
         },
         {
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "name": "_aumThresholdInWeis",
-          "type": "uint256"
-        },
-        {
           "name": "_phaseLengths",
-          "type": "uint256[5]"
+          "type": "uint256[3]"
         },
         {
           "name": "_commissionRate",
@@ -393,8 +413,12 @@
           "type": "uint256"
         },
         {
-          "name": "_controlTokenInflation",
-          "type": "uint256"
+          "name": "_stableCoins",
+          "type": "address[]"
+        },
+        {
+          "name": "_previousVersion",
+          "type": "address"
         }
       ],
       "payable": false,
@@ -448,7 +472,12 @@
         },
         {
           "indexed": false,
-          "name": "_amount",
+          "name": "_tokenAmount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_daiAmount",
           "type": "uint256"
         },
         {
@@ -480,7 +509,12 @@
         },
         {
           "indexed": false,
-          "name": "_amount",
+          "name": "_tokenAmount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "daiAmount",
           "type": "uint256"
         },
         {
@@ -519,9 +553,19 @@
           "indexed": false,
           "name": "_stakeInWeis",
           "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_buyPrice",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_costDAIAmount",
+          "type": "uint256"
         }
       ],
-      "name": "CreatedProposal",
+      "name": "CreatedInvestment",
       "type": "event"
     },
     {
@@ -539,16 +583,26 @@
         },
         {
           "indexed": false,
-          "name": "_proposalId",
+          "name": "_investmentId",
           "type": "uint256"
         },
         {
           "indexed": false,
           "name": "_receivedKairos",
           "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_sellPrice",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_earnedDAIAmount",
+          "type": "uint256"
         }
       ],
-      "name": "RedeemedProposal",
+      "name": "SoldInvestment",
       "type": "event"
     },
     {
@@ -649,7 +703,7 @@
           "type": "address"
         }
       ],
-      "name": "proposalsCount",
+      "name": "investmentsCount",
       "outputs": [
         {
           "name": "_count",
@@ -666,9 +720,13 @@
         {
           "name": "_userAddr",
           "type": "address"
+        },
+        {
+          "name": "_id",
+          "type": "uint256"
         }
       ],
-      "name": "proposals",
+      "name": "investments",
       "outputs": [
         {
           "components": [
@@ -689,11 +747,11 @@
               "type": "uint256"
             },
             {
-              "name": "buyPriceInWeis",
+              "name": "buyPrice",
               "type": "uint256"
             },
             {
-              "name": "sellPriceInWeis",
+              "name": "sellPrice",
               "type": "uint256"
             },
             {
@@ -701,8 +759,8 @@
               "type": "bool"
             }
           ],
-          "name": "_proposals",
-          "type": "tuple[]"
+          "name": "_investment",
+          "type": "tuple"
         }
       ],
       "payable": false,
@@ -716,7 +774,7 @@
       "outputs": [
         {
           "name": "_phaseLengths",
-          "type": "uint256[5]"
+          "type": "uint256[3]"
         }
       ],
       "payable": false,
@@ -741,7 +799,7 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_proposalId",
+          "name": "_investmentId",
           "type": "uint256"
         }
       ],
@@ -764,7 +822,7 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_val",
+          "name": "_newVal",
           "type": "bool"
         }
       ],
@@ -815,6 +873,20 @@
       "constant": false,
       "inputs": [
         {
+          "name": "_newAddr",
+          "type": "address"
+        }
+      ],
+      "name": "changeDAIAddress",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
           "name": "_newProp",
           "type": "uint256"
         }
@@ -847,7 +919,7 @@
           "type": "uint256"
         }
       ],
-      "name": "changeControlTokenInflation",
+      "name": "changeCallReward",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -858,10 +930,10 @@
       "inputs": [
         {
           "name": "_newVal",
-          "type": "uint256"
+          "type": "uint256[3]"
         }
       ],
-      "name": "changeCallReward",
+      "name": "changePhaseLengths",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -885,11 +957,29 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_newOwner",
+          "name": "_stableCoin",
           "type": "address"
         }
       ],
-      "name": "changeShareTokenOwner",
+      "name": "addStableCoin",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_coin",
+          "type": "address"
+        },
+        {
+          "name": "_status",
+          "type": "bool"
+        }
+      ],
+      "name": "setMaliciousCoinStatus",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -935,7 +1025,7 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_amountInWeis",
+          "name": "_amountInDAI",
           "type": "uint256"
         }
       ],
@@ -953,7 +1043,7 @@
           "type": "address"
         },
         {
-          "name": "_amountInWeis",
+          "name": "_amountInDAI",
           "type": "uint256"
         }
       ],
@@ -971,11 +1061,11 @@
           "type": "address"
         },
         {
-          "name": "_stakeInWeis",
+          "name": "_stake",
           "type": "uint256"
         }
       ],
-      "name": "createProposal",
+      "name": "createInvestment",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -985,11 +1075,11 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_proposalId",
+          "name": "_investmentId",
           "type": "uint256"
         }
       ],
-      "name": "sellProposalAsset",
+      "name": "sellInvestmentAsset",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",

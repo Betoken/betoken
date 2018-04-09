@@ -34,7 +34,7 @@ cyclePhase = new ReactiveVar(0)
 startTimeOfCyclePhase = new ReactiveVar(0)
 phaseLengths = new ReactiveVar([])
 totalFunds = new ReactiveVar(BigNumber(0))
-proposalList = new ReactiveVar([])
+investmentList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
@@ -145,7 +145,7 @@ clock = () ->
   , 1000)
 
 loadFundData = () ->
-  proposals = []
+  investments = []
   receivedROICount = 0
 
   #Get Network ID
@@ -223,25 +223,25 @@ loadFundData = () ->
         ),
       ]).then(
         () ->
-          ###betoken.getMappingOrArrayItem("proposals", userAddress.get()).then(
+          betoken.getInvestments(userAddress.get()).then(
             (_proposals) ->
-              proposals = _proposals
-              if proposals.length == 0
+              investments = _proposals
+              if investments.length == 0
                 return
 
               handleProposal = (id) ->
-                betoken.getTokenSymbol(proposals[id]).then(
+                betoken.getTokenSymbol(investments[id]).then(
                   (_symbol) ->
-                    proposals[id].id = id
-                    proposals[id].tokenSymbol = _symbol
-                    proposals[id].investment = BigNumber(proposals[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get())
+                    investments[id].id = id
+                    investments[id].tokenSymbol = _symbol
+                    investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get())
                 )
-              handleAllProposals = (handleProposal(i) for i in [0..proposals.length])
-              Promise.all(getAllSymbols)
+              handleAllProposals = (handleProposal(i) for i in [0..investments.length])
+              Promise.all(handleAllProposals)
           ).then(
             () ->
-              proposalList.set(proposals)
-          )###
+              investmentList.set(investments)
+          )
       )
 
       #Listen for transactions
@@ -701,26 +701,21 @@ Template.stats_tab.helpers(
   historical_commission: () -> historicalTotalCommission.get().div(1e18).toFormat(2)
 )
 
-Template.proposals_tab.helpers(
-  proposal_list: () -> proposalList.get()
-  should_have_actions: () -> cyclePhase.get() == 1
+Template.decisions_tab.helpers(
+  investment_list: () -> investmentList.get()
   wei_to_eth: (_weis) -> BigNumber(_weis).div(1e18).toFormat(4)
-
-  redeem_kro_is_disabled: (_isSold) ->
-    if _isSold then "disabled" else ""
-
-  new_proposal_is_disabled: () ->
+  new_investment_is_disabled: () ->
     if cyclePhase.get() == 1 then "" else "disabled"
 )
 
-Template.proposals_tab.events(
-  "click .execute_proposal": (event) ->
+Template.decisions_tab.events(
+  "click .sell_investment": (event) ->
     id = this.id
     if cyclePhase.get() == 1
-      betoken.sellProposalAsset(id, showTransaction)
+      betoken.sellAsset(id, showTransaction)
 
-  "click .new_proposal": (event) ->
-    $("#new_proposal_modal").modal(
+  "click .new_investment": (event) ->
+    $("#new_investment_modal").modal(
       onApprove: (e) ->
         try
           address = $("#address_input_new")[0].value
@@ -730,7 +725,7 @@ Template.proposals_tab.events(
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)
 
-          betoken.createProposal(address, kairoAmountInWeis, showTransaction)
+          betoken.createInvestment(address, kairoAmountInWeis, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
     ).modal("show")

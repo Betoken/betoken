@@ -234,25 +234,61 @@ export var Betoken = function(_address) {
   ProposalMakingTime functions
   */
   /**
+   * Gets the array of investments
+   * @return {Promise} .then((investments) ->)
+   */
+  self.getInvestments = function(_userAddress) {
+    var array;
+    array = [];
+    return self.contracts.betokenFund.methods["investmentsCount"](_userAddress).call().then(function(_count) {
+      var count, getAllItems, getItem, id;
+      count = +_count;
+      if (count === 0) {
+        return [];
+      }
+      array = new Array(count);
+      getItem = function(id) {
+        return self.contracts.betokenFund.methods["investments"](_userAddress, id).call().then(function(_item) {
+          return new Promise(function(fullfill, reject) {
+            if (typeof _item !== null) {
+              array[id] = _item;
+              fullfill();
+            } else {
+              reject();
+            }
+          });
+        });
+      };
+      getAllItems = (function() {
+        var i, ref, results;
+        results = [];
+        for (id = i = 0, ref = count - 1; (0 <= ref ? i <= ref : i >= ref); id = 0 <= ref ? ++i : --i) {
+          results.push(getItem(id));
+        }
+        return results;
+      })();
+      return Promise.all(getAllItems);
+    }).then(function() {
+      return array;
+    });
+  };
+  /**
    * Creates proposal
    * @param  {String} _tokenAddress the token address
    * @param  {BigNumber} _stakeInWeis the investment amount
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.createProposal = function(_tokenAddress, _stakeInWeis, _callback) {
+  self.createInvestment = function(_tokenAddress, _stakeInWeis, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.createProposal(_tokenAddress, _stakeInWeis).send({
+      return self.contracts.betokenFund.methods.createInvestment(_tokenAddress, _stakeInWeis).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });
   };
-  /*
-  Finalizing Phase functions
-  */
   self.sellAsset = function(_proposalId, _callback) {
     return getDefaultAccount().then(function() {
-      return self.contracts.betokenFund.methods.sellProposalAsset(_proposalId).send({
+      return self.contracts.betokenFund.methods.sellInvestmentAsset(_proposalId).send({
         from: web3.eth.defaultAccount
       }).on("transactionHash", _callback);
     });

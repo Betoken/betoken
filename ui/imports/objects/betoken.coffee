@@ -210,26 +210,53 @@ export Betoken = (_address) ->
   ###
 
   ###*
+   * Gets the array of investments
+   * @return {Promise} .then((investments) ->)
+  ###
+  self.getInvestments = (_userAddress) ->
+    array = []
+    return self.contracts.betokenFund.methods["investmentsCount"](_userAddress).call().then(
+      (_count) ->
+        count = +_count
+        if count == 0
+          return []
+        array = new Array(count)
+        getItem = (id) ->
+          return self.contracts.betokenFund.methods["investments"](_userAddress, id).call().then(
+            (_item) ->
+              return new Promise((fullfill, reject) ->
+                if typeof _item != null
+                  array[id] = _item
+                  fullfill()
+                else
+                  reject()
+                return
+              )
+          )
+        getAllItems = (getItem(id) for id in [0..count - 1])
+        return Promise.all(getAllItems)
+    ).then(
+      () ->
+        return array
+    )
+
+  ###*
    * Creates proposal
    * @param  {String} _tokenAddress the token address
    * @param  {BigNumber} _stakeInWeis the investment amount
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.createProposal = (_tokenAddress, _stakeInWeis, _callback) ->
+  self.createInvestment = (_tokenAddress, _stakeInWeis, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.betokenFund.methods.createProposal(_tokenAddress, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.createInvestment(_tokenAddress, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
-
-  ###
-    Finalizing Phase functions
-  ###
 
   self.sellAsset = (_proposalId, _callback) ->
     return getDefaultAccount().then(
       () ->
-        return self.contracts.betokenFund.methods.sellProposalAsset(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+        return self.contracts.betokenFund.methods.sellInvestmentAsset(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
     )
 
   ###
