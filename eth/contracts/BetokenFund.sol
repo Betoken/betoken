@@ -732,15 +732,18 @@ contract BetokenFund is Pausable, Utils {
   function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc) {
     uint256 actualDestAmount;
     uint256 beforeSrcBalance;
+    uint256 msgValue;
 
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       beforeSrcBalance = _srcToken.balanceOf(this);
+      msgValue = 0;
       _srcToken.approve(kyberAddr, 0);
       _srcToken.approve(kyberAddr, _srcAmount);
     } else {
       beforeSrcBalance = this.balance;
+      msgValue = _srcAmount;
     }
-    actualDestAmount = kyber.trade(
+    actualDestAmount = kyber.trade.value(msgValue)(
       _srcToken,
       _srcAmount,
       _destToken,

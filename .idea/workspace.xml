@@ -1,18 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="updated web3 investments fetching code">
+    <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="fixed bug in kyberTrade(), wrote TestKyberNetwork.sol">
+      <change afterPath="$PROJECT_DIR$/eth/contracts/TestKyberNetwork.sol" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/BasicToken.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/BasicToken.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/BetokenFund.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/ControlToken.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/DetailedERC20.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/DetailedERC20.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ERC20.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/ERC20.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ERC20Basic.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/ERC20Basic.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/KyberNetwork.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/KyberNetwork.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/MintableToken.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/MintableToken.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/Ownable.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/Ownable.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/Pausable.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/Pausable.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/PausableToken.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/PausableToken.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/SafeMath.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/SafeMath.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/ShareToken.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/ShareToken.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/StandardToken.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/StandardToken.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/build/contracts/Utils.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/build/contracts/Utils.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/objects/betoken.js.map" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.coffee" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/ui/body.coffee" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.html" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/ui/body.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/imports/ui/body.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/ui/imports/ui/body.js.map" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -48,8 +55,8 @@
       <file leaf-file-name="body.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-4458">
-              <caret line="147" column="2" selection-start-line="147" selection-start-column="2" selection-end-line="147" selection-end-column="2" />
+            <state relative-caret-position="910">
+              <caret line="706" column="30" selection-start-line="706" selection-start-column="30" selection-end-line="706" selection-end-column="30" />
               <folding>
                 <element signature="e#2921#4001#0" />
                 <element signature="e#4019#4670#0" />
@@ -60,14 +67,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="BetokenFund.json" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json">
+      <file leaf-file-name="TestKyberNetwork.sol" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/eth/contracts/TestKyberNetwork.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="22">
-              <caret line="1110" column="3" selection-start-line="1110" selection-start-column="3" selection-end-line="1110" selection-end-column="3" />
-              <folding>
-                <element signature="e#11#20662#0" />
-              </folding>
+            <state relative-caret-position="286">
+              <caret line="37" column="31" lean-forward="true" selection-start-line="37" selection-start-column="31" selection-end-line="37" selection-end-column="31" />
             </state>
           </provider>
         </entry>
@@ -81,20 +85,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="KyberNetwork.sol" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/eth/contracts/KyberNetwork.sol">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="176">
-              <caret line="8" column="9" selection-start-line="8" selection-start-column="9" selection-end-line="8" selection-end-column="9" />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="BetokenFund.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="176">
-              <caret line="8" selection-start-line="8" selection-end-line="8" />
+            <state relative-caret-position="270">
+              <caret line="752" column="7" lean-forward="true" selection-start-line="752" selection-start-column="7" selection-end-line="752" selection-end-column="7" />
             </state>
           </provider>
         </entry>
@@ -111,8 +106,8 @@
       <file leaf-file-name="Utils.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/Utils.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="318">
-              <caret line="27" column="34" selection-start-line="27" selection-start-column="34" selection-end-line="27" selection-end-column="34" />
+            <state relative-caret-position="264">
+              <caret line="12" column="31" selection-start-line="12" selection-end-line="13" />
             </state>
           </provider>
         </entry>
@@ -120,7 +115,7 @@
       <file leaf-file-name="ControlToken.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="88">
+            <state relative-caret-position="154">
               <caret line="7" column="48" selection-start-line="7" selection-start-column="48" selection-end-line="7" selection-end-column="48" />
             </state>
           </provider>
@@ -206,11 +201,12 @@
         <option value="$PROJECT_DIR$/eth/scripts/upgrade.coffee" />
         <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.coffee" />
         <option value="$PROJECT_DIR$/eth/contracts/Utils.sol" />
-        <option value="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" />
         <option value="$PROJECT_DIR$/ui/imports/objects/betoken.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
+        <option value="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" />
+        <option value="$PROJECT_DIR$/eth/contracts/TestKyberNetwork.sol" />
       </list>
     </option>
   </component>
@@ -436,14 +432,7 @@
       <workItem from="1521251510646" duration="110067000" />
       <workItem from="1523051708835" duration="68000" />
       <workItem from="1523052190923" duration="599000" />
-      <workItem from="1523142368687" duration="16997000" />
-    </task>
-    <task id="LOCAL-00072" summary="Refactored 2_deploy_contracts.js to coffeescript. Added whenPaused modifier for changing owner and address of ControlToken and OraclizeHandler contracts.">
-      <created>1517866803818</created>
-      <option name="number" value="00072" />
-      <option name="presentableId" value="LOCAL-00072" />
-      <option name="project" value="LOCAL" />
-      <updated>1517866803818</updated>
+      <workItem from="1523142368687" duration="21754000" />
     </task>
     <task id="LOCAL-00073" summary="Refactored 2_deploy_contracts.js to coffeescript. Added whenPaused modifier for changing owner and address of ControlToken and OraclizeHandler contracts.">
       <created>1517866833742</created>
@@ -781,11 +770,18 @@
       <option name="project" value="LOCAL" />
       <updated>1523228018006</updated>
     </task>
-    <option name="localTasksCounter" value="121" />
+    <task id="LOCAL-00121" summary="updated frontend code">
+      <created>1523234424489</created>
+      <option name="number" value="00121" />
+      <option name="presentableId" value="LOCAL-00121" />
+      <option name="project" value="LOCAL" />
+      <updated>1523234424489</updated>
+    </task>
+    <option name="localTasksCounter" value="122" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="763804000" />
+    <option name="totallyTimeSpent" value="768561000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -800,7 +796,7 @@
     <frame x="-7" y="-7" width="1550" height="878" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.49544418" visible="true" weight="0.16776751" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49544418" visible="true" weight="0.16776751" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32937366" />
       <window_info anchor="bottom" id="Docker" order="10" show_stripe_button="false" />
       <window_info anchor="bottom" id="Event Log" order="7" sideWeight="0.5021142" side_tool="true" weight="0.32829374" />
@@ -808,7 +804,7 @@
       <window_info anchor="bottom" id="Version Control" order="8" sideWeight="0.49788582" weight="0.32829374" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49788582" weight="0.32793522" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info anchor="bottom" id="Terminal" order="9" weight="0.32793522" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="9" visible="true" weight="0.32793522" />
       <window_info id="Favorites" order="3" side_tool="true" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -885,11 +881,11 @@
     <MESSAGE value="updated comments, minor bug fixes" />
     <MESSAGE value="removed AUM threshold" />
     <MESSAGE value="updated migration and upgrade scripts" />
-    <MESSAGE value="updated frontend code" />
     <MESSAGE value="updated upgrade script" />
     <MESSAGE value="updated comments" />
     <MESSAGE value="minor changes" />
-    <option name="LAST_COMMIT_MESSAGE" value="minor changes" />
+    <MESSAGE value="updated frontend code" />
+    <option name="LAST_COMMIT_MESSAGE" value="updated frontend code" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1127,13 +1123,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/ShareToken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="88">
-          <caret line="4" selection-start-line="4" selection-end-line="7" selection-end-column="3" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.coffee">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="242">
@@ -1145,34 +1134,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="572">
           <caret line="26" column="32" lean-forward="true" selection-start-line="26" selection-start-column="32" selection-end-line="26" selection-end-column="32" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/Utils.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="318">
-          <caret line="27" column="34" selection-start-line="27" selection-start-column="34" selection-end-line="27" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="88">
-          <caret line="7" column="48" selection-start-line="7" selection-start-column="48" selection-end-line="7" selection-end-column="48" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/KyberNetwork.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="176">
-          <caret line="8" column="9" selection-start-line="8" selection-start-column="9" selection-end-line="8" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="176">
-          <caret line="8" selection-start-line="8" selection-end-line="8" />
         </state>
       </provider>
     </entry>
@@ -1193,30 +1154,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="229">
-          <caret line="258" column="64" selection-start-line="258" selection-start-column="64" selection-end-line="258" selection-end-column="64" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/build/contracts/BetokenFund.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="489">
           <caret line="1111" column="3" selection-start-line="2" selection-start-column="2" selection-end-line="1111" selection-end-column="3" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4458">
-          <caret line="147" column="2" selection-start-line="147" selection-start-column="2" selection-end-line="147" selection-end-column="2" />
-          <folding>
-            <element signature="e#2921#4001#0" />
-            <element signature="e#4019#4670#0" />
-            <element signature="e#4697#14383#0" />
-            <element signature="e#14389#15743#0" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -1227,6 +1168,68 @@
           <folding>
             <element signature="e#11#20662#0" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="910">
+          <caret line="706" column="30" selection-start-line="706" selection-start-column="30" selection-end-line="706" selection-end-column="30" />
+          <folding>
+            <element signature="e#2921#4001#0" />
+            <element signature="e#4019#4670#0" />
+            <element signature="e#4697#14383#0" />
+            <element signature="e#14389#15743#0" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="229">
+          <caret line="258" column="64" selection-start-line="258" selection-start-column="64" selection-end-line="258" selection-end-column="64" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/ShareToken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="88">
+          <caret line="4" selection-start-line="4" selection-end-line="7" selection-end-column="3" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="154">
+          <caret line="7" column="48" selection-start-line="7" selection-start-column="48" selection-end-line="7" selection-end-column="48" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/KyberNetwork.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="440">
+          <caret line="20" column="18" lean-forward="true" selection-start-line="9" selection-start-column="2" selection-end-line="20" selection-end-column="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/Utils.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="264">
+          <caret line="12" column="31" selection-start-line="12" selection-end-line="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="270">
+          <caret line="752" column="7" lean-forward="true" selection-start-line="752" selection-start-column="7" selection-end-line="752" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/TestKyberNetwork.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="286">
+          <caret line="37" column="31" lean-forward="true" selection-start-line="37" selection-start-column="31" selection-end-line="37" selection-end-column="31" />
         </state>
       </provider>
     </entry>
