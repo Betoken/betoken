@@ -663,6 +663,27 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
+   * @notice Redeems commission in shares.
+   */
+  function redeemCommissionInShares()
+    public
+    during(CyclePhase.RedeemCommission)
+    whenNotPaused
+  {
+    require(lastCommissionRedemption[msg.sender] < cycleNumber);
+    lastCommissionRedemption[msg.sender] = cycleNumber;
+    uint256 commission = totalCommission.mul(cToken.balanceOf(msg.sender)).div(cToken.totalSupply());
+    sToken.mint(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    totalFundsInDAI = totalFundsInDAI.add(commission);
+
+    delete userInvestments[msg.sender];
+
+    // Emit event
+    Deposit(cycleNumber, msg.sender, daiAddr, commission, commission, now);
+    CommissionPaid(cycleNumber, msg.sender, commission);
+  }
+
+  /**
    * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone.
    * @param _tokenAddr address of the token to be sold
    */
