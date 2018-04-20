@@ -98,9 +98,6 @@ contract BetokenFund is Pausable, Utils {
   // List of investments in the current cycle.
   mapping(address => Investment[]) public userInvestments;
 
-  // Records if a token is a stable coin. Users can't make investments with stable coins.
-  mapping(address => bool) public isStableCoin;
-
   // Records if a token's contract maliciously treats the BetokenFund differently when calling transfer(), transferFrom(), or approve().
   mapping(address => bool) public isMaliciousCoin;
 
@@ -140,7 +137,6 @@ contract BetokenFund is Pausable, Utils {
     uint256 _commissionRate,
     uint256 _developerFeeProportion,
     uint256 _functionCallReward,
-    address[] _stableCoins,
     address _previousVersion
   )
     public
@@ -164,10 +160,6 @@ contract BetokenFund is Pausable, Utils {
     functionCallReward = _functionCallReward;
     previousVersion = _previousVersion;
     allowEmergencyWithdraw = false;
-
-    for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
-      isStableCoin[_stableCoins[i]] = true;
-    }
   }
 
   /**
@@ -342,15 +334,6 @@ contract BetokenFund is Pausable, Utils {
   function changeControlTokenOwner(address _newOwner) public onlyOwner whenPaused {
     require(_newOwner != address(0));
     cToken.transferOwnership(_newOwner);
-  }
-
-  /**
-   * @notice Adds a stable-coin to the manifest. Only callable by owner.
-   * @param  _stableCoin the stable-coin's address
-   */
-  function addStableCoin(address _stableCoin) public onlyOwner {
-    require(_stableCoin != address(0));
-    isStableCoin[_stableCoin] = true;
   }
 
   /**
@@ -579,7 +562,6 @@ contract BetokenFund is Pausable, Utils {
     whenNotPaused
   {
     DetailedERC20 token = DetailedERC20(_tokenAddress);
-    require(!isStableCoin[_tokenAddress]);
 
     // Collect stake
     require(cToken.ownerCollectFrom(msg.sender, _stake));
