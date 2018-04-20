@@ -100,25 +100,6 @@
     },
     {
       "constant": true,
-      "inputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "isStableCoin",
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
       "inputs": [],
       "name": "paused",
       "outputs": [
@@ -411,10 +392,6 @@
         {
           "name": "_functionCallReward",
           "type": "uint256"
-        },
-        {
-          "name": "_stableCoins",
-          "type": "address[]"
         },
         {
           "name": "_previousVersion",
@@ -957,20 +934,6 @@
       "constant": false,
       "inputs": [
         {
-          "name": "_stableCoin",
-          "type": "address"
-        }
-      ],
-      "name": "addStableCoin",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
           "name": "_coin",
           "type": "address"
         },
@@ -1089,6 +1052,15 @@
       "constant": false,
       "inputs": [],
       "name": "redeemCommission",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "redeemCommissionInShares",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
