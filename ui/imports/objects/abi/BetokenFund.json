@@ -3,6 +3,20 @@
     {
       "constant": true,
       "inputs": [],
+      "name": "developerFeeRate",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
       "name": "totalFundsInDAI",
       "outputs": [
         {
@@ -55,6 +69,20 @@
         {
           "name": "",
           "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "assetFeeRate",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
         }
       ],
       "payable": false,
@@ -260,7 +288,7 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "developerFeeProportion",
+      "name": "exitFeeRate",
       "outputs": [
         {
           "name": "",
@@ -386,7 +414,15 @@
           "type": "uint256"
         },
         {
-          "name": "_developerFeeProportion",
+          "name": "_assetFeeRate",
+          "type": "uint256"
+        },
+        {
+          "name": "_developerFeeRate",
+          "type": "uint256"
+        },
+        {
+          "name": "_exitFeeRate",
           "type": "uint256"
         },
         {
@@ -868,6 +904,34 @@
           "type": "uint256"
         }
       ],
+      "name": "changeCommissionRate",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_newProp",
+          "type": "uint256"
+        }
+      ],
+      "name": "changeAssetFeeRate",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_newProp",
+          "type": "uint256"
+        }
+      ],
       "name": "changeDeveloperFeeProportion",
       "outputs": [],
       "payable": false,
@@ -882,7 +946,7 @@
           "type": "uint256"
         }
       ],
-      "name": "changeCommissionRate",
+      "name": "changeExitFeeRate",
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",

@@ -1,7 +1,7 @@
 pragma solidity ^0.4.18;
 
-import './KyberNetwork.sol';
-import './Utils.sol';
+import '../KyberNetwork.sol';
+import '../Utils.sol';
 
 contract TestKyberNetwork is KyberNetwork, Utils {
   mapping(address => uint256) priceInDAI;

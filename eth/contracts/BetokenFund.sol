@@ -77,8 +77,14 @@ contract BetokenFund is Pausable, Utils {
   // The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
   uint256 public commissionRate;
 
+  // The proportion of contract balance that gets distributed to Kairo holders every cycle. Fixed point decimal.
+  uint256 public assetFeeRate;
+
   // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
-  uint256 public developerFeeProportion;
+  uint256 public developerFeeRate;
+
+  // The proportion of funds that goes the the devs during withdrawals. Fixed point decimal.
+  uint256 public exitFeeRate;
 
   // Amount of Kairo rewarded to the user who calls a phase transition/investment handling function
   uint256 public functionCallReward;
@@ -135,13 +141,15 @@ contract BetokenFund is Pausable, Utils {
     address _developerFeeAccount,
     uint256[3] _phaseLengths,
     uint256 _commissionRate,
-    uint256 _developerFeeProportion,
+    uint256 _assetFeeRate,
+    uint256 _developerFeeRate,
+    uint256 _exitFeeRate,
     uint256 _functionCallReward,
     address _previousVersion
   )
     public
   {
-    require(_commissionRate.add(_developerFeeProportion) < 10**18);
+    require(_commissionRate.add(_developerFeeRate) < 10**18);
 
     controlTokenAddr = _cTokenAddr;
     shareTokenAddr = _sTokenAddr;
@@ -154,7 +162,9 @@ contract BetokenFund is Pausable, Utils {
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
     commissionRate = _commissionRate;
-    developerFeeProportion = _developerFeeProportion;
+    assetFeeRate = _assetFeeRate;
+    developerFeeRate = _developerFeeRate;
+    exitFeeRate = _exitFeeRate;
     startTimeOfCyclePhase = 0;
     cyclePhase = CyclePhase.RedeemCommission;
     functionCallReward = _functionCallReward;
@@ -295,20 +305,37 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @notice Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
-   * @param _newProp the new proportion, fixed point decimal
-   */
-  function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
-    require(_newProp < developerFeeProportion);
-    developerFeeProportion = _newProp;
-  }
-
-  /**
-   * @notice Changes the proportion of fund balance given to Kairo holders each cycle. Only callable by owner.
+   * @notice Changes the proportion of profits given to Kairo holders each cycle. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
    */
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
     commissionRate = _newProp;
+  }
+
+  /**
+  * @notice Changes the proportion of fund balance given to Kairo holders each cycle. Only callable by owner.
+  * @param _newProp the new proportion, fixed point decimal
+  */
+  function changeAssetFeeRate(uint256 _newProp) public onlyOwner {
+    assetFeeRate = _newProp;
+  }
+
+  /**
+   * @notice Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
+   * @param _newProp the new proportion, fixed point decimal
+   */
+  function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
+    require(_newProp < developerFeeRate);
+    developerFeeRate = _newProp;
+  }
+
+  /**
+   * @notice Changes exit fee rate. May only decrease. Only callable by owner.
+   * @param _newProp the new proportion, fixed point decimal
+   */
+  function changeExitFeeRate(uint256 _newProp) public onlyOwner {
+    require(_newProp < exitFeeRate);
+    exitFeeRate = _newProp;
   }
 
   /**
@@ -496,6 +523,9 @@ contract BetokenFund is Pausable, Utils {
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer Ether to user
+    uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
+    developerFeeAccount.transfer(exitFee);
+    actualETHWithdrawn = actualETHWithdrawn.sub(exitFee);
     msg.sender.transfer(actualETHWithdrawn);
 
     // Emit event
@@ -537,6 +567,9 @@ contract BetokenFund is Pausable, Utils {
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer tokens to user
+    uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
+    token.transfer(developerFeeAccount, exitFee);
+    actualTokenWithdrawn = actualTokenWithdrawn.sub(exitFee);
     token.transfer(msg.sender, actualTokenWithdrawn);
 
     // Emit event
@@ -695,7 +728,8 @@ contract BetokenFund is Pausable, Utils {
       profit = dai.balanceOf(this).sub(totalFundsInDAI);
     }
     totalCommission = commissionRate.mul(profit).div(PRECISION);
-    uint256 devFee = developerFeeProportion.mul(dai.balanceOf(this)).div(PRECISION);
+    totalCommission = totalCommission.add(assetFeeRate.mul(dai.balanceOf(this)).div(PRECISION));
+    uint256 devFee = developerFeeRate.mul(dai.balanceOf(this)).div(PRECISION);
     uint256 newTotalFunds = dai.balanceOf(this).sub(totalCommission).sub(devFee);
 
     // Update values
