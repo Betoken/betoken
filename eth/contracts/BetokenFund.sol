@@ -158,6 +158,7 @@ contract BetokenFund is Pausable, Utils {
     cToken = ControlToken(_cTokenAddr);
     sToken = ShareToken(_sTokenAddr);
     kyber = KyberNetwork(_kyberAddr);
+    dai = DetailedERC20(_daiAddr);
 
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
@@ -398,7 +399,7 @@ contract BetokenFund is Pausable, Utils {
       __distributeFundsAfterCycleEnd();
     }
 
-    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 5));
+    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 3));
     startTimeOfCyclePhase = now;
 
     // Reward caller
@@ -432,7 +433,6 @@ contract BetokenFund is Pausable, Utils {
       msg.sender.transfer(leftOverETH);
     }
     actualDAIDeposited = dai.balanceOf(this).sub(beforeDAIBalance);
-    require(actualDAIDeposited > 0);
 
     // Register investment
     if (cycleNumber == 1) {
@@ -768,16 +768,14 @@ contract BetokenFund is Pausable, Utils {
    */
   function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc) {
     uint256 actualDestAmount;
-    uint256 beforeSrcBalance;
+    uint256 beforeSrcBalance = getBalance(_srcToken, this);
     uint256 msgValue;
 
     if (_srcToken != ETH_TOKEN_ADDRESS) {
-      beforeSrcBalance = _srcToken.balanceOf(this);
       msgValue = 0;
       _srcToken.approve(kyberAddr, 0);
       _srcToken.approve(kyberAddr, _srcAmount);
     } else {
-      beforeSrcBalance = this.balance;
       msgValue = _srcAmount;
     }
     actualDestAmount = kyber.trade.value(msgValue)(
@@ -794,7 +792,7 @@ contract BetokenFund is Pausable, Utils {
       _srcToken.approve(kyberAddr, 0);
     }
 
-    _destPriceInSrc = beforeSrcBalance.sub(_srcToken.balanceOf(this)).mul(PRECISION).mul(10**getDecimals(_destToken)).div(actualDestAmount.mul(10**getDecimals(_srcToken)));
+    _destPriceInSrc = beforeSrcBalance.sub(getBalance(_srcToken, this)).mul(PRECISION).mul(10**getDecimals(_destToken)).div(actualDestAmount.mul(10**getDecimals(_srcToken)));
   }
 
   function() public payable {

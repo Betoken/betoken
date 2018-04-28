@@ -25,7 +25,7 @@ contract TestKyberNetwork is KyberNetwork, Utils {
     payable
     returns(uint)
   {
-    uint256 destAmount = srcAmount.mul(priceInDAI[address(dest)]).div(priceInDAI[address(src)]);
+    uint256 destAmount = srcAmount.mul(priceInDAI[address(src)]).div(priceInDAI[address(dest)]);
     require(destAmount <= maxDestAmount);
 
     if (address(src) == address(ETH_TOKEN_ADDRESS)) {

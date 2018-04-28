@@ -29,4 +29,11 @@ contract Utils {
     }
     return uint256(_token.decimals());
   }
+
+  function getBalance(DetailedERC20 _token, address _addr) internal view returns(uint256) {
+    if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
+      return _addr.balance;
+    }
+    return uint256(_token.balanceOf(_addr));
+  }
 }
