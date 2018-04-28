@@ -66,4 +66,28 @@ contract("first_cycle", (accounts) ->
     fundBalance = await fund.totalFundsInDAI.call()
     assert.equal(fundBalance.toNumber(), amount * 600, "fund balance incorrect")
   )
+
+  it("deposit_dai", () ->
+    fund = await BetokenFund.deployed()
+    dai = await DAI(fund)
+    st = await ST()
+
+    # mint DAI for user
+    amount = 2e18
+    await dai.mint(accounts[1], amount, {from: accounts[0]})
+
+    # deposit DAI
+    fundBalance = await fund.totalFundsInDAI.call()
+    await dai.approve(fund.address, amount, {from: accounts[1]})
+    await fund.depositToken(dai.address, amount, {from: accounts[1]})
+    await dai.approve(fund.address, 0, {from: accounts[1]})
+
+    # check shares
+    shareBlnce = await st.balanceOf.call(accounts[1])
+    assert.equal(shareBlnce.toNumber(), amount, "received share amount incorrect")
+
+    # check fund balance
+    newFundBalance = await fund.totalFundsInDAI.call()
+    assert.equal(newFundBalance.sub(fundBalance).toNumber(), amount, "fund balance incorrect")
+  )
 )
