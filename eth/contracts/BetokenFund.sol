@@ -543,7 +543,6 @@ contract BetokenFund is Pausable, Utils {
     isValidToken(_tokenAddr)
     whenNotPaused
   {
-    require(cycleNumber != 1);
     DetailedERC20 token = DetailedERC20(_tokenAddr);
 
     // Convert DAI into desired tokens

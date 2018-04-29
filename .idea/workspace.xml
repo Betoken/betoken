@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/eth/test/Test.coffee" beforeDir="false" afterPath="$PROJECT_DIR$/eth/test/Test.coffee" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
@@ -29,8 +30,8 @@
       <file leaf-file-name="BetokenFund.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="76">
-              <caret line="456" column="11" selection-start-line="456" selection-start-column="11" selection-end-line="456" selection-end-column="11" />
+            <state relative-caret-position="268">
+              <caret line="437" column="24" lean-forward="true" selection-start-line="437" selection-start-column="8" selection-end-line="437" selection-end-column="24" />
             </state>
           </provider>
         </entry>
@@ -47,7 +48,7 @@
       <file leaf-file-name="TestKyberNetwork.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="165">
+            <state relative-caret-position="-33">
               <caret line="25" column="17" lean-forward="true" selection-start-line="25" selection-start-column="17" selection-end-line="25" selection-end-column="17" />
             </state>
           </provider>
@@ -74,8 +75,8 @@
       <file leaf-file-name="Test.coffee" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="76">
-              <caret line="75" column="14" selection-start-line="75" selection-start-column="14" selection-end-line="75" selection-end-column="14" />
+            <state relative-caret-position="537">
+              <caret line="100" column="62" selection-start-line="100" selection-start-column="62" selection-end-line="100" selection-end-column="62" />
             </state>
           </provider>
         </entry>
@@ -160,13 +161,13 @@
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/eth/contracts/TestKyberNetwork.sol" />
-        <option value="$PROJECT_DIR$/eth/truffle.js" />
         <option value="$PROJECT_DIR$/eth/contracts/test/TestToken.sol" />
         <option value="$PROJECT_DIR$/eth/deployment_configs/testnet.json" />
         <option value="$PROJECT_DIR$/eth/migrations/2_deploy_contracts.coffee" />
         <option value="$PROJECT_DIR$/ui/imports/objects/abi/BetokenFund.json" />
         <option value="$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol" />
         <option value="$PROJECT_DIR$/eth/contracts/Utils.sol" />
+        <option value="$PROJECT_DIR$/eth/truffle.js" />
         <option value="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" />
         <option value="$PROJECT_DIR$/eth/test/Test.coffee" />
       </list>
@@ -420,14 +421,7 @@
       <workItem from="1524249951830" duration="318000" />
       <workItem from="1524250287993" duration="734000" />
       <workItem from="1524266538769" duration="24858000" />
-      <workItem from="1524890959371" duration="14509000" />
-    </task>
-    <task id="LOCAL-00078" summary="Fixed bug in burning Kairo, added error message for exceeding maxProposals, changed to new contract. Added favicon.">
-      <created>1518511705737</created>
-      <option name="number" value="00078" />
-      <option name="presentableId" value="LOCAL-00078" />
-      <option name="project" value="LOCAL" />
-      <updated>1518511705737</updated>
+      <workItem from="1524890959371" duration="23938000" />
     </task>
     <task id="LOCAL-00079" summary="Fixed bug in initializeParticipants() where isparticipant isn't updated.">
       <created>1518513347173</created>
@@ -765,11 +759,18 @@
       <option name="project" value="LOCAL" />
       <updated>1524906375143</updated>
     </task>
-    <option name="localTasksCounter" value="127" />
+    <task id="LOCAL-00127" summary="added unit tests">
+      <created>1524908954671</created>
+      <option name="number" value="00127" />
+      <option name="presentableId" value="LOCAL-00127" />
+      <option name="project" value="LOCAL" />
+      <updated>1524908954671</updated>
+    </task>
+    <option name="localTasksCounter" value="128" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="841144000" />
+    <option name="totallyTimeSpent" value="850573000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -791,7 +792,7 @@
       <window_info anchor="bottom" id="Version Control" order="8" sideWeight="0.49788582" weight="0.32829374" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49788582" weight="0.32793522" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info active="true" anchor="bottom" id="Terminal" order="9" visible="true" weight="0.32523617" />
+      <window_info anchor="bottom" id="Terminal" order="9" weight="0.32523617" />
       <window_info id="Favorites" order="3" side_tool="true" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -848,7 +849,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="added redeem stake function for unsold proposals" />
     <MESSAGE value="updated inflation mechanism" />
     <MESSAGE value="updated UI" />
     <MESSAGE value="updated contracts to the new model" />
@@ -873,7 +873,8 @@
     <MESSAGE value="updated abi" />
     <MESSAGE value="updated unit tests, changed fee model" />
     <MESSAGE value="made unit tests work" />
-    <option name="LAST_COMMIT_MESSAGE" value="made unit tests work" />
+    <MESSAGE value="added unit tests" />
+    <option name="LAST_COMMIT_MESSAGE" value="added unit tests" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1132,24 +1133,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/truffle.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="154">
-          <caret line="7" column="12" selection-start-line="7" selection-start-column="12" selection-end-line="7" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/eth/contracts/Utils.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="539">
           <caret line="36" column="41" selection-start-line="36" selection-start-column="41" selection-end-line="36" selection-end-column="41" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="165">
-          <caret line="25" column="17" lean-forward="true" selection-start-line="25" selection-start-column="17" selection-end-line="25" selection-end-column="17" />
         </state>
       </provider>
     </entry>
@@ -1177,17 +1164,31 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-33">
+          <caret line="25" column="17" lean-forward="true" selection-start-line="25" selection-start-column="17" selection-end-line="25" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/truffle.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="8" column="31" lean-forward="true" selection-start-line="8" selection-start-column="16" selection-end-line="8" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="76">
-          <caret line="456" column="11" selection-start-line="456" selection-start-column="11" selection-end-line="456" selection-end-column="11" />
+        <state relative-caret-position="268">
+          <caret line="437" column="24" lean-forward="true" selection-start-line="437" selection-start-column="8" selection-end-line="437" selection-end-column="24" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="76">
-          <caret line="75" column="14" selection-start-line="75" selection-start-column="14" selection-end-line="75" selection-end-column="14" />
+        <state relative-caret-position="537">
+          <caret line="100" column="62" selection-start-line="100" selection-start-column="62" selection-end-line="100" selection-end-column="62" />
         </state>
       </provider>
     </entry>

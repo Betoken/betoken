@@ -52,11 +52,12 @@ contract("first_cycle", (accounts) ->
     st = await ST()
 
     # mint DAI for KN
-    await dai.mint(kn.address, 1e27, {from: accounts[0]})
+    await dai.mint(kn.address, 1e27, {from: accounts[0], gasPrice: 0})
 
     # deposit ether
     amount = 1e18
-    await fund.deposit({from: accounts[0], value: amount})
+    prevEtherBlnce = await web3.eth.getBalance(accounts[0])
+    await fund.deposit({from: accounts[0], value: amount, gasPrice: 0})
 
     # check shares
     shareBlnce = await st.balanceOf.call(accounts[0])
@@ -65,6 +66,10 @@ contract("first_cycle", (accounts) ->
     # check fund balance
     fundBalance = await fund.totalFundsInDAI.call()
     assert.equal(fundBalance.toNumber(), amount * 600, "fund balance incorrect")
+
+    # check user ether balance
+    etherBlnce = await web3.eth.getBalance(accounts[0])
+    assert.equal(prevEtherBlnce.sub(etherBlnce).toNumber(), amount, "ether balance increase incorrect")
   )
 
   it("deposit_dai", () ->
@@ -78,6 +83,7 @@ contract("first_cycle", (accounts) ->
 
     # deposit DAI
     fundBalance = await fund.totalFundsInDAI.call()
+    prevDAIBlnce = await dai.balanceOf.call(accounts[1])
     await dai.approve(fund.address, amount, {from: accounts[1]})
     await fund.depositToken(dai.address, amount, {from: accounts[1]})
     await dai.approve(fund.address, 0, {from: accounts[1]})
@@ -88,6 +94,60 @@ contract("first_cycle", (accounts) ->
 
     # check fund balance
     newFundBalance = await fund.totalFundsInDAI.call()
-    assert.equal(newFundBalance.sub(fundBalance).toNumber(), amount, "fund balance incorrect")
+    assert.equal(newFundBalance.sub(fundBalance).toNumber(), amount, "fund balance increase incorrect")
+
+    # check dai balance
+    daiBlnce = await await dai.balanceOf.call(accounts[1])
+    assert.equal(prevDAIBlnce.sub(daiBlnce).toNumber(), amount, "DAI balance decrease incorrect")
+  )
+
+  it("withdraw_ether", () ->
+    fund = await BetokenFund.deployed()
+    dai = await DAI(fund)
+    st = await ST()
+
+    # withdraw ether
+    amount = 1e17
+    prevShareBlnce = await st.balanceOf.call(accounts[0])
+    prevFundBlnce = await fund.totalFundsInDAI.call()
+    prevEtherBlnce = await web3.eth.getBalance(accounts[0])
+    await fund.withdraw(amount, {from: accounts[0], gasPrice: 0})
+
+    # check shares
+    shareBlnce = await st.balanceOf.call(accounts[0])
+    assert.equal(prevShareBlnce.sub(shareBlnce).toNumber(), amount, "burnt share amount incorrect")
+
+    # check fund balance
+    fundBlnce = await fund.totalFundsInDAI.call()
+    assert.equal(prevFundBlnce.sub(fundBlnce).toNumber(), amount, "fund balance decrease incorrect")
+
+    # check ether balance
+    etherBlnce = await web3.eth.getBalance(accounts[0])
+    assert.equal(etherBlnce.sub(prevEtherBlnce).toNumber(), amount // 600, "ether balance increase incorrect")
+  )
+
+  it("withdraw_dai", () ->
+    fund = await BetokenFund.deployed()
+    dai = await DAI(fund)
+    st = await ST()
+
+    # withdraw dai
+    amount = 1e17
+    prevShareBlnce = await st.balanceOf.call(accounts[1])
+    prevFundBlnce = await fund.totalFundsInDAI.call()
+    prevDAIBlnce = await dai.balanceOf.call(accounts[1])
+    await fund.withdrawToken(dai.address, amount, {from: accounts[1]})
+
+    # check shares
+    shareBlnce = await st.balanceOf.call(accounts[1])
+    assert.equal(prevShareBlnce.sub(shareBlnce).toNumber(), amount, "burnt share amount incorrect")
+
+    # check fund balance
+    fundBlnce = await fund.totalFundsInDAI.call()
+    assert.equal(prevFundBlnce.sub(fundBlnce).toNumber(), amount, "fund balance decrease incorrect")
+
+    # check dai balance
+    daiBlnce = await await dai.balanceOf.call(accounts[1])
+    assert.equal(daiBlnce.sub(prevDAIBlnce).toNumber(), amount * (1 - 0.03), "DAI balance increase incorrect")
   )
 )
