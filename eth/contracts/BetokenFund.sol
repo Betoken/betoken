@@ -42,8 +42,9 @@ contract BetokenFund is Pausable, Utils {
    */
   modifier isValidToken(address token) {
     require(!isMaliciousCoin[token]);
-    require(token != address(ETH_TOKEN_ADDRESS));
-    require(ERC20(token).totalSupply() > 0);
+    if (token != address(ETH_TOKEN_ADDRESS)) {
+      require(ERC20(token).totalSupply() > 0);
+    }
     _;
   }
 
@@ -386,6 +387,10 @@ contract BetokenFund is Pausable, Utils {
 
     if (cyclePhase == CyclePhase.RedeemCommission) {
       // Start new cycle
+      if (cycleNumber == 0) {
+        require(msg.sender == owner);
+      }
+
       cycleNumber = cycleNumber.add(1);
 
       if (cToken.paused()) {
@@ -435,7 +440,7 @@ contract BetokenFund is Pausable, Utils {
     actualDAIDeposited = dai.balanceOf(this).sub(beforeDAIBalance);
 
     // Register investment
-    if (cycleNumber == 1) {
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
       sToken.mint(msg.sender, actualDAIDeposited);
     } else {
       sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
@@ -485,7 +490,7 @@ contract BetokenFund is Pausable, Utils {
     }
 
     // Register investment
-    if (cycleNumber == 1) {
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
       sToken.mint(msg.sender, actualDAIDeposited);
     } else {
       sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
@@ -610,11 +615,11 @@ contract BetokenFund is Pausable, Utils {
     }));
 
     // Invest
-    uint256 beforeTokenAmount = token.balanceOf(this);
+    uint256 beforeTokenAmount = getBalance(token, this);
     uint256 beforeDAIBalance = dai.balanceOf(this);
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
     __handleInvestment(investmentId, true);
-    userInvestments[msg.sender][investmentId].tokenAmount = token.balanceOf(this).sub(beforeTokenAmount);
+    userInvestments[msg.sender][investmentId].tokenAmount = getBalance(token, this).sub(beforeTokenAmount);
 
     // Emit event
     CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1), _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, beforeDAIBalance.sub(dai.balanceOf(this)));
