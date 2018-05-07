@@ -51,6 +51,7 @@ contract ControlToken is MintableToken, PausableToken {
     // SafeMath.sub will throw if there is not enough balance.
     balances[owner] = balances[owner].sub(_value);
     totalSupply_ = totalSupply_.sub(_value);
+    return true;
   }
 
   function() public {

@@ -11,11 +11,22 @@ module.exports = (deployer, network, accounts) ->
       ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
       TestKyberNetwork = artifacts.require "TestKyberNetwork"
       TestToken = artifacts.require "TestToken"
+      TestTokenFactory = artifacts.require "TestTokenFactory"
 
-      #TestAsset = await deployer.deploy(TestToken, "Test Asset", "AST", 1)
-      await deployer.deploy(TestToken, "DAI Stable Coin", "DAI", 18)
-      TestDAI = await TestToken.deployed()
-      await deployer.deploy(TestKyberNetwork, [TestDAI.address, ETH_TOKEN_ADDRESS], [1, 600])
+      # deploy TestToken factory
+      await deployer.deploy(TestTokenFactory)
+      TokenFactory = await TestTokenFactory.deployed()
+
+      # create TestTokens
+      testAssetAddr = (await TokenFactory.newToken("Test Asset", "AST", 1)).logs[0].args.addr
+      testDAIAddr = (await TokenFactory.newToken("DAI Stable Coin", "DAI", 18)).logs[0].args.addr
+      TestAsset = TestToken.at(testAssetAddr)
+      TestDAI = TestToken.at(testDAIAddr)
+
+      # deploy TestKyberNetwork
+      await deployer.deploy(TestKyberNetwork, [TestDAI.address, ETH_TOKEN_ADDRESS, TestAsset.address], [1, 600, 1000])
+
+      # deploy Betoken fund contracts
       await deployer.deploy([ControlToken, ShareToken])
       await deployer.deploy(
         BetokenFund,
