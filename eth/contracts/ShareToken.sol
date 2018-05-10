@@ -29,6 +29,7 @@ contract ShareToken is MintableToken {
     balances[_from] = balances[_from].sub(_value);
     totalSupply_ = totalSupply_.sub(_value);
     OwnerBurn(_from, _value);
+    Transfer(_from, 0x0, _value);
     return true;
   }
 }

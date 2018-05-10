@@ -18,13 +18,17 @@ module.exports = (deployer, network, accounts) ->
       TokenFactory = await TestTokenFactory.deployed()
 
       # create TestTokens
-      testAssetAddr = (await TokenFactory.newToken("Test Asset", "AST", 1)).logs[0].args.addr
+      testAssetAddr = (await TokenFactory.newToken("Test Asset", "AST", 3)).logs[0].args.addr
       testDAIAddr = (await TokenFactory.newToken("DAI Stable Coin", "DAI", 18)).logs[0].args.addr
+      console.log "Test asset address: " + testAssetAddr
       TestAsset = TestToken.at(testAssetAddr)
       TestDAI = TestToken.at(testDAIAddr)
 
       # deploy TestKyberNetwork
       await deployer.deploy(TestKyberNetwork, [TestDAI.address, ETH_TOKEN_ADDRESS, TestAsset.address], [1, 600, 1000])
+      # mint tokens for KN
+      await TestAsset.mint(TestKyberNetwork.address, 1e27)
+      await TestDAI.mint(TestKyberNetwork.address, 1e27)
 
       # deploy Betoken fund contracts
       await deployer.deploy([ControlToken, ShareToken])

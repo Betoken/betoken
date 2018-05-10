@@ -1,3 +1,5 @@
+import BigNumber from "bignumber.js"
+
 #Import web3
 Web3 = require 'web3'
 web3 = window.web3
@@ -13,10 +15,7 @@ ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
  * @return {Promise} .then(()->)
 ###
 getDefaultAccount = () ->
-  return web3.eth.getAccounts().then(
-    (accounts) ->
-      web3.eth.defaultAccount = accounts[0]
-  )
+  web3.eth.defaultAccount = (await web3.eth.getAccounts())[0]
 
 ERC20 = (_tokenAddr) ->
   erc20ABI = require("./abi/ERC20.json").abi
@@ -46,8 +45,7 @@ export Betoken = (_address) ->
    * @param  {String} _varName the name of the primitive variable
    * @return {Promise}          .then((_value)->)
   ###
-  self.getPrimitiveVar = (_varName) ->
-    return self.contracts.betokenFund.methods[_varName]().call()
+  self.getPrimitiveVar = (_varName) -> self.contracts.betokenFund.methods[_varName]().call()
 
   ###*
    * Calls a mapping or an array in GroupFund
@@ -55,8 +53,7 @@ export Betoken = (_address) ->
    * @param  {Any} _input       the input
    * @return {Promise}              .then((_value)->)
   ###
-  self.getMappingOrArrayItem = (_name, _input) ->
-    return self.contracts.betokenFund.methods[_name](_input).call()
+  self.getMappingOrArrayItem = (_name, _input) -> self.contracts.betokenFund.methods[_name](_input).call()
 
   ###*
    * Calls a double mapping in GroupFund
@@ -66,7 +63,7 @@ export Betoken = (_address) ->
    * @return {Promise}              .then((_value)->)
   ###
   self.getDoubleMapping = (_mappingName, _input1, _input2) ->
-    return self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call()
+    self.contracts.betokenFund.methods[_mappingName](_input1, _input2).call()
 
   self.getTokenSymbol = (_tokenAddr) ->
     _tokenAddr = web3.utils.toHex(_tokenAddr)
@@ -86,22 +83,18 @@ export Betoken = (_address) ->
    * @param  {String} _address the address whose balance we're getting
    * @return {Promise}          .then((_value)->)
   ###
-  self.getKairoBalance = (_address) ->
-    return self.contracts.controlToken.methods.balanceOf(_address).call()
+  self.getKairoBalance = (_address) -> self.contracts.controlToken.methods.balanceOf(_address).call()
 
-  self.getKairoTotalSupply = () ->
-    return self.contracts.controlToken.methods.totalSupply().call()
+  self.getKairoTotalSupply = () -> self.contracts.controlToken.methods.totalSupply().call()
 
   ###*
    * Gets the Share balance of an address
    * @param  {String} _address the address whose balance we're getting
    * @return {Promise}          .then((_value)->)
   ###
-  self.getShareBalance = (_address) ->
-    return self.contracts.shareToken.methods.balanceOf(_address).call()
+  self.getShareBalance = (_address) -> self.contracts.shareToken.methods.balanceOf(_address).call()
 
-  self.getShareTotalSupply = () ->
-    return self.contracts.shareToken.methods.totalSupply().call()
+  self.getShareTotalSupply = () -> self.contracts.shareToken.methods.totalSupply().call()
 
   ###
     Phase handlers
@@ -113,11 +106,9 @@ export Betoken = (_address) ->
    * @return {Promise} .then(()->)
   ###
   self.nextPhase = (_callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.nextPhase().send({from: web3.eth.defaultAccount}).on(
-          "transactionHash", _callback
-        )
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.nextPhase().send({from: web3.eth.defaultAccount}).on(
+      "transactionHash", _callback
     )
 
   ###
@@ -132,23 +123,16 @@ export Betoken = (_address) ->
   ###
   self.deposit = (_amountInWeis, _callback) ->
     funcSignature = web3.eth.abi.encodeFunctionSignature("deposit()")
-    return getDefaultAccount().then(
-      () ->
-        return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.betokenFund, value: _amountInWeis, data: funcSignature}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.betokenFund, value: _amountInWeis, data: funcSignature}).on("transactionHash", _callback)
 
   self.depositToken = (_tokenAddr, _tokenAmount, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        token = ERC20(_tokenAddr)
-        token.methods.approve(self.addrs.betokenFund, 0).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback).then(
-          () ->
-            token.methods.approve(self.addrs.betokenFund, _tokenAmount).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-        ).then(
-          () ->
-            self.contracts.betokenFund.methods.depositToken(_tokenAddr, _tokenAmount).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-        )
-    )
+    await getDefaultAccount()
+    token = ERC20(_tokenAddr)
+    amount = BigNumber(_tokenAmount).mul(BigNumber(10).toPower(await self.getTokenDecimals(_tokenAddr)))
+    await token.methods.approve(self.addrs.betokenFund, amount).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+    await self.contracts.betokenFund.methods.depositToken(_tokenAddr, amount).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+    await token.methods.approve(self.addrs.betokenFund, 0).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###*
    * Allows user to withdraw from GroupFund balance
@@ -157,16 +141,13 @@ export Betoken = (_address) ->
    * @return {Promise}               .then(()->)
   ###
   self.withdraw = (_amountInWeis, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
-  self.withdrawToken = (_tokenAddr, _tokenAmount, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.withdrawToken(_tokenAddr, _tokenAmount).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+  self.withdrawToken = (_tokenAddr, _amountInDAI, _callback) ->
+    await getDefaultAccount()
+    amount = BigNumber(_amountInDAI).mul(1e18)
+    return self.contracts.betokenFund.methods.withdrawToken(_tokenAddr, amount).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###*
    * Withdraws all of user's balance in cases of emergency
@@ -174,10 +155,8 @@ export Betoken = (_address) ->
    * @return {Promise}           .then(()->)
   ###
   self.emergencyWithdraw = (_callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.emergencyWithdraw().send({from: web3.eth.defaultAccount}).on("transactionhash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.emergencyWithdraw().send({from: web3.eth.defaultAccount}).on("transactionhash", _callback)
 
   ###*
    * Sends Kairo to another address
@@ -187,10 +166,8 @@ export Betoken = (_address) ->
    * @return {Promise}               .then(()->)
   ###
   self.sendKairo = (_to, _amountInWeis, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.controlToken.methods.transfer(_to, _amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.controlToken.methods.transfer(_to, _amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###*
      * Sends Shares to another address
@@ -200,10 +177,8 @@ export Betoken = (_address) ->
      * @return {Promise}               .then(()->)
     ###
   self.sendShares = (_to, _amountInWeis, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.shareToken.methods.transfer(_to, _amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.shareToken.methods.transfer(_to, _amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###
     ProposalMakingTime functions
@@ -215,14 +190,14 @@ export Betoken = (_address) ->
   ###
   self.getInvestments = (_userAddress) ->
     array = []
-    return self.contracts.betokenFund.methods["investmentsCount"](_userAddress).call().then(
+    return self.contracts.betokenFund.methods.investmentsCount(_userAddress).call().then(
       (_count) ->
         count = +_count
         if count == 0
           return []
         array = new Array(count)
         getItem = (id) ->
-          return self.contracts.betokenFund.methods["investments"](_userAddress, id).call().then(
+          return self.contracts.betokenFund.methods.userInvestments(_userAddress, id).call().then(
             (_item) ->
               return new Promise((fullfill, reject) ->
                 if typeof _item != null
@@ -248,25 +223,23 @@ export Betoken = (_address) ->
    * @return {Promise}               .then(()->)
   ###
   self.createInvestment = (_tokenAddress, _stakeInWeis, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.createInvestment(_tokenAddress, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.createInvestment(_tokenAddress, _stakeInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   self.sellAsset = (_proposalId, _callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.sellInvestmentAsset(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.sellInvestmentAsset(_proposalId).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###
     Finalized Phase functions
   ###
   self.redeemCommission = (_callback) ->
-    return getDefaultAccount().then(
-      () ->
-        return self.contracts.betokenFund.methods.redeemCommission().send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-    )
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.redeemCommission().send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
+
+  self.redeemCommissionInShares = (_callback) ->
+    await getDefaultAccount()
+    return self.contracts.betokenFund.methods.redeemCommissionInShares().send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###
     Object Initialization

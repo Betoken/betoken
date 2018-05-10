@@ -30,6 +30,7 @@ contract ControlToken is MintableToken, PausableToken {
     balances[_from] = balances[_from].sub(_value);
     balances[msg.sender] = balances[msg.sender].add(_value);
     OwnerCollectFrom(_from, _value);
+    Transfer(_from, owner, _value);
     return true;
   }
 
@@ -38,8 +39,7 @@ contract ControlToken is MintableToken, PausableToken {
    * @return true if succeeded, false otherwise
    */
   function burnOwnerBalance() public onlyOwner returns(bool) {
-    totalSupply_ = totalSupply_.sub(balances[owner]);
-    delete balances[owner];
+    burnOwnerTokens(balances[owner]);
     return true;
   }
 
@@ -51,6 +51,7 @@ contract ControlToken is MintableToken, PausableToken {
     // SafeMath.sub will throw if there is not enough balance.
     balances[owner] = balances[owner].sub(_value);
     totalSupply_ = totalSupply_.sub(_value);
+    Transfer(owner, 0x0, _value);
     return true;
   }
 

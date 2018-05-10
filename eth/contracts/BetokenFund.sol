@@ -187,14 +187,6 @@ contract BetokenFund is Pausable, Utils {
   }
 
   /**
-   * @notice Returns an item in the user's investments array.
-   * @return the specified investment
-   */
-  function investments(address _userAddr, uint256 _id) public view returns(Investment _investment) {
-    return userInvestments[_userAddr][_id];
-  }
-
-  /**
    * @notice Returns the phaseLengths array.
    * @return the phaseLengths array
    */
