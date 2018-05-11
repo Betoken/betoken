@@ -251,7 +251,7 @@ contract("first_cycle", (accounts) ->
 
     # check KRO balance
     kroBlnce = await xr.balanceOf.call(account)
-    #assert.equal(prevKROBlnce.sub(kroBlnce).toNumber() < epsilon, true, "Kairo balance changed")
+    assert.equal(prevKROBlnce.sub(kroBlnce).div(amount).toNumber() < epsilon, true, "Kairo balance changed")
 
     # check fund ether balance
     fundEtherBlnce = await web3.eth.getBalance(fund.address)
