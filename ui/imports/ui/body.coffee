@@ -41,6 +41,7 @@ totalFunds = new ReactiveVar(BigNumber(0))
 investmentList = new ReactiveVar([])
 cycleNumber = new ReactiveVar(0)
 commissionRate = new ReactiveVar(BigNumber(0))
+assetFeeRate = new ReactiveVar(BigNumber(0))
 paused = new ReactiveVar(false)
 allowEmergencyWithdraw = new ReactiveVar(false)
 lastCommissionRedemption = new ReactiveVar(0)
@@ -203,6 +204,7 @@ loadFundData = () ->
   paused.set(await betoken.getPrimitiveVar("paused"))
   allowEmergencyWithdraw.set(await betoken.getPrimitiveVar("allowEmergencyWithdraw"))
   cycleTotalCommission.set(BigNumber(await betoken.getPrimitiveVar("totalCommission")))
+  assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate")))
 
   # Get last commission redemption cycle number
   lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
@@ -446,7 +448,8 @@ Template.sidebar.helpers(
         # Actual commission that will be redeemed
         return kairoBalance.get().div(kairoTotalSupply.get()).mul(cycleTotalCommission.get()).div(1e18).toFormat(18)
       # Expected commission based on previous average ROI
-      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(avgROI.get().div(100)).mul(commissionRate.get()).toFormat(18)
+      roi = if avgROI.get().gt(0) then avgROI.get() else BigNumber(0)
+      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(roi.div(100).mul(commissionRate.get()).add(assetFeeRate.get().div(1e18))).toFormat(18)
     return BigNumber(0).toFormat(18)
 )
 
