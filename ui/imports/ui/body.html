@@ -1,6 +1,6 @@
 <body>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
-  <link rel="shortcut icon" href="/betoken-ui/images/favicon.ico">
+  <link rel="stylesheet" target="_blank" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
+  <link rel="shortcut icon" target="_blank" href="/betoken-ui/images/favicon.ico">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
 
   <div class="ui stackable grid" style="margin-top: 0.02%;">
@@ -33,40 +33,43 @@
       {{> sidebar}}
     </div>
 
-    <div class="ui basic modal" id="transaction_sent_modal">
+    <!-- Transaction Message Modal -->
+    <div class="ui modal" id="transaction_sent_modal">
       <div class="ui icon header">
-        <i class="checkmark icon"></i>
+        <i class="ui green checkmark icon"></i>
         <p>You've successfully sent an Ethereum transaction!</p>
         <p>Changes you've just made will be in effect after the transaction has been written to the blockchain.</p>
-        <p>You can monitor the status of your transaction here: <a href="https://{{network_prefix}}etherscan.io/tx/{{transaction_hash}}">{{transaction_hash}}</a></p>
+        <p>You can monitor the status of your transaction here: <a target="_blank" href="https://{{network_prefix}}etherscan.io/tx/{{transaction_hash}}">{{transaction_hash}}</a></p>
       </div>
       <div class="actions">
-        <div class="ui green ok inverted button fluid">
-          OK
+        <div class="ui green ok button fluid">
+          Hooray!
         </div>
       </div>
     </div>
 
-    <div class="ui basic modal" id="error_modal">
+    <!-- Error Message Modal -->
+    <div class="ui modal" id="error_modal">
       <div class="ui icon header">
         <i class="ui red warning sign icon"></i>
         <p>{{{error_msg}}}</p>
       </div>
       <div class="actions">
-        <div class="ui green ok inverted button fluid">
-          OK
+        <div class="ui ok button fluid">
+          Got It
         </div>
       </div>
     </div>
 
-    <div class="ui basic modal" id="success_modal">
+    <!-- Success Message Modal -->
+    <div class="ui modal" id="success_modal">
       <div class="ui icon header">
         <i class="ui green checkmark icon"></i>
         <p>{{success_msg}}</p>
       </div>
       <div class="actions">
-        <div class="ui green ok inverted button fluid">
-          OK
+        <div class="ui green ok button fluid">
+          Hooray!
         </div>
       </div>
     </div>
@@ -97,9 +100,6 @@
 
     <div class="item">
       <h5>
-        <button class="circular ui icon button change_contract" style="float: right;">
-          <i class="settings icon"></i>
-        </button>
         <button class="circular ui icon button info_button" style="float: right;">
           <i class="info icon"></i>
         </button>
@@ -107,26 +107,7 @@
     </div>
   </div>
 
-  <!--Change contract modal-->
-  <div class="ui basic modal" id="change_contract_modal">
-    <div class="ui icon header">
-      <i class="settings icon"></i>
-      Change smart contract address...
-    </div>
-    <div class="content">
-      <div class="ui left fluid inverted transparent input">
-        <input id="contract_addr_input"  placeholder="Address of the fund you want to switch to..." type="text">
-      </div>
-    </div>
-    <div class="actions">
-      <div class="ui green ok inverted button fluid">
-        <i class="checkmark icon"></i>
-        Save Change
-      </div>
-    </div>
-  </div>
-
-  <div class="ui basic modal" id="contract_info_modal">
+  <div class="ui modal" id="contract_info_modal">
     <div class="ui icon header">
       <i class="info icon"></i>
       Smart Contract Addresses
@@ -134,17 +115,17 @@
     <div class="content" style="text-align: center;">
       <h5>
         <p></p>
-        BetokenFund: <a href="https://{{network_prefix}}etherscan.io/address/{{betoken_addr}}">{{betoken_addr}}</a>
+        BetokenFund: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{betoken_addr}}">{{betoken_addr}}</a>
         <p></p>
-        Kairo: <a href="https://{{network_prefix}}etherscan.io/address/{{kairo_addr}}">{{kairo_addr}}</a>
+        Kairo: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{kairo_addr}}">{{kairo_addr}}</a>
         <p></p>
-        Shares: <a href="https://{{network_prefix}}etherscan.io/address/{{shares_addr}}">{{shares_addr}}</a>
+        Shares: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{shares_addr}}">{{shares_addr}}</a>
         <p></p>
-        KyberNetwork: <a href="https://{{network_prefix}}etherscan.io/address/{{kyber_addr}}">{{kyber_addr}}</a>
+        KyberNetwork: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{kyber_addr}}">{{kyber_addr}}</a>
         <p></p>
-        DAI: <a href="https://{{network_prefix}}etherscan.io/address/{{dai_addr}}">{{dai_addr}}</a>
+        DAI: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{dai_addr}}">{{dai_addr}}</a>
         <p></p>
-        Test Asset: <a href="https://{{network_prefix}}etherscan.io/address/{{ast_addr}}">{{ast_addr}}</a>
+        Test Asset: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{ast_addr}}">{{ast_addr}}</a>
       </h5>
     </div>
   </div>
@@ -340,7 +321,7 @@
     </div>
 
     <p></p>
-    Into currency:
+    <b>Into Currency: </b>
     <select id="withdraw_token_type" class="ui selection compact dropdown">
       <option selected="">DAI</option>
       <option>ETH</option>
@@ -500,7 +481,7 @@
             <td>{{id}}</td>
             <td>
               <h5 style="text-align: center;">
-                <a href="https://etherscan.io/address/{{tokenAddress}}">{{tokenSymbol}}</a>
+                <a target="_blank" href="https://etherscan.io/address/{{tokenAddress}}">{{tokenSymbol}}</a>
               </h5>
             </td>
             <td>{{investment}} DAI / {{stake}} KRO</td>
@@ -532,24 +513,24 @@
   </table>
 
   <!--New Proposal Modal-->
-  <div class="ui basic modal" id="new_investment_modal">
+  <div class="ui modal" id="new_investment_modal">
     <div class="ui icon header">
-      <i class="line chart icon"></i>
-      Propose an ERC20 token you want the fund to invest in
+      <i class="dollar icon"></i>
+      Invest in a token for the fund
     </div>
     <div class="content">
-      <div class="ui left fluid inverted transparent input">
-        <input id="address_input_new"  placeholder="Contract address of the token you propose to invest in..." type="text">
-      </div>
-      <div class="ui divider"></div>
-      <div class="ui left fluid inverted transparent input">
+      <select id="invest_token_type" class="ui selection fluid dropdown">
+        <option selected="">ETH</option>
+        <option>AST</option>
+      </select>
+      <p></p>
+      <div class="ui left fluid input">
         <input id="stake_input_new"  placeholder="How much KRO would you bet that this token will perform the best?" type="text">
       </div>
     </div>
     <div class="actions">
-      <div class="ui green ok inverted button fluid">
-        <i class="checkmark icon"></i>
-        Propose
+      <div class="ui green ok button fluid">
+        Invest
       </div>
     </div>
   </div>

@@ -43,7 +43,9 @@ contract BetokenFund is Pausable, Utils {
   modifier isValidToken(address token) {
     require(!isMaliciousCoin[token]);
     if (token != address(ETH_TOKEN_ADDRESS)) {
-      require(ERC20(token).totalSupply() > 0);
+      DetailedERC20 _token = DetailedERC20(token);
+      require(_token.totalSupply() > 0);
+      require(_token.decimals() >= MIN_DECIMALS);
     }
     _;
   }
@@ -763,6 +765,7 @@ contract BetokenFund is Pausable, Utils {
    * @return _destPriceInSrc the price of the destination token, in terms of source tokens
    */
   function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc) {
+    require(_srcToken != _destToken);
     uint256 actualDestAmount;
     uint256 beforeSrcBalance = getBalance(_srcToken, this);
     uint256 msgValue;

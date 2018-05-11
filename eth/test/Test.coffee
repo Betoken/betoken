@@ -11,7 +11,7 @@ epsilon = 1e-5
 etherPrice = 600
 tokenPrice = 1000
 etherPrecision = 1e18
-tokenPrecision = 1e3
+tokenPrecision = 1e11
 exitFee = 0.03
 
 FUND = (cycle, phase, account) ->

@@ -14,6 +14,7 @@ contract Utils {
   uint  constant internal PRECISION = (10**18);
   uint  constant internal MAX_QTY   = (10**28); // 10B tokens
   uint  constant internal ETH_DECIMALS = 18;
+  uint  constant internal MIN_DECIMALS = 11;
 
   /**
    * @notice Calculates the invert of a fixed-point decimal with precision PRECISION

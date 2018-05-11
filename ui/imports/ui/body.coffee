@@ -20,10 +20,13 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 # Fund object
-betoken_addr = new ReactiveVar("0x56b5be914b7c544ad22c66998471d826fff9c5a4")
+betoken_addr = new ReactiveVar("0xf8aebe816c944380b4e77d62c76ac31a8d710bc3")
 betoken = new Betoken(betoken_addr.get())
-astAddr = "0xedc86bdd73604b3d9d62afa0cd70c0f95dd106fd"
 
+tokenAddresses = new ReactiveVar(
+  AST: "0xe7c7f37ad8b3c2114b1ebe2260a6958db4e83542"
+  ETH: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+)
 # Session data
 userAddress = new ReactiveVar("Not Available")
 kairoBalance = new ReactiveVar(BigNumber(0))
@@ -272,6 +275,9 @@ loadFundData = () ->
   sharesAddr.set(betoken.addrs.shareToken)
   kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr"))
   daiAddr.set(await betoken.getPrimitiveVar("daiAddr"))
+  tmp = tokenAddresses.get()
+  tmp["DAI"] = daiAddr.get()
+  tokenAddresses.set(tmp)
 
   # Get statistics
   prevROI.set(BigNumber(0))
@@ -394,7 +400,7 @@ Template.top_bar.helpers(
   shares_addr: () -> sharesAddr.get()
   kyber_addr: () -> kyberAddr.get()
   dai_addr: () -> daiAddr.get()
-  ast_addr: () -> astAddr
+  ast_addr: () -> tokenAddresses.get()["AST"]
   network_prefix: () -> networkPrefix.get()
 )
 
@@ -407,20 +413,6 @@ Template.top_bar.events(
 
   "click .emergency_withdraw": (event) ->
     betoken.emergencyWithdraw(showTransaction)
-
-  "click .change_contract": (event) ->
-    $("#change_contract_modal").modal(
-      onApprove: (e) ->
-        try
-          new_addr = $("#contract_addr_input")[0].value
-          if !web3.utils.isAddress(new_addr)
-            throw ""
-          betoken_addr.set(new_addr)
-          betoken = new Betoken(betoken_addr.get())
-          betoken.init().then(loadFundData)
-        catch error
-          showError("Oops! That wasn't a valid contract address!")
-    ).modal("show")
 
   "click .info_button": (event) ->
     $("#contract_info_modal").modal("show")
@@ -533,9 +525,7 @@ Template.transact_box.events(
       if tokenType == "ETH"
         betoken.deposit(amount.mul(1e18), showTransaction)
       else
-        tokenAddr = switch tokenType
-          when "DAI" then daiAddr.get()
-          when "AST" then astAddr
+        tokenAddr = tokenAddresses.get()[tokenType]
         betoken.depositToken(tokenAddr, amount, showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
@@ -553,9 +543,7 @@ Template.transact_box.events(
       if tokenType == "ETH"
         betoken.withdraw(amount.mul(1e18), showTransaction)
       else
-        tokenAddr = switch tokenType
-          when "DAI" then daiAddr.get()
-          when "AST" then astAddr
+        tokenAddr = tokenAddresses.get()[tokenType]
         betoken.withdrawToken(tokenAddr, amount, showTransaction)
     catch error
       Template.instance().withdrawInputHasError.set(true)
@@ -617,9 +605,8 @@ Template.decisions_tab.events(
     $("#new_investment_modal").modal(
       onApprove: (e) ->
         try
-          address = $("#address_input_new")[0].value
-          if (!web3.utils.isAddress(address))
-            throw "Invalid token address."
+          tokenType = $("#invest_token_type")[0].value
+          address = tokenAddresses.get()[tokenType]
 
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)

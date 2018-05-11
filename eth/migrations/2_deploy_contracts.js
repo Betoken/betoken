@@ -22,7 +22,7 @@
         await deployer.deploy(TestTokenFactory);
         TokenFactory = (await TestTokenFactory.deployed());
         // create TestTokens
-        testAssetAddr = ((await TokenFactory.newToken("Test Asset", "AST", 3))).logs[0].args.addr;
+        testAssetAddr = ((await TokenFactory.newToken("Test Asset", "AST", 11))).logs[0].args.addr;
         testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
         console.log("Test asset address: " + testAssetAddr);
         TestAsset = TestToken.at(testAssetAddr);
