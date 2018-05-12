@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
+import 'zeppelin-solidity/contracts/ReentrancyGuard.sol';
 import './ControlToken.sol';
 import './ShareToken.sol';
 import './KyberNetwork.sol';
@@ -12,7 +13,7 @@ import './Utils.sol';
  * @author Zefram Lou (Zebang Liu)
  * @dev Need to remove Kairo minting before release
  */
-contract BetokenFund is Pausable, Utils {
+contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   using SafeMath for uint256;
 
   enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
@@ -419,6 +420,7 @@ contract BetokenFund is Pausable, Utils {
     payable
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
+    nonReentrant
   {
     // Buy DAI with ETH
     uint256 actualDAIDeposited;
@@ -458,6 +460,7 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.DepositWithdraw)
     isValidToken(_tokenAddr)
     whenNotPaused
+    nonReentrant
   {
     DetailedERC20 token = DetailedERC20(_tokenAddr);
 
@@ -506,6 +509,7 @@ contract BetokenFund is Pausable, Utils {
     public
     during(CyclePhase.DepositWithdraw)
     whenNotPaused
+    nonReentrant
   {
     // Buy ETH
     uint256 actualETHWithdrawn;
@@ -541,6 +545,7 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.DepositWithdraw)
     isValidToken(_tokenAddr)
     whenNotPaused
+    nonReentrant
   {
     DetailedERC20 token = DetailedERC20(_tokenAddr);
 
@@ -591,6 +596,7 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.MakeDecisions)
     isValidToken(_tokenAddress)
     whenNotPaused
+    nonReentrant
   {
     DetailedERC20 token = DetailedERC20(_tokenAddress);
 
@@ -627,16 +633,18 @@ contract BetokenFund is Pausable, Utils {
     public
     during(CyclePhase.MakeDecisions)
     whenNotPaused
+    nonReentrant
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
     require(investment.buyPrice > 0);
     require(investment.cycleNumber == cycleNumber);
     require(!investment.isSold);
 
+    investment.isSold = true;
+
     // Sell asset
     uint256 beforeDAIBalance = dai.balanceOf(this);
     __handleInvestment(_investmentId, false);
-    investment.isSold = true;
 
     // Return Kairo
     uint256 multiplier = investment.sellPrice.mul(PRECISION).div(investment.buyPrice);
@@ -664,6 +672,7 @@ contract BetokenFund is Pausable, Utils {
     public
     during(CyclePhase.RedeemCommission)
     whenNotPaused
+    nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
@@ -682,6 +691,7 @@ contract BetokenFund is Pausable, Utils {
     public
     during(CyclePhase.RedeemCommission)
     whenNotPaused
+    nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
@@ -705,10 +715,10 @@ contract BetokenFund is Pausable, Utils {
     during(CyclePhase.RedeemCommission)
     isValidToken(_tokenAddr)
     whenNotPaused
+    nonReentrant
   {
     uint256 beforeBalance = dai.balanceOf(this);
     DetailedERC20 token = DetailedERC20(_tokenAddr);
-    require(_tokenAddr != daiAddr);
     __kyberTrade(token, token.balanceOf(this), dai);
     totalFundsInDAI = totalFundsInDAI.add(dai.balanceOf(this).sub(beforeBalance));
   }

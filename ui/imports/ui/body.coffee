@@ -20,11 +20,11 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 # Fund object
-betoken_addr = new ReactiveVar("0xf8aebe816c944380b4e77d62c76ac31a8d710bc3")
+betoken_addr = new ReactiveVar("0xbc0b2a468679b845c76d6fdc56b53b4e02ec3715")
 betoken = new Betoken(betoken_addr.get())
 
 tokenAddresses = new ReactiveVar(
-  AST: "0xe7c7f37ad8b3c2114b1ebe2260a6958db4e83542"
+  AST: "0x6757fadab78b4fd413c130fd0b5babc0577fda9a"
   ETH: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 )
 # Session data
