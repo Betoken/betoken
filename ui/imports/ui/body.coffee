@@ -7,7 +7,7 @@ import BigNumber from "bignumber.js"
 
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 INPUT_ERR = "There was an error in your input. Please fix it and try again."
-STAKE_BOTH_SIDES_ERR = "You have already staked on the opposite side of this proposal! If you want to change your mind, you can cancel your stake under \"My Proposals\"."
+NO_WEB3_ERR = "Betoken can only be used in a Web3 enabled browser. Please install <a target=\"_blank\" href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions."
 
 # Import web3
 Web3 = require "web3"
@@ -176,26 +176,9 @@ loadFundData = () ->
   networkPrefix.set(pre)
   if netID != 4
     showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha")
-
-  # Get user address
-  userAddr = (await web3.eth.getAccounts())[0]
-  web3.eth.defaultAccount = userAddr
-  if userAddr?
-    userAddress.set(userAddr)
-
-  # Get shares balance
-  sharesTotalSupply.set(BigNumber(await betoken.getShareTotalSupply()))
-  totalFunds.set(BigNumber(await betoken.getPrimitiveVar("totalFundsInDAI")))
-  sharesBalance.set(BigNumber(await betoken.getShareBalance(userAddr)))
-  if !sharesTotalSupply.get().isZero()
-    displayedInvestmentBalance.set(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()).div(1e18))
-
-  # Get user's Kairo balance
-  kairoBalance.set(BigNumber(await betoken.getKairoBalance(userAddr)))
-  kairoTotalSupply.set(BigNumber(await betoken.getKairoTotalSupply()))
-  displayedKairoBalance.set(kairoBalance.get().div(1e18))
-
+  ###
   # Get fund data
+  ###
   cycleNumber.set(+await betoken.getPrimitiveVar("cycleNumber"))
   cyclePhase.set(+await betoken.getPrimitiveVar("cyclePhase"))
   startTimeOfCyclePhase.set(+await betoken.getPrimitiveVar("startTimeOfCyclePhase"))
@@ -206,71 +189,9 @@ loadFundData = () ->
   cycleTotalCommission.set(BigNumber(await betoken.getPrimitiveVar("totalCommission")))
   assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate")))
 
-  # Get last commission redemption cycle number
-  lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
-
-  # Get list of investments
-  investments = await betoken.getInvestments(userAddress.get())
-  if investments.length != 0
-    handleProposal = (id) ->
-      betoken.getTokenSymbol(investments[id].tokenAddress).then(
-        (_symbol) ->
-          investments[id].id = id
-          investments[id].tokenSymbol = _symbol
-          investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
-          investments[id].ROI = if investments[id].isSold then BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).toFormat(4) else "N/A"
-          investments[id].kroChange = if investments[id].isSold then BigNumber(investments[id].ROI).mul(investments[id].stake).div(1e18).toFormat(4) else "N/A"
-          investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
-      )
-    handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
-    await Promise.all(handleAllProposals)
-    investmentList.set(investments)
-
-  # Get deposit and withdraw history
-  transactionHistory.set([])
-  getDepositWithdrawHistory = (_type) ->
-    events = await betoken.contracts.betokenFund.getPastEvents(_type,
-      fromBlock: 0
-      filter: {_sender: userAddr}
-    )
-    for event in events
-      data = event.returnValues
-      entry =
-        type: _type
-        timestamp: new Date(+data._timestamp * 1e3).toString()
-        token: await betoken.getTokenSymbol(data._tokenAddress)
-        amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
-      tmp = transactionHistory.get()
-      tmp.push(entry)
-      transactionHistory.set(tmp)
-  getDepositWithdrawHistory("Deposit")
-  getDepositWithdrawHistory("Withdraw")
-
-  # Get token transfer history
-  getTransferHistory = (token, isIn) ->
-    tokenContract = switch token
-      when "KRO" then betoken.contracts.controlToken
-      when "BTKS" then betoken.contracts.shareToken
-      else null
-    events = await tokenContract.getPastEvents("Transfer",
-      fromBlock: 0
-      filter: if not isIn then {from: userAddr} else {to: userAddr}
-    )
-    for _event in events
-      data = _event.returnValues
-      entry =
-        type: "Transfer " + if isIn then "In" else "Out"
-        token: token
-        amount: BigNumber(data.value).div(1e18).toFormat(4)
-        timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
-      tmp = transactionHistory.get()
-      tmp.push(entry)
-      transactionHistory.set(tmp)
-
-  getTransferHistory("KRO", true)
-  getTransferHistory("KRO", false)
-  getTransferHistory("BTKS", true)
-  getTransferHistory("BTKS", false)
+  sharesTotalSupply.set(BigNumber(await betoken.getShareTotalSupply()))
+  totalFunds.set(BigNumber(await betoken.getPrimitiveVar("totalFundsInDAI")))
+  kairoTotalSupply.set(BigNumber(await betoken.getKairoTotalSupply()))
 
   # Get contract addresses
   kairoAddr.set(betoken.addrs.controlToken)
@@ -312,27 +233,111 @@ loadFundData = () ->
     data = _event.returnValues
     ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
 
-    #Update chart data
+    # Update chart data
     chart.data.datasets[0].data.push(
       x: data._cycleNumber
       y: ROI.toString()
     )
     chart.update()
 
-    #Update previous cycle ROI
+    # Update previous cycle ROI
     if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
       prevROI.set(ROI)
 
     # Update average ROI
     receivedROICount += 1
     avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
+  ###
+  # Get user related data
+  ###
+  if hasWeb3
+    # Get user address
+    userAddr = (await web3.eth.getAccounts())[0]
+    web3.eth.defaultAccount = userAddr
+    if userAddr?
+      userAddress.set(userAddr)
+
+    # Get shares balance
+    sharesBalance.set(BigNumber(await betoken.getShareBalance(userAddr)))
+    if !sharesTotalSupply.get().isZero()
+      displayedInvestmentBalance.set(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()).div(1e18))
+
+    # Get user's Kairo balance
+    kairoBalance.set(BigNumber(await betoken.getKairoBalance(userAddr)))
+    displayedKairoBalance.set(kairoBalance.get().div(1e18))
+
+    # Get last commission redemption cycle number
+    lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
+
+    # Get list of user's investments
+    investments = await betoken.getInvestments(userAddress.get())
+    if investments.length != 0
+      handleProposal = (id) ->
+        betoken.getTokenSymbol(investments[id].tokenAddress).then(
+          (_symbol) ->
+            investments[id].id = id
+            investments[id].tokenSymbol = _symbol
+            investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
+            investments[id].ROI = if investments[id].isSold then BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).toFormat(4) else "N/A"
+            investments[id].kroChange = if investments[id].isSold then BigNumber(investments[id].ROI).mul(investments[id].stake).div(1e18).toFormat(4) else "N/A"
+            investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
+        )
+      handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
+      await Promise.all(handleAllProposals)
+      investmentList.set(investments)
+
+    # Get deposit and withdraw history
+    transactionHistory.set([])
+    getDepositWithdrawHistory = (_type) ->
+      events = await betoken.contracts.betokenFund.getPastEvents(_type,
+        fromBlock: 0
+        filter: {_sender: userAddr}
+      )
+      for event in events
+        data = event.returnValues
+        entry =
+          type: _type
+          timestamp: new Date(+data._timestamp * 1e3).toString()
+          token: await betoken.getTokenSymbol(data._tokenAddress)
+          amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
+        tmp = transactionHistory.get()
+        tmp.push(entry)
+        transactionHistory.set(tmp)
+    getDepositWithdrawHistory("Deposit")
+    getDepositWithdrawHistory("Withdraw")
+
+    # Get token transfer history
+    getTransferHistory = (token, isIn) ->
+      tokenContract = switch token
+        when "KRO" then betoken.contracts.controlToken
+        when "BTKS" then betoken.contracts.shareToken
+        else null
+      events = await tokenContract.getPastEvents("Transfer",
+        fromBlock: 0
+        filter: if not isIn then {from: userAddr} else {to: userAddr}
+      )
+      for _event in events
+        data = _event.returnValues
+        entry =
+          type: "Transfer " + if isIn then "In" else "Out"
+          token: token
+          amount: BigNumber(data.value).div(1e18).toFormat(4)
+          timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
+        tmp = transactionHistory.get()
+        tmp.push(entry)
+        transactionHistory.set(tmp)
+
+    getTransferHistory("KRO", true)
+    getTransferHistory("KRO", false)
+    getTransferHistory("BTKS", true)
+    getTransferHistory("BTKS", false)
   return
 
 $("document").ready(() ->
   $(".menu .item").tab()
   $("table").tablesort()
 
-  if typeof web3 != "undefined"
+  if web3?
     web3.eth.net.getId().then(
       (_id) ->
         if _id != 4
@@ -378,7 +383,7 @@ $("document").ready(() ->
     betoken.init().then(loadFundData)
 
   if !hasWeb3
-    showError("Betoken can only be used in a Web3 enabled browser. Please install <a href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions.")
+    showError(NO_WEB3_ERR)
 )
 
 Template.body.helpers(
