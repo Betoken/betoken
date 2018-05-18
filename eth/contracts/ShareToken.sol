@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 
@@ -28,8 +28,8 @@ contract ShareToken is MintableToken {
     // SafeMath.sub will throw if there is not enough balance.
     balances[_from] = balances[_from].sub(_value);
     totalSupply_ = totalSupply_.sub(_value);
-    OwnerBurn(_from, _value);
-    Transfer(_from, 0x0, _value);
+    emit OwnerBurn(_from, _value);
+    emit Transfer(_from, 0x0, _value);
     return true;
   }
 }

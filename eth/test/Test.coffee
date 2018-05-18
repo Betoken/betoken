@@ -6,7 +6,7 @@ TestToken = artifacts.require "TestToken"
 TestTokenFactory = artifacts.require "TestTokenFactory"
 
 ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-epsilon = 1e-5
+epsilon = 1e-9
 
 etherPrice = 600
 tokenPrice = 1000

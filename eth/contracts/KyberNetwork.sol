@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
 
@@ -16,7 +16,7 @@ interface KyberNetwork {
     uint minConversionRate,
     address walletId
   )
-    public
+    external
     payable
     returns(uint);
 }

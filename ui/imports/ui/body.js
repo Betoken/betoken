@@ -234,6 +234,9 @@ loadFundData = async function() {
   if (netID !== 4) {
     showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha");
   }
+  if (!hasWeb3) {
+    showError(NO_WEB3_ERR);
+  }
   /*
    * Get fund data
    */
@@ -473,10 +476,7 @@ $("document").ready(function() {
       }
     });
     //Initialize Betoken object
-    betoken.init().then(loadFundData);
-  }
-  if (!hasWeb3) {
-    return showError(NO_WEB3_ERR);
+    return betoken.init().then(loadFundData);
   }
 });
 
@@ -767,9 +767,11 @@ Template.transact_box.events({
 
 Template.stats_tab.helpers({
   cycle_length: function() {
-    return BigNumber(phaseLengths.get().reduce(function(t, n) {
-      return t + n;
-    })).div(24 * 60 * 60).toDigits(3);
+    if (phaseLengths.get().length > 0) {
+      return BigNumber(phaseLengths.get().reduce(function(t, n) {
+        return t + n;
+      })).div(24 * 60 * 60).toDigits(3);
+    }
   },
   total_funds: function() {
     return totalFunds.get().div("1e18").toFormat(2);

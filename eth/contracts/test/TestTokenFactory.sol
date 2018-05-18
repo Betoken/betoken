@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import './TestToken.sol';
 
@@ -11,7 +11,7 @@ contract TestTokenFactory {
     TestToken token = new TestToken(name, symbol, decimals);
     token.transferOwnership(msg.sender);
     createdTokens[keccak256(symbol)] = address(token);
-    CreatedToken(symbol, address(token));
+    emit CreatedToken(symbol, address(token));
     return address(token);
   }
 

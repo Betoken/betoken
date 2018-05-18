@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import '../KyberNetwork.sol';
 import '../Utils.sol';
@@ -6,7 +6,7 @@ import '../Utils.sol';
 contract TestKyberNetwork is KyberNetwork, Utils {
   mapping(address => uint256) public priceInDAI;
 
-  function TestKyberNetwork(address[] _tokens, uint256[] _pricesInDAI) public {
+  constructor(address[] _tokens, uint256[] _pricesInDAI) public {
     for (uint256 i = 0; i < _tokens.length; i = i.add(1)) {
       priceInDAI[_tokens[i]] = _pricesInDAI[i];
     }

@@ -176,6 +176,10 @@ loadFundData = () ->
   networkPrefix.set(pre)
   if netID != 4
     showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha")
+
+  if !hasWeb3
+    showError(NO_WEB3_ERR)
+    
   ###
   # Get fund data
   ###
@@ -381,9 +385,6 @@ $("document").ready(() ->
 
     #Initialize Betoken object
     betoken.init().then(loadFundData)
-
-  if !hasWeb3
-    showError(NO_WEB3_ERR)
 )
 
 Template.body.helpers(
@@ -588,7 +589,9 @@ Template.transact_box.events(
 )
 
 Template.stats_tab.helpers(
-  cycle_length: () -> BigNumber(phaseLengths.get().reduce((t, n) -> t+n)).div(24 * 60 * 60).toDigits(3)
+  cycle_length: () ->
+    if phaseLengths.get().length > 0
+      BigNumber(phaseLengths.get().reduce((t, n) -> t+n)).div(24 * 60 * 60).toDigits(3)
   total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
   avg_roi: () -> avgROI.get().toFormat(2)

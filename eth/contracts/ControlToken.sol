@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 import 'zeppelin-solidity/contracts/token/ERC20/PausableToken.sol';
@@ -29,8 +29,8 @@ contract ControlToken is MintableToken, PausableToken {
     // SafeMath.sub will throw if there is not enough balance.
     balances[_from] = balances[_from].sub(_value);
     balances[msg.sender] = balances[msg.sender].add(_value);
-    OwnerCollectFrom(_from, _value);
-    Transfer(_from, owner, _value);
+    emit OwnerCollectFrom(_from, _value);
+    emit Transfer(_from, owner, _value);
     return true;
   }
 
@@ -51,7 +51,7 @@ contract ControlToken is MintableToken, PausableToken {
     // SafeMath.sub will throw if there is not enough balance.
     balances[owner] = balances[owner].sub(_value);
     totalSupply_ = totalSupply_.sub(_value);
-    Transfer(owner, 0x0, _value);
+    emit Transfer(owner, 0x0, _value);
     return true;
   }
 

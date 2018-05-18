@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
@@ -31,7 +31,7 @@ contract Utils {
     return uint256(_token.decimals());
   }
 
-  function getBalance(DetailedERC20 _token, address _addr) internal view returns(uint256) {
+  function getBalance(ERC20 _token, address _addr) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
       return _addr.balance;
     }
