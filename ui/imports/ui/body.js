@@ -243,9 +243,9 @@ loadFundData = async function() {
   cycleNumber.set(+((await betoken.getPrimitiveVar("cycleNumber"))));
   cyclePhase.set(+((await betoken.getPrimitiveVar("cyclePhase"))));
   startTimeOfCyclePhase.set(+((await betoken.getPrimitiveVar("startTimeOfCyclePhase"))));
-  phaseLengths.set((await betoken.getPrimitiveVar("getPhaseLengths").map(function(x) {
+  phaseLengths.set(((await betoken.getPrimitiveVar("getPhaseLengths"))).map(function(x) {
     return +x;
-  })));
+  }));
   commissionRate.set(BigNumber((await betoken.getPrimitiveVar("commissionRate"))).div(1e18));
   paused.set((await betoken.getPrimitiveVar("paused")));
   allowEmergencyWithdraw.set((await betoken.getPrimitiveVar("allowEmergencyWithdraw")));
