@@ -6,7 +6,7 @@ TestToken = artifacts.require "TestToken"
 TestTokenFactory = artifacts.require "TestTokenFactory"
 
 ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-epsilon = 1e-9
+epsilon = 1e-6
 
 etherPrice = 600
 tokenPrice = 1000
@@ -40,7 +40,7 @@ TK = (symbol) ->
 
 ST = () -> await ShareToken.deployed()
 
-XR = () -> await ControlToken.deployed()
+KRO = () -> await ControlToken.deployed()
 
 contract("first_cycle", (accounts) ->
   owner = accounts[0]
@@ -226,23 +226,23 @@ contract("first_cycle", (accounts) ->
 
   it("buy_ether_and_sell", () ->
     fund = await BetokenFund.deployed()
-    xr = await XR()
+    kro = await KRO()
 
-    prevKROBlnce = await xr.balanceOf.call(account)
+    prevKROBlnce = await kro.balanceOf.call(account)
     prevFundEtherBlnce = await web3.eth.getBalance(fund.address)
 
     # buy ether
     amount = 0.01 * etherPrecision
-    kroBlnce = await xr.balanceOf.call(account)
+    kroBlnce = await kro.balanceOf.call(account)
     await fund.createInvestment(ETH_TOKEN_ADDRESS, amount, {from: account, gasPrice: 0})
 
     # check KRO balance
-    kroBlnce = await xr.balanceOf.call(account)
+    kroBlnce = await kro.balanceOf.call(account)
     assert.equal(prevKROBlnce.sub(kroBlnce).toNumber(), amount, "Kairo balance decrease incorrect")
 
     # check fund ether balance
     fundDAIBlnce = await fund.totalFundsInDAI.call()
-    kroTotalSupply = await xr.totalSupply.call()
+    kroTotalSupply = await kro.totalSupply.call()
     fundEtherBlnce = await web3.eth.getBalance(fund.address)
     assert.equal(fundEtherBlnce.sub(prevFundEtherBlnce).toNumber(), Math.floor(fundDAIBlnce.div(kroTotalSupply).mul(amount).div(etherPrice).toNumber()), "ether balance increase incorrect")
 
@@ -250,7 +250,7 @@ contract("first_cycle", (accounts) ->
     await fund.sellInvestmentAsset(0, {from: account, gasPrice: 0})
 
     # check KRO balance
-    kroBlnce = await xr.balanceOf.call(account)
+    kroBlnce = await kro.balanceOf.call(account)
     assert.equal(prevKROBlnce.sub(kroBlnce).div(amount).toNumber() < epsilon, true, "Kairo balance changed")
 
     # check fund ether balance
@@ -260,10 +260,10 @@ contract("first_cycle", (accounts) ->
 
   it("buy_token_and_sell", () ->
     fund = await BetokenFund.deployed()
-    xr = await XR()
+    kro = await KRO()
     token = await TK("AST")
 
-    prevKROBlnce = await xr.balanceOf.call(account)
+    prevKROBlnce = await kro.balanceOf.call(account)
     prevFundTokenBlnce = await token.balanceOf(fund.address)
 
     # buy token
@@ -271,12 +271,12 @@ contract("first_cycle", (accounts) ->
     await fund.createInvestment(token.address, amount, {from: account, gasPrice: 0})
 
     # check KRO balance
-    kroBlnce = await xr.balanceOf.call(account)
+    kroBlnce = await kro.balanceOf.call(account)
     assert.equal(prevKROBlnce.sub(kroBlnce).toNumber(), amount, "Kairo balance decrease incorrect")
 
     # check fund token balance
     fundDAIBlnce = await fund.totalFundsInDAI.call()
-    kroTotalSupply = await xr.totalSupply.call()
+    kroTotalSupply = await kro.totalSupply.call()
     fundTokenBlnce = await token.balanceOf(fund.address)
     assert.equal(fundTokenBlnce.sub(prevFundTokenBlnce).toNumber(), Math.floor(fundDAIBlnce.mul(tokenPrecision).div(kroTotalSupply).mul(amount).div(tokenPrice).div(etherPrecision).toNumber()), "token balance increase incorrect")
 
@@ -284,7 +284,7 @@ contract("first_cycle", (accounts) ->
     await fund.sellInvestmentAsset(1, {from: account, gasPrice: 0})
 
     # check KRO balance
-    kroBlnce = await xr.balanceOf.call(account)
+    kroBlnce = await kro.balanceOf.call(account)
     assert.equal(prevKROBlnce.sub(kroBlnce).div(prevKROBlnce).toNumber() < epsilon, true, "Kairo balance changed")
 
     # check fund token balance
@@ -331,5 +331,76 @@ contract("first_cycle", (accounts) ->
   it("next_cycle", () ->
     fund = await BetokenFund.deployed()
     await fund.nextPhase({from: owner})
+  )
+)
+
+contract("price_changes", (accounts) ->
+  owner = accounts[0]
+  account = accounts[1]
+
+  it("prep_work", () ->
+    this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
+    dai = await DAI(this.fund)
+    amount = 10 * etherPrecision
+    await dai.mint(account, amount, {from: owner}) # Mint DAI
+    await dai.approve(this.fund.address, amount, {from: account}) # Approve transfer
+    this.fund.depositToken(dai.address, amount, {from: account}) # Deposit for account
+    this.fund.nextPhase({from: owner}) # Go to Decision Making phase
+  )
+
+  it("raise_asset_price", () ->
+    kn = await KN(this.fund)
+    kro = await KRO()
+    ast = await TK("AST")
+
+    # reset asset price
+    await kn.setTokenPrice(ast.address, tokenPrice, {from: owner})
+
+    # invest in asset
+    prevKROBlnce = await kro.balanceOf.call(account)
+
+    stake = 0.1 * etherPrecision
+    investmentId = 0
+    await this.fund.createInvestment(ast.address, stake, {from: account})
+
+    # raise asset price
+    delta = 0.2
+    newPrice = tokenPrice * (1 + delta)
+    await kn.setTokenPrice(ast.address, newPrice, {from: owner})
+
+    # sell asset
+    await this.fund.sellInvestmentAsset(investmentId, {from: account})
+
+    # check KRO reward
+    kroBlnce = await kro.balanceOf.call(account)
+    assert.equal(kroBlnce.sub(prevKROBlnce).div(stake).sub(delta).div(delta).abs().toNumber() < epsilon, true, "KRO reward incorrect")
+  )
+
+  it("lower_asset_price", () ->
+    kn = await KN(this.fund)
+    kro = await KRO()
+    ast = await TK("AST")
+
+    # reset asset price
+    await kn.setTokenPrice(ast.address, tokenPrice, {from: owner})
+
+    # invest in asset
+    prevKROBlnce = await kro.balanceOf.call(account)
+
+    stake = 0.1 * etherPrecision
+    investmentId = 1
+    await this.fund.createInvestment(ast.address, stake, {from: account})
+
+    # lower asset price
+    delta = -0.2
+    newPrice = tokenPrice * (1 + delta)
+    await kn.setTokenPrice(ast.address, newPrice, {from: owner})
+
+    # sell asset
+    await this.fund.sellInvestmentAsset(investmentId, {from: account})
+
+    # check KRO penalty
+    kroBlnce = await kro.balanceOf.call(account)
+    assert.equal(kroBlnce.sub(prevKROBlnce).div(stake).sub(delta).div(delta).abs().toNumber() < epsilon, true, "KRO penalty incorrect")
   )
 )
