@@ -8,11 +8,11 @@ TestTokenFactory = artifacts.require "TestTokenFactory"
 ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 epsilon = 1e-6
 
-etherPrice = 600
-tokenPrice = 1000
-etherPrecision = 1e18
-tokenPrecision = 1e11
-exitFee = 0.03
+ETH_PRICE = 600
+AST_PRICE = 1000
+ETH_PRECISION = 1e18
+AST_PRECISION = 1e11
+EXIT_FEE = 0.03
 
 FUND = (cycle, phase, account) ->
   fund = await BetokenFund.deployed()
@@ -66,17 +66,17 @@ contract("first_cycle", (accounts) ->
     st = await ST()
 
     # deposit ether
-    amount = etherPrecision
+    amount = ETH_PRECISION
     prevEtherBlnce = await web3.eth.getBalance(account)
     await fund.deposit({from: account, value: amount, gasPrice: 0})
 
     # check shares
     shareBlnce = await st.balanceOf.call(account)
-    assert.equal(shareBlnce.toNumber(), amount * etherPrice, "received share amount incorrect")
+    assert.equal(shareBlnce.toNumber(), amount * ETH_PRICE, "received share amount incorrect")
 
     # check fund balance
     fundBalance = await fund.totalFundsInDAI.call()
-    assert.equal(fundBalance.toNumber(), amount * etherPrice, "fund balance incorrect")
+    assert.equal(fundBalance.toNumber(), amount * ETH_PRICE, "fund balance incorrect")
 
     # check user ether balance
     etherBlnce = await web3.eth.getBalance(account)
@@ -90,7 +90,7 @@ contract("first_cycle", (accounts) ->
     account2 = accounts[2]
 
     # mint DAI for user
-    amount = 1 * etherPrecision
+    amount = 1 * ETH_PRECISION
     await dai.mint(account2, amount, {from: owner})
 
     # deposit DAI
@@ -120,7 +120,7 @@ contract("first_cycle", (accounts) ->
     st = await ST()
 
     # mint token for user
-    amount = 1000 * tokenPrecision
+    amount = 1000 * AST_PRECISION
     await token.mint(account, amount, {from: owner})
 
     # deposit token
@@ -133,11 +133,11 @@ contract("first_cycle", (accounts) ->
 
     # check shares
     shareBlnce = await st.balanceOf.call(account)
-    assert.equal(shareBlnce.sub(prevShareBlnce).toNumber(), Math.round(amount * tokenPrice * etherPrecision / tokenPrecision), "received share amount incorrect")
+    assert.equal(shareBlnce.sub(prevShareBlnce).toNumber(), Math.round(amount * AST_PRICE * ETH_PRECISION / AST_PRECISION), "received share amount incorrect")
 
     # check fund balance
     newFundBalance = await fund.totalFundsInDAI.call()
-    assert.equal(newFundBalance.sub(fundBalance).toNumber(), Math.round(amount * tokenPrice * etherPrecision / tokenPrecision), "fund balance increase incorrect")
+    assert.equal(newFundBalance.sub(fundBalance).toNumber(), Math.round(amount * AST_PRICE * ETH_PRECISION / AST_PRECISION), "fund balance increase incorrect")
 
     # check token balance
     tokenBlnce = await await token.balanceOf.call(account)
@@ -149,7 +149,7 @@ contract("first_cycle", (accounts) ->
     st = await ST()
 
     # withdraw ether
-    amount = 0.1 * etherPrecision
+    amount = 0.1 * ETH_PRECISION
     prevShareBlnce = await st.balanceOf.call(account)
     prevFundBlnce = await fund.totalFundsInDAI.call()
     prevEtherBlnce = await web3.eth.getBalance(account)
@@ -165,7 +165,7 @@ contract("first_cycle", (accounts) ->
 
     # check ether balance
     etherBlnce = await web3.eth.getBalance(account)
-    assert.equal(etherBlnce.sub(prevEtherBlnce).toNumber(), Math.round(amount * (1 - exitFee) / etherPrice), "ether balance increase incorrect")
+    assert.equal(etherBlnce.sub(prevEtherBlnce).toNumber(), Math.round(amount * (1 - EXIT_FEE) / ETH_PRICE), "ether balance increase incorrect")
   )
 
   it("withdraw_dai", () ->
@@ -174,7 +174,7 @@ contract("first_cycle", (accounts) ->
     st = await ST()
 
     # withdraw dai
-    amount = 0.1 * etherPrecision
+    amount = 0.1 * ETH_PRECISION
     prevShareBlnce = await st.balanceOf.call(account)
     prevFundBlnce = await fund.totalFundsInDAI.call()
     prevDAIBlnce = await dai.balanceOf.call(account)
@@ -190,7 +190,7 @@ contract("first_cycle", (accounts) ->
 
     # check dai balance
     daiBlnce = await await dai.balanceOf.call(account)
-    assert.equal(daiBlnce.sub(prevDAIBlnce).toNumber(), amount * (1 - exitFee), "DAI balance increase incorrect")
+    assert.equal(daiBlnce.sub(prevDAIBlnce).toNumber(), amount * (1 - EXIT_FEE), "DAI balance increase incorrect")
   )
 
   it("withdraw_token", () ->
@@ -199,7 +199,7 @@ contract("first_cycle", (accounts) ->
     st = await ST()
 
     # withdraw token
-    amount = 1 * etherPrecision
+    amount = 1 * ETH_PRECISION
 
     prevShareBlnce = await st.balanceOf.call(account)
     prevFundBlnce = await fund.totalFundsInDAI.call()
@@ -216,7 +216,7 @@ contract("first_cycle", (accounts) ->
 
     # check token balance
     tokenBlnce = await await token.balanceOf.call(account)
-    assert.equal(tokenBlnce.sub(prevTokenBlnce).toNumber(), Math.round(amount * (1 - exitFee) * tokenPrecision / etherPrecision / tokenPrice), "DAI balance increase incorrect")
+    assert.equal(tokenBlnce.sub(prevTokenBlnce).toNumber(), Math.round(amount * (1 - EXIT_FEE) * AST_PRECISION / ETH_PRECISION / AST_PRICE), "DAI balance increase incorrect")
   )
 
   it("phase_0_to_1", () ->
@@ -232,7 +232,7 @@ contract("first_cycle", (accounts) ->
     prevFundEtherBlnce = await web3.eth.getBalance(fund.address)
 
     # buy ether
-    amount = 0.01 * etherPrecision
+    amount = 0.01 * ETH_PRECISION
     kroBlnce = await kro.balanceOf.call(account)
     await fund.createInvestment(ETH_TOKEN_ADDRESS, amount, {from: account, gasPrice: 0})
 
@@ -244,7 +244,7 @@ contract("first_cycle", (accounts) ->
     fundDAIBlnce = await fund.totalFundsInDAI.call()
     kroTotalSupply = await kro.totalSupply.call()
     fundEtherBlnce = await web3.eth.getBalance(fund.address)
-    assert.equal(fundEtherBlnce.sub(prevFundEtherBlnce).toNumber(), Math.floor(fundDAIBlnce.div(kroTotalSupply).mul(amount).div(etherPrice).toNumber()), "ether balance increase incorrect")
+    assert.equal(fundEtherBlnce.sub(prevFundEtherBlnce).toNumber(), Math.floor(fundDAIBlnce.div(kroTotalSupply).mul(amount).div(ETH_PRICE).toNumber()), "ether balance increase incorrect")
 
     # sell ether
     await fund.sellInvestmentAsset(0, {from: account, gasPrice: 0})
@@ -267,7 +267,7 @@ contract("first_cycle", (accounts) ->
     prevFundTokenBlnce = await token.balanceOf(fund.address)
 
     # buy token
-    amount = 100 * etherPrecision
+    amount = 100 * ETH_PRECISION
     await fund.createInvestment(token.address, amount, {from: account, gasPrice: 0})
 
     # check KRO balance
@@ -278,7 +278,7 @@ contract("first_cycle", (accounts) ->
     fundDAIBlnce = await fund.totalFundsInDAI.call()
     kroTotalSupply = await kro.totalSupply.call()
     fundTokenBlnce = await token.balanceOf(fund.address)
-    assert.equal(fundTokenBlnce.sub(prevFundTokenBlnce).toNumber(), Math.floor(fundDAIBlnce.mul(tokenPrecision).div(kroTotalSupply).mul(amount).div(tokenPrice).div(etherPrecision).toNumber()), "token balance increase incorrect")
+    assert.equal(fundTokenBlnce.sub(prevFundTokenBlnce).toNumber(), Math.floor(fundDAIBlnce.mul(AST_PRECISION).div(kroTotalSupply).mul(amount).div(AST_PRICE).div(ETH_PRECISION).toNumber()), "token balance increase incorrect")
 
     # sell token
     await fund.sellInvestmentAsset(1, {from: account, gasPrice: 0})
@@ -341,7 +341,7 @@ contract("price_changes", (accounts) ->
   it("prep_work", () ->
     this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
     dai = await DAI(this.fund)
-    amount = 10 * etherPrecision
+    amount = 10 * ETH_PRECISION
     await dai.mint(account, amount, {from: owner}) # Mint DAI
     await dai.approve(this.fund.address, amount, {from: account}) # Approve transfer
     this.fund.depositToken(dai.address, amount, {from: account}) # Deposit for account
@@ -354,18 +354,18 @@ contract("price_changes", (accounts) ->
     ast = await TK("AST")
 
     # reset asset price
-    await kn.setTokenPrice(ast.address, tokenPrice, {from: owner})
+    await kn.setTokenPrice(ast.address, AST_PRICE, {from: owner})
 
     # invest in asset
     prevKROBlnce = await kro.balanceOf.call(account)
 
-    stake = 0.1 * etherPrecision
+    stake = 0.1 * ETH_PRECISION
     investmentId = 0
     await this.fund.createInvestment(ast.address, stake, {from: account})
 
     # raise asset price
     delta = 0.2
-    newPrice = tokenPrice * (1 + delta)
+    newPrice = AST_PRICE * (1 + delta)
     await kn.setTokenPrice(ast.address, newPrice, {from: owner})
 
     # sell asset
@@ -382,18 +382,18 @@ contract("price_changes", (accounts) ->
     ast = await TK("AST")
 
     # reset asset price
-    await kn.setTokenPrice(ast.address, tokenPrice, {from: owner})
+    await kn.setTokenPrice(ast.address, AST_PRICE, {from: owner})
 
     # invest in asset
     prevKROBlnce = await kro.balanceOf.call(account)
 
-    stake = 0.1 * etherPrecision
+    stake = 0.1 * ETH_PRECISION
     investmentId = 1
     await this.fund.createInvestment(ast.address, stake, {from: account})
 
     # lower asset price
     delta = -0.2
-    newPrice = tokenPrice * (1 + delta)
+    newPrice = AST_PRICE * (1 + delta)
     await kn.setTokenPrice(ast.address, newPrice, {from: owner})
 
     # sell asset
