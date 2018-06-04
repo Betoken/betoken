@@ -306,6 +306,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
    * @param _newProp the new proportion, fixed point decimal
    */
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
+    require(_newProp < PRECISION);
     commissionRate = _newProp;
   }
 
@@ -314,6 +315,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   * @param _newProp the new proportion, fixed point decimal
   */
   function changeAssetFeeRate(uint256 _newProp) public onlyOwner {
+    require(_newProp < PRECISION);
     assetFeeRate = _newProp;
   }
 
@@ -321,7 +323,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
    * @notice Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
    */
-  function changeDeveloperFeeProportion(uint256 _newProp) public onlyOwner {
+  function changeDeveloperFeeRate(uint256 _newProp) public onlyOwner {
+    require(_newProp < PRECISION);
     require(_newProp < developerFeeRate);
     developerFeeRate = _newProp;
   }
@@ -331,6 +334,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
    * @param _newProp the new proportion, fixed point decimal
    */
   function changeExitFeeRate(uint256 _newProp) public onlyOwner {
+    require(_newProp < PRECISION);
     require(_newProp < exitFeeRate);
     exitFeeRate = _newProp;
   }

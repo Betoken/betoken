@@ -4,15 +4,6 @@
     <list default="true" id="b7e2f72a-3771-47e0-be70-f519036b4718" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/ControlToken.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/ControlToken.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/KyberNetwork.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/KyberNetwork.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/Migrations.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/Migrations.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/ShareToken.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/ShareToken.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/Utils.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/Utils.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/test/TestToken.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/test/TestToken.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/contracts/test/TestTokenFactory.sol" beforeDir="false" afterPath="$PROJECT_DIR$/eth/contracts/test/TestTokenFactory.sol" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/eth/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/eth/package-lock.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/eth/test/Test.coffee" beforeDir="false" afterPath="$PROJECT_DIR$/eth/test/Test.coffee" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
@@ -30,7 +21,7 @@
       <file leaf-file-name="betoken.coffee" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="220">
+            <state relative-caret-position="22">
               <caret line="10" column="63" selection-start-line="10" selection-start-column="21" selection-end-line="10" selection-end-column="63" />
             </state>
           </provider>
@@ -39,8 +30,17 @@
       <file leaf-file-name="BetokenFund.sol" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="22">
-              <caret line="1" selection-start-line="1" selection-end-line="1" />
+            <state relative-caret-position="968">
+              <caret line="328" column="32" lean-forward="true" selection-start-line="328" selection-start-column="32" selection-end-line="328" selection-end-column="32" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Test.coffee" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="391">
+              <caret line="568" column="38" selection-start-line="568" selection-start-column="38" selection-end-line="568" selection-end-column="38" />
             </state>
           </provider>
         </entry>
@@ -50,15 +50,6 @@
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="22">
               <caret line="1" selection-start-line="1" selection-end-line="1" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Test.coffee" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="326">
-              <caret line="392" lean-forward="true" selection-start-line="392" selection-end-line="392" />
             </state>
           </provider>
         </entry>
@@ -84,7 +75,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>18</find>
       <find>cycleNumber</find>
       <find>proposal</find>
       <find>ETH</find>
@@ -114,6 +104,7 @@
       <find>balanceOf</find>
       <find>xr</find>
       <find>XR</find>
+      <find>map</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -157,7 +148,6 @@
         <option value="$PROJECT_DIR$/ui/imports/ui/body.html" />
         <option value="$PROJECT_DIR$/ui/imports/ui/body.coffee" />
         <option value="$PROJECT_DIR$/eth/contracts/test/TestTokenFactory.sol" />
-        <option value="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" />
         <option value="$PROJECT_DIR$/eth/contracts/ControlToken.sol" />
         <option value="$PROJECT_DIR$/eth/contracts/ShareToken.sol" />
         <option value="$PROJECT_DIR$/eth/contracts/test/TestKyberNetwork.sol" />
@@ -165,6 +155,7 @@
         <option value="$PROJECT_DIR$/eth/contracts/KyberNetwork.sol" />
         <option value="$PROJECT_DIR$/eth/contracts/Migrations.sol" />
         <option value="$PROJECT_DIR$/eth/contracts/Utils.sol" />
+        <option value="$PROJECT_DIR$/eth/contracts/BetokenFund.sol" />
         <option value="$PROJECT_DIR$/eth/test/Test.coffee" />
       </list>
     </option>
@@ -410,14 +401,10 @@
       <workItem from="1526194903488" duration="1856000" />
       <workItem from="1526262159753" duration="6403000" />
       <workItem from="1526603525823" duration="1136000" />
-      <workItem from="1526604677245" duration="25057000" />
-    </task>
-    <task id="LOCAL-00093" summary="added function for redeeming stake from deleted proposals. added sharetoken.sol to git.">
-      <created>1520803502699</created>
-      <option name="number" value="00093" />
-      <option name="presentableId" value="LOCAL-00093" />
-      <option name="project" value="LOCAL" />
-      <updated>1520803502699</updated>
+      <workItem from="1526604677245" duration="31403000" />
+      <workItem from="1527918920077" duration="1232000" />
+      <workItem from="1527920252061" duration="4291000" />
+      <workItem from="1528061972909" duration="11487000" />
     </task>
     <task id="LOCAL-00094" summary="added function for redeeming stake from deleted proposals. added sharetoken.sol to git.">
       <created>1520803535287</created>
@@ -755,11 +742,18 @@
       <option name="project" value="LOCAL" />
       <updated>1527317063434</updated>
     </task>
-    <option name="localTasksCounter" value="142" />
+    <task id="LOCAL-00142" summary="bumped solidity to 0.4.24">
+      <created>1527318338289</created>
+      <option name="number" value="00142" />
+      <option name="presentableId" value="LOCAL-00142" />
+      <option name="project" value="LOCAL" />
+      <updated>1527318338289</updated>
+    </task>
+    <option name="localTasksCounter" value="143" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="1036563000" />
+    <option name="totallyTimeSpent" value="1059919000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -774,24 +768,24 @@
     <frame x="-7" y="-7" width="1550" height="878" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="3" sideWeight="0.49544418" visible="true" weight="0.16776751" />
+      <window_info content_ui="combo" id="Project" order="3" sideWeight="0.49544418" visible="true" weight="0.16776751" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32937366" />
       <window_info anchor="bottom" id="Docker" order="10" show_stripe_button="false" />
       <window_info anchor="bottom" id="Event Log" order="7" sideWeight="0.5021142" side_tool="true" weight="0.32829374" />
       <window_info anchor="bottom" id="Version Control" order="8" sideWeight="0.49788582" weight="0.32829374" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49788582" weight="0.32793522" />
       <window_info id="Structure" order="0" side_tool="true" weight="0.25" />
-      <window_info anchor="bottom" id="Terminal" order="11" visible="true" weight="0.32523617" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="11" visible="true" weight="0.32523617" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
       <window_info id="npm" order="1" sideWeight="0.5045558" side_tool="true" weight="0.24894291" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32793522" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Messages" order="9" weight="0.3297414" />
     </layout>
     <layout-to-restore>
@@ -799,19 +793,19 @@
       <window_info anchor="bottom" id="Docker" order="11" show_stripe_button="false" />
       <window_info id="npm" order="2" sideWeight="0.5045558" side_tool="true" weight="0.24894291" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49544418" visible="true" weight="0.18393235" />
       <window_info id="Structure" order="1" weight="0.25" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Version Control" order="8" sideWeight="0.49788582" weight="0.32901832" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49788582" weight="0.3279396" />
-      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.32901832" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Terminal" order="9" weight="0.32901832" />
       <window_info anchor="bottom" id="Event Log" order="7" sideWeight="0.5021142" side_tool="true" weight="0.32901832" />
-      <window_info anchor="bottom" id="Version Control" order="8" sideWeight="0.49788582" weight="0.32901832" />
-      <window_info anchor="bottom" id="Find" order="1" weight="0.32901832" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Messages" order="10" weight="0.3297414" />
       <window_info id="Favorites" order="3" side_tool="true" />
     </layout-to-restore>
@@ -838,7 +832,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="updated comments, minor bug fixes" />
     <MESSAGE value="removed AUM threshold" />
     <MESSAGE value="updated migration and upgrade scripts" />
     <MESSAGE value="updated upgrade script" />
@@ -863,7 +856,8 @@
     <MESSAGE value="bumped web3 to 1.0.0 beta 34" />
     <MESSAGE value="fixed getPhaseLengths bug in ui" />
     <MESSAGE value="updated unit tests" />
-    <option name="LAST_COMMIT_MESSAGE" value="updated unit tests" />
+    <MESSAGE value="bumped solidity to 0.4.24" />
+    <option name="LAST_COMMIT_MESSAGE" value="bumped solidity to 0.4.24" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -871,6 +865,20 @@
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/eth/contracts/ShareToken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="22">
+          <caret line="1" selection-start-line="1" selection-end-line="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9900">
+          <caret line="450" column="2" selection-start-line="450" selection-start-column="2" selection-end-line="450" selection-end-column="2" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="5566">
@@ -1043,13 +1051,6 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/../betoken-ui/45e5764d6c668c714b2a1c7c97133a9650a55a70.js" />
-    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="220">
-          <caret line="10" column="63" selection-start-line="10" selection-start-column="21" selection-end-line="10" selection-end-column="63" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="242">
@@ -1057,34 +1058,15 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/TokenSale.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="23" selection-start-column="23" selection-end-column="23" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/TokenSale.sol" />
     <entry file="file://$PROJECT_DIR$/eth/node_modules/zeppelin-solidity/contracts/ownership/Ownable.sol">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-516" />
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/eth/package-lock.json">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ui/package-lock.json">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
     <entry file="file://$PROJECT_DIR$/ui/package.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-56" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="260">
-          <caret line="191" column="55" lean-forward="true" selection-start-line="191" selection-start-column="55" selection-end-line="191" selection-end-column="55" />
-        </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/eth/migrations/2_deploy_contracts.coffee">
@@ -1098,20 +1080,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state>
           <caret column="22" lean-forward="true" selection-end-line="1" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="22">
-          <caret line="1" selection-start-line="1" selection-end-line="1" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="22">
-          <caret line="1" selection-start-line="1" selection-end-line="1" />
         </state>
       </provider>
     </entry>
@@ -1157,10 +1125,38 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/ControlToken.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="22">
+          <caret line="1" selection-start-line="1" selection-end-line="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/ui/body.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="220">
+          <caret line="188" column="73" selection-start-line="188" selection-start-column="70" selection-end-line="188" selection-end-column="73" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ui/imports/objects/betoken.coffee">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="22">
+          <caret line="10" column="63" selection-start-line="10" selection-start-column="21" selection-end-line="10" selection-end-column="63" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/eth/contracts/BetokenFund.sol">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="968">
+          <caret line="328" column="32" lean-forward="true" selection-start-line="328" selection-start-column="32" selection-end-line="328" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/eth/test/Test.coffee">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="326">
-          <caret line="392" lean-forward="true" selection-start-line="392" selection-end-line="392" />
+        <state relative-caret-position="391">
+          <caret line="568" column="38" selection-start-line="568" selection-start-column="38" selection-end-line="568" selection-end-column="38" />
         </state>
       </provider>
     </entry>

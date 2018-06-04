@@ -403,4 +403,178 @@ contract("price_changes", (accounts) ->
     kroBlnce = await kro.balanceOf.call(account)
     assert.equal(kroBlnce.sub(prevKROBlnce).div(stake).sub(delta).div(delta).abs().toNumber() < epsilon, true, "KRO penalty incorrect")
   )
+
+  it("lower_asset_price_to_0", () ->
+    kn = await KN(this.fund)
+    kro = await KRO()
+    ast = await TK("AST")
+
+    # reset asset price
+    await kn.setTokenPrice(ast.address, AST_PRICE, {from: owner})
+
+    # invest in asset
+    prevKROBlnce = await kro.balanceOf.call(account)
+
+    stake = 0.1 * ETH_PRECISION
+    investmentId = 2
+    await this.fund.createInvestment(ast.address, stake, {from: account})
+
+    # lower asset price
+    delta = -0.999
+    newPrice = AST_PRICE * (1 + delta)
+    await kn.setTokenPrice(ast.address, newPrice, {from: owner})
+
+    # sell asset
+    await this.fund.sellInvestmentAsset(investmentId, {from: account})
+
+    # check KRO penalty
+    kroBlnce = await kro.balanceOf.call(account)
+    assert.equal(kroBlnce.sub(prevKROBlnce).div(stake).sub(delta).div(delta).abs().toNumber() < epsilon, true, "KRO penalty incorrect")
+  )
+)
+
+contract("emergency_functions", (accounts) ->
+  owner = accounts[0]
+  account = accounts[1]
+
+  it("prep_work", () ->
+    this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
+    dai = await DAI(this.fund)
+    amount = 10 * ETH_PRECISION
+    await dai.mint(account, amount, {from: owner}) # Mint DAI
+    await dai.approve(this.fund.address, amount, {from: account}) # Approve transfer
+    this.fund.depositToken(dai.address, amount, {from: account}) # Deposit for account
+    this.fund.nextPhase({from: owner}) # Go to Decision Making phase
+  )
+)
+
+contract("param_setters", (accounts) ->
+  owner = accounts[0]
+
+  it("prep_work", () ->
+    this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
+  )
+
+  it("proportion_setters", () ->
+    newVal = 0.3 * ETH_PRECISION
+    invalidVal = 2 * ETH_PRECISION
+
+    # changeCommissionRate()
+    # valid
+    await this.fund.changeCommissionRate(newVal, {from: owner})
+    assert.equal((await this.fund.commissionRate.call()).toNumber(), newVal, "changeCommissionRate() faulty")
+    # invalid
+    try
+      await this.fund.changeCommissionRate(invalidVal, {from: owner})
+      assert.fail("changeCommissionRate() accepted >=1 rate")
+    catch
+
+    # changeAssetFeeRate()
+    # valid
+    await this.fund.changeAssetFeeRate(newVal, {from: owner})
+    assert.equal((await this.fund.assetFeeRate.call()).toNumber(), newVal, "changeAssetFeeRate() faulty")
+    # invalid
+    try
+      await this.fund.changeAssetFeeRate(invalidVal, {from: owner})
+      assert.fail("changeAssetFeeRate() accepted >=1 rate")
+    catch
+  )
+
+  it("decrease_only_proportion_setters", () ->
+    # changeDeveloperFeeRate()
+    devFeeRate = await this.fund.developerFeeRate.call()
+    # valid
+    await this.fund.changeDeveloperFeeRate(devFeeRate.dividedToIntegerBy(2), {from: owner})
+    assert.equal((await this.fund.developerFeeRate.call()).toNumber(), devFeeRate.dividedToIntegerBy(2).toNumber(), "changeDeveloperFeeRate() faulty")
+    # invalid -- >= 1
+    try
+      await this.fund.changeDeveloperFeeRate(BigNumber(ETH_PRECISION), {from: owner})
+      assert.fail("changeDeveloperFeeRate() accepted >=1 rate")
+    catch
+    # invalid -- larger than current value
+    try
+      await this.fund.changeDeveloperFeeRate(devFeeRate, {from: owner})
+      assert.fail("changeDeveloperFeeRate() accepted >= current rate")
+    catch
+
+    # changeExitFeeRate()
+    exitFeeRate = await this.fund.exitFeeRate.call()
+    # valid
+    await this.fund.changeExitFeeRate(exitFeeRate.dividedToIntegerBy(2), {from: owner})
+    assert.equal((await this.fund.exitFeeRate.call()).toNumber(), exitFeeRate.dividedToIntegerBy(2).toNumber(), "changeExitFeeRate() faulty")
+    # invalid -- >= 1
+    try
+      await this.fund.changeExitFeeRate(BigNumber(ETH_PRECISION), {from: owner})
+      assert.fail("changeExitFeeRate() accepted >=1 rate")
+    catch
+    # invalid -- larger than current value
+    try
+      await this.fund.changeExitFeeRate(exitFeeRate, {from: owner})
+      assert.fail("changeExitFeeRate() accepted >= current rate")
+    catch
+  )
+
+  it("address_setters", () ->
+    newAddr = "0xdd974d5c2e2928dea5f71b9825b8b646686bd200"
+    zeroAddr = "0x0"
+    kro = await KRO()
+    await this.fund.pause({from: owner})
+
+    # changeKyberNetworkAddress()
+    # valid address
+    await this.fund.changeKyberNetworkAddress(newAddr, {from: owner})
+    assert.equal(await this.fund.kyberAddr.call(), newAddr, "changeKyberNetworkAddress() faulty")
+    # invalid address
+    try
+      await this.fund.changeKyberNetworkAddress(zeroAddr, {from: owner})
+      assert.fail("changeKyberNetworkAddress() accepted zero address")
+    catch
+
+    # changeDeveloperFeeAccount()
+    # valid address
+    await this.fund.changeDeveloperFeeAccount(newAddr, {from: owner})
+    assert.equal(await this.fund.developerFeeAccount.call(), newAddr, "changeDeveloperFeeAccount() faulty")
+    # invalid address
+    try
+      await this.fund.changeDeveloperFeeAccount(zeroAddr, {from: owner})
+      assert.fail("changeDeveloperFeeAccount() accepted zero address")
+    catch
+
+    # changeDAIAddress()
+    # valid address
+    await this.fund.changeDAIAddress(newAddr, {from: owner})
+    assert.equal(await this.fund.daiAddr.call(), newAddr, "changeDAIAddress() faulty")
+    # invalid address
+    try
+      await this.fund.changeDAIAddress(zeroAddr, {from: owner})
+      assert.fail("changeDAIAddress() accepted zero address")
+    catch
+
+    # changeControlTokenOwner()
+    # valid address
+    await this.fund.changeControlTokenOwner(newAddr, {from: owner})
+    assert.equal(await kro.owner.call(), newAddr, "changeControlTokenOwner() faulty")
+    # invalid address
+    try
+      await this.fund.changeControlTokenOwner(zeroAddr, {from: owner})
+      assert.fail("changeControlTokenOwner() accepted zero address")
+    catch
+
+    await this.fund.unpause({from: owner})
+  )
+
+  it("other_setters", () ->
+    # changePhaseLengths()
+    newLengths = [1, 2, 3]
+    console.log newLengths is [1, 2, 3]
+    await this.fund.changePhaseLengths(newLengths, {from: owner})
+    result = (await this.fund.getPhaseLengths.call()).map((x) -> x.toNumber())
+    for i in [0..2]
+      assert.equal(result[i], newLengths[i], "changePhaseLengths() faulty")
+
+    # changeCallReward()
+    newReward = 2 * ETH_PRECISION
+    await this.fund.changeCallReward(newReward, {from: owner})
+    assert.equal((await this.fund.functionCallReward.call()).toNumber(), newReward, "changeCallReward() faulty")
+  )
 )
