@@ -212,7 +212,6 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   function emergencyDumpToken(address _tokenAddr)
     public
     onlyOwner
-    during(CyclePhase.RedeemCommission)
     whenPaused
   {
     DetailedERC20 token = DetailedERC20(_tokenAddr);
