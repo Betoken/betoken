@@ -111,6 +111,10 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   // Records if a token's contract maliciously treats the BetokenFund differently when calling transfer(), transferFrom(), or approve().
   mapping(address => bool) public isMaliciousCoin;
 
+  // Records the profits/losses a manager made in the current cycle
+  mapping(address => uint256) public userCycleProfit;
+  mapping(address => uint256) public userCycleLosses;
+
   // The current cycle phase.
   CyclePhase public cyclePhase;
 
@@ -387,18 +391,22 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
       // Start new cycle
       if (cycleNumber == 0) {
         require(msg.sender == owner);
+      } else {
+        // Record last cycle total commission
+        emit TotalCommissionPaid(cycleNumber, totalCommission);
       }
+
+      delete totalCommission;
+
+      uint256 devFee = developerFeeRate.mul(totalFundsInDAI).div(PRECISION);
+      dai.transfer(developerFeeAccount, devFee);
+      totalFundsInDAI = getBalance(dai, this);
 
       cycleNumber = cycleNumber.add(1);
-
-      if (cToken.paused()) {
-        cToken.unpause();
-      }
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
       require(cToken.burnOwnerBalance());
 
-      cToken.pause();
       __distributeFundsAfterCycleEnd();
     }
 
@@ -653,12 +661,18 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     uint256 multiplier = investment.sellPrice.mul(PRECISION).div(investment.buyPrice);
     uint256 receiveKairoAmount = investment.stake.mul(multiplier).div(PRECISION);
     if (receiveKairoAmount > investment.stake) {
+      // Made profit
       cToken.transfer(msg.sender, investment.stake);
       cToken.mint(msg.sender, receiveKairoAmount.sub(investment.stake));
+
+      userCycleProfit[msg.sender] = userCycleProfit[msg.sender].add(investment.sellPrice.sub(investment.buyPrice).mul(investment.tokenAmount).div(PRECISION));
     } else {
+      // Lost money
       cToken.transfer(msg.sender, receiveKairoAmount);
       require(cToken.burnOwnerTokens(investment.stake.sub(receiveKairoAmount)));
-    }
+
+      userCycleLosses[msg.sender] = userCycleLosses[msg.sender].add(investment.buyPrice.sub(investment.sellPrice).mul(investment.tokenAmount).div(PRECISION));
+  }
 
     // Emit event
     emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, getBalance(dai, this).sub(beforeDAIBalance));
@@ -679,10 +693,18 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    uint256 commission = totalCommission.mul(getBalance(cToken, msg.sender)).div(cToken.totalSupply());
+    uint256 commission;
+    if (userCycleProfit[msg.sender] > userCycleLosses[msg.sender]) {
+      commission = userCycleProfit[msg.sender].sub(userCycleLosses[msg.sender]).mul(commissionRate).div(PRECISION);
+    }
+    commission = commission.add(totalFundsInDAI.mul(assetFeeRate).mul(getBalance(cToken, msg.sender)).div(cToken.totalSupply().mul(PRECISION)));
+
     dai.transfer(msg.sender, commission);
 
+    totalCommission = totalCommission.add(commission);
     delete userInvestments[msg.sender];
+    delete userCycleProfit[msg.sender];
+    delete userCycleLosses[msg.sender];
 
     emit CommissionPaid(cycleNumber, msg.sender, commission);
   }
@@ -698,11 +720,18 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    uint256 commission = totalCommission.mul(getBalance(cToken, msg.sender)).div(cToken.totalSupply());
-    sToken.mint(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    totalFundsInDAI = totalFundsInDAI.add(commission);
+    uint256 commission;
+    if (userCycleProfit[msg.sender] > userCycleLosses[msg.sender]) {
+      commission = userCycleProfit[msg.sender].sub(userCycleLosses[msg.sender]).mul(commissionRate).div(PRECISION);
+    }
+    commission = commission.add(totalFundsInDAI.mul(assetFeeRate).mul(getBalance(cToken, msg.sender)).div(cToken.totalSupply().mul(PRECISION)));
 
+    sToken.mint(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
+
+    totalCommission = totalCommission.add(commission);
     delete userInvestments[msg.sender];
+    delete userCycleProfit[msg.sender];
+    delete userCycleLosses[msg.sender];
 
     // Emit event
     emit Deposit(cycleNumber, msg.sender, daiAddr, commission, commission, now);
@@ -738,20 +767,11 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     if (getBalance(dai, this) > totalFundsInDAI) {
       profit = getBalance(dai, this).sub(totalFundsInDAI);
     }
-    totalCommission = commissionRate.mul(profit).div(PRECISION);
-    totalCommission = totalCommission.add(assetFeeRate.mul(getBalance(dai, this)).div(PRECISION));
-    uint256 devFee = developerFeeRate.mul(getBalance(dai, this)).div(PRECISION);
-    uint256 newTotalFunds = getBalance(dai, this).sub(totalCommission).sub(devFee);
+    uint256 newTotalFunds = getBalance(dai, this);
 
     // Update values
     emit ROI(cycleNumber, totalFundsInDAI, newTotalFunds);
     totalFundsInDAI = newTotalFunds;
-
-    // Transfer fees
-    dai.transfer(developerFeeAccount, devFee);
-
-    // Emit event
-    emit TotalCommissionPaid(cycleNumber, totalCommission);
   }
 
   function __handleInvestment(uint256 _investmentId, bool _buy) internal {

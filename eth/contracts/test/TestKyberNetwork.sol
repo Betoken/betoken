@@ -2,8 +2,9 @@ pragma solidity ^0.4.24;
 
 import '../KyberNetwork.sol';
 import '../Utils.sol';
+import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 
-contract TestKyberNetwork is KyberNetwork, Utils {
+contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
   mapping(address => uint256) public priceInDAI;
 
   constructor(address[] _tokens, uint256[] _pricesInDAI) public {
@@ -12,7 +13,7 @@ contract TestKyberNetwork is KyberNetwork, Utils {
     }
   }
 
-  function setTokenPrice(address _token, uint256 _priceInDAI) public {
+  function setTokenPrice(address _token, uint256 _priceInDAI) public onlyOwner {
     priceInDAI[_token] = _priceInDAI;
   }
 
