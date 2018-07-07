@@ -7,5 +7,4 @@ install:
   - npm install -g truffle
 
 script:
-  - cd eth
-  - truffle test "$@"
+  - truffle test --network rinkeby
