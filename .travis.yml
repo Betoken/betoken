@@ -1,4 +1,6 @@
 language: node_js
+node_js:
+- '8'
 sudo: enabled
 
 install:
@@ -7,4 +9,4 @@ install:
   - npm install -g truffle
 
 script:
-  - truffle test --network rinkeby
+  - truffle test
