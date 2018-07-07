@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import './TestToken.sol';
+import "./TestToken.sol";
 
 contract TestTokenFactory {
   mapping(bytes32 => address) private createdTokens;

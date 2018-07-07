@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
+import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
 
 /**
  * @title The ERC20 smart contract for the Share token in the Betoken fund.

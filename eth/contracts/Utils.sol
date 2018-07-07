@@ -1,7 +1,7 @@
 pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
-import 'zeppelin-solidity/contracts/math/SafeMath.sol';
+import "openzeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.

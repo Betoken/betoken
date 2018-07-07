@@ -1,7 +1,7 @@
 pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
-import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
+import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
 
 /**
  * @title An ERC20 token used for testing.

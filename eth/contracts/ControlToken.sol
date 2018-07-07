@@ -1,8 +1,8 @@
 pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
-import 'zeppelin-solidity/contracts/token/ERC20/PausableToken.sol';
-import './BetokenFund.sol';
+import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
+import "./BetokenFund.sol";
 
 /**
  * @title The ERC20 smart contract for the Kairo token in the Betoken fund.

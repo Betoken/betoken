@@ -1,12 +1,12 @@
 pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/math/SafeMath.sol';
-import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
-import 'zeppelin-solidity/contracts/ReentrancyGuard.sol';
-import './ControlToken.sol';
-import './ShareToken.sol';
-import './KyberNetwork.sol';
-import './Utils.sol';
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
+import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
+import "./ControlToken.sol";
+import "./ShareToken.sol";
+import "./KyberNetwork.sol";
+import "./Utils.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
@@ -158,6 +158,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     public
   {
     require(_commissionRate.add(_developerFeeRate) < 10**18);
+    require(_commissionRate.mul(2) <= PRECISION.sub(_developerFeeRate).sub(_assetFeeRate));
 
     controlTokenAddr = _cTokenAddr;
     shareTokenAddr = _sTokenAddr;
@@ -310,6 +311,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
    */
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
+    require(_newProp.mul(2) <= PRECISION.sub(developerFeeRate).sub(assetFeeRate));
     commissionRate = _newProp;
   }
 
@@ -319,6 +321,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   */
   function changeAssetFeeRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
+    require(commissionRate.mul(2) <= PRECISION.sub(developerFeeRate).sub(_newProp));
     assetFeeRate = _newProp;
   }
 
@@ -329,6 +332,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   function changeDeveloperFeeRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
     require(_newProp < developerFeeRate);
+    require(commissionRate.mul(2) <= PRECISION.sub(_newProp).sub(assetFeeRate));
     developerFeeRate = _newProp;
   }
 

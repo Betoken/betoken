@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol';
+import "openzeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
 
 /**
  * @title The interface for the Kyber Network smart contract
