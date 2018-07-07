@@ -1,0 +1,11 @@
+language: node_js
+sudo: enabled
+
+install:
+  - cd eth
+  - npm install
+  - npm install -g truffle
+
+script:
+  - cd eth
+  - truffle test "$@"
