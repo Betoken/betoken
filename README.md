@@ -1,6 +1,8 @@
 # BETOKEN:
 ## THE DECENTRALIZED TOKEN HEDGE FUND
 
+[![Build Status](https://travis-ci.org/Betoken/betoken.svg?branch=kyber)](https://travis-ci.org/Betoken/betoken)
+
 Betoken is a decentralized hedge fund that uses a one-of-a-kind Incentivized Meritocracy to invest in ERC20 tokens, powered by Ethereum.
 
 ## **[Try the Rinkeby Alpha](https://betoken.fund/betoken-ui/)**
