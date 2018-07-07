@@ -8,27 +8,33 @@ module.exports = (deployer, network, accounts) ->
       # Testnet Migration
 
       config = require "../deployment_configs/testnet.json"
-      ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
       TestKyberNetwork = artifacts.require "TestKyberNetwork"
       TestToken = artifacts.require "TestToken"
       TestTokenFactory = artifacts.require "TestTokenFactory"
+      PRECISION = 1e18
 
       # deploy TestToken factory
       await deployer.deploy(TestTokenFactory)
       TokenFactory = await TestTokenFactory.deployed()
 
-      # create TestTokens
-      testAssetAddr = (await TokenFactory.newToken("Test Asset", "AST", 11)).logs[0].args.addr
+      # create TestDAI
       testDAIAddr = (await TokenFactory.newToken("DAI Stable Coin", "DAI", 18)).logs[0].args.addr
-      console.log "Test asset address: " + testAssetAddr
-      TestAsset = TestToken.at(testAssetAddr)
       TestDAI = TestToken.at(testDAIAddr)
 
+      # create TestTokens
+      tokens = require "../deployment_configs/tokens.json"
+      tokenAddrs = []
+      for token in tokens
+        tokenAddrs.push((await TokenFactory.newToken(token.name, token.symbol, token.decimals)).logs[0].args.addr)
+      tokenAddrs.push(TestDAI.address)
+      tokenPrices = (1000 * PRECISION for i in [1..tokens.length]).concat([PRECISION])
+
       # deploy TestKyberNetwork
-      await deployer.deploy(TestKyberNetwork, [TestDAI.address, ETH_TOKEN_ADDRESS, TestAsset.address], [1, 600, 1000])
+      await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices)
+
       # mint tokens for KN
-      await TestAsset.mint(TestKyberNetwork.address, 1e27)
-      await TestDAI.mint(TestKyberNetwork.address, 1e27)
+      for token in tokenAddrs
+        await TestToken.at(token).mint(TestKyberNetwork.address, 1e11 * PRECISION) # one trillion
 
       # deploy Betoken fund contracts
       await deployer.deploy([ControlToken, ShareToken])
@@ -52,5 +58,3 @@ module.exports = (deployer, network, accounts) ->
       shareToken = await ShareToken.deployed()
       controlToken.transferOwnership(BetokenFund.address)
       shareToken.transferOwnership(BetokenFund.address)
-
-

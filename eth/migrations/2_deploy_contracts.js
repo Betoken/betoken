@@ -10,28 +10,44 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ETH_TOKEN_ADDRESS, TestAsset, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, TokenFactory, config, controlToken, shareToken, testAssetAddr, testDAIAddr;
+      var PRECISION, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, TokenFactory, config, controlToken, i, j, k, len, len1, shareToken, testDAIAddr, token, tokenAddrs, tokenPrices, tokens;
       if (network === "development" || network === "rinkeby") {
         // Testnet Migration
         config = require("../deployment_configs/testnet.json");
-        ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
         TestKyberNetwork = artifacts.require("TestKyberNetwork");
         TestToken = artifacts.require("TestToken");
         TestTokenFactory = artifacts.require("TestTokenFactory");
+        PRECISION = 1e18;
         // deploy TestToken factory
         await deployer.deploy(TestTokenFactory);
         TokenFactory = (await TestTokenFactory.deployed());
-        // create TestTokens
-        testAssetAddr = ((await TokenFactory.newToken("Test Asset", "AST", 11))).logs[0].args.addr;
+        // create TestDAI
         testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
-        console.log("Test asset address: " + testAssetAddr);
-        TestAsset = TestToken.at(testAssetAddr);
         TestDAI = TestToken.at(testDAIAddr);
+        // create TestTokens
+        tokens = require("../deployment_configs/tokens.json");
+        tokenAddrs = [];
+        for (j = 0, len = tokens.length; j < len; j++) {
+          token = tokens[j];
+          tokenAddrs.push(((await TokenFactory.newToken(token.name, token.symbol, token.decimals))).logs[0].args.addr);
+        }
+        tokenAddrs.push(TestDAI.address);
+        tokenPrices = ((function() {
+          var k, ref, results;
+          results = [];
+          for (i = k = 1, ref = tokens.length; (1 <= ref ? k <= ref : k >= ref); i = 1 <= ref ? ++k : --k) {
+            results.push(1000 * PRECISION);
+          }
+          return results;
+        })()).concat([PRECISION]);
         // deploy TestKyberNetwork
-        await deployer.deploy(TestKyberNetwork, [TestDAI.address, ETH_TOKEN_ADDRESS, TestAsset.address], [1, 600, 1000]);
-        // mint tokens for KN
-        await TestAsset.mint(TestKyberNetwork.address, 1e27);
-        await TestDAI.mint(TestKyberNetwork.address, 1e27);
+        await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);
+// mint tokens for KN
+        for (k = 0, len1 = tokenAddrs.length; k < len1; k++) {
+          token = tokenAddrs[k];
+          await TestToken.at(token).mint(TestKyberNetwork.address, 1e11 * PRECISION); // one trillion
+        }
+        
         // deploy Betoken fund contracts
         await deployer.deploy([ControlToken, ShareToken]);
         await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, TestKyberNetwork.address, TestDAI.address, accounts[0], config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, "0x0");
@@ -44,5 +60,3 @@
   };
 
 }).call(this);
-
-//# sourceMappingURL=2_deploy_contracts.js.map

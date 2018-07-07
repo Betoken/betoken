@@ -1,5 +1,5 @@
 const HDWalletProvider = require("truffle-hdwallet-provider");
-const mnemonic = "below renew bottom into dawn casino pull fox hawk pink crush cry";
+const mnemonic = require("./secret.json").mnemonic;
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
