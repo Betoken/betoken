@@ -1,5 +1,4 @@
 const HDWalletProvider = require("truffle-hdwallet-provider");
-const mnemonic = require("./secret.json").mnemonic;
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
@@ -13,7 +12,8 @@ module.exports = {
     },
     rinkeby: {
       provider: function() {
-          return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI")
+        const mnemonic = require("./secret.json").mnemonic;
+        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI")
       },
       host: "localhost",
       port: 8545,
