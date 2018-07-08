@@ -17,6 +17,12 @@ contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
     priceInDAI[_token] = _priceInDAI;
   }
 
+  function setAllTokenPrices(address[] _tokens, uint256[] _pricesInDAI) public onlyOwner {
+    for (uint256 i = 0; i < _tokens.length; i = i.add(1)) {
+      priceInDAI[_tokens[i]] = _pricesInDAI[i];
+    }
+  }
+
   function trade(
     DetailedERC20 src,
     uint srcAmount,
