@@ -25,7 +25,7 @@
         testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
         TestDAI = TestToken.at(testDAIAddr);
         // create TestTokens
-        tokens = require("../deployment_configs/tokens.json");
+        tokens = require("../deployment_configs/kn_tokens.json");
         tokenAddrs = [];
         for (j = 0, len = tokens.length; j < len; j++) {
           token = tokens[j];
