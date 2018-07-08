@@ -518,6 +518,8 @@ Template.transact_box.helpers(
       "error"
 
   transaction_history: () -> transactionHistory.get()
+
+  tokens: () ->
 )
 
 Template.transact_box.events(

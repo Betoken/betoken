@@ -22,7 +22,7 @@ module.exports = (deployer, network, accounts) ->
       TestDAI = TestToken.at(testDAIAddr)
 
       # create TestTokens
-      tokens = require "../deployment_configs/tokens.json"
+      tokens = require "../deployment_configs/kn_tokens.json"
       tokenAddrs = []
       for token in tokens
         tokenAddrs.push((await TokenFactory.newToken(token.name, token.symbol, token.decimals)).logs[0].args.addr)

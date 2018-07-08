@@ -125,7 +125,7 @@
         <p></p>
         DAI: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{dai_addr}}">{{dai_addr}}</a>
         <p></p>
-        Test Asset: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{ast_addr}}">{{ast_addr}}</a>
+        TestTokenFactory: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{token_factory_addr}}">{{token_factory_addr}}</a>
       </h5>
     </div>
   </div>
@@ -301,8 +301,9 @@
       <input id="deposit_input" placeholder="Deposit Amount..." type="text">
       <select id="deposit_token_type" class="ui selection compact dropdown">
         <option selected="">DAI</option>
-        <option>ETH</option>
-        <option>AST</option>
+        {{#each tokens}}
+          <option>{{symbol}}</option>
+        {{/each}}
       </select>
     </div>
 

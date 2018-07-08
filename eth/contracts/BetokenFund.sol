@@ -416,44 +416,6 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
    */
 
   /**
-   * @notice Deposit Ether into the fund. Ether will be converted into DAI.
-   */
-  function deposit()
-    public
-    payable
-    during(CyclePhase.DepositWithdraw)
-    whenNotPaused
-    nonReentrant
-  {
-    // Buy DAI with ETH
-    uint256 actualDAIDeposited;
-    uint256 actualETHDeposited;
-    uint256 beforeETHBalance = getBalance(ETH_TOKEN_ADDRESS, this);
-    uint256 beforeDAIBalance = getBalance(dai, this);
-    __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
-    actualETHDeposited = beforeETHBalance.sub(getBalance(ETH_TOKEN_ADDRESS, this));
-    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
-    if (leftOverETH > 0) {
-      msg.sender.transfer(leftOverETH);
-    }
-    actualDAIDeposited = getBalance(dai, this).sub(beforeDAIBalance);
-
-    // Register investment
-    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      sToken.mint(msg.sender, actualDAIDeposited);
-    } else {
-      sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    }
-    totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
-
-    // Only for test version. Remove for release.
-    cToken.mint(msg.sender, actualDAIDeposited);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
-  }
-
-  /**
    * @notice Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
    * @param _tokenAddr the address of the token to be deposited
    * @param _tokenAmount The amount of tokens to be deposited. May be different from actual deposited amount.
@@ -502,40 +464,6 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
 
     // Emit event
     emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
-  }
-
-  /**
-   * @notice Withdraws Ether by burning Shares.
-   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
-   */
-  function withdraw(uint256 _amountInDAI)
-    public
-    during(CyclePhase.DepositWithdraw)
-    whenNotPaused
-    nonReentrant
-  {
-    // Buy ETH
-    uint256 actualETHWithdrawn;
-    uint256 actualDAIWithdrawn;
-    uint256 beforeETHBalance = getBalance(ETH_TOKEN_ADDRESS, this);
-    uint256 beforeDaiBalance = getBalance(dai, this);
-    __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
-    actualETHWithdrawn = getBalance(ETH_TOKEN_ADDRESS, this).sub(beforeETHBalance);
-    actualDAIWithdrawn = beforeDaiBalance.sub(getBalance(dai, this));
-    require(actualDAIWithdrawn > 0);
-
-    // Burn shares
-    sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
-
-    // Transfer Ether to user
-    uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
-    developerFeeAccount.transfer(exitFee);
-    actualETHWithdrawn = actualETHWithdrawn.sub(exitFee);
-    msg.sender.transfer(actualETHWithdrawn);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHWithdrawn, actualDAIWithdrawn, now);
   }
 
   /**
