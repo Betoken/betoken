@@ -116,16 +116,12 @@ export Betoken = (_address) ->
   ###
 
   ###*
-   * Allows user to deposit into the GroupFund
-   * @param  {BigNumber} _amountInWeis the deposit amount
+   * Allows user to deposit into the fund
+   * @param  {String} _tokenAddr the token address
+   * @param  {BigNumber} _tokenAmount the deposit token amount
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.deposit = (_amountInWeis, _callback) ->
-    funcSignature = web3.eth.abi.encodeFunctionSignature("deposit()")
-    await getDefaultAccount()
-    return web3.eth.sendTransaction({from: web3.eth.defaultAccount, to: self.addrs.betokenFund, value: _amountInWeis, data: funcSignature}).on("transactionHash", _callback)
-
   self.depositToken = (_tokenAddr, _tokenAmount, _callback) ->
     await getDefaultAccount()
     token = ERC20(_tokenAddr)
@@ -135,15 +131,12 @@ export Betoken = (_address) ->
     await token.methods.approve(self.addrs.betokenFund, 0).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
 
   ###*
-   * Allows user to withdraw from GroupFund balance
-   * @param  {BigNumber} _amountInWeis the withdrawl amount
+   * Allows user to withdraw from fund balance
+   * @param  {String} _tokenAddr the token address
+   * @param  {BigNumber} _amountInDAI the withdrawal amount in DAI
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
   ###
-  self.withdraw = (_amountInWeis, _callback) ->
-    await getDefaultAccount()
-    return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({from: web3.eth.defaultAccount}).on("transactionHash", _callback)
-
   self.withdrawToken = (_tokenAddr, _amountInDAI, _callback) ->
     await getDefaultAccount()
     amount = BigNumber(_amountInDAI).mul(1e18)
