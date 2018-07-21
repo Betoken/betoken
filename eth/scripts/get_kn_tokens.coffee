@@ -1,3 +1,22 @@
+###
+    For fetching token metadata using a list of token symbols/tickers
+    Input format:
+    [
+        "OMG",
+        "KNC",
+        ...
+    ]
+    Output format:
+    [
+        {
+            name: Token,
+            symbol: TKN,
+            decimals: 18
+        },
+        ...
+    ]
+###
+
 https = require "https"
 fs = require "fs"
 

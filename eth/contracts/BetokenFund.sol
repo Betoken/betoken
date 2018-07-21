@@ -3,17 +3,15 @@ pragma solidity ^0.4.24;
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
 import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
-import "./ControlToken.sol";
-import "./ShareToken.sol";
+import "./tokens/minime/MiniMeToken.sol";
 import "./KyberNetwork.sol";
 import "./Utils.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
  * @author Zefram Lou (Zebang Liu)
- * @dev Need to remove Kairo minting before release
  */
-contract BetokenFund is Pausable, Utils, ReentrancyGuard {
+contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   using SafeMath for uint256;
 
   enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
@@ -96,6 +94,9 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   // Amount of commission to be paid out this cycle
   uint256 public totalCommission;
 
+  // The block number at which the RedeemCommission phase started for the current cycle
+  uint256 public commissionPhaseStartBlock;
+
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
 
@@ -115,8 +116,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   CyclePhase public cyclePhase;
 
   // Contract instances
-  ControlToken internal cToken;
-  ShareToken internal sToken;
+  MiniMeToken internal cToken;
+  MiniMeToken internal sToken;
   KyberNetwork internal kyber;
   DetailedERC20 internal dai;
 
@@ -159,8 +160,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     shareTokenAddr = _sTokenAddr;
     kyberAddr = _kyberAddr;
     daiAddr = _daiAddr;
-    cToken = ControlToken(_cTokenAddr);
-    sToken = ShareToken(_sTokenAddr);
+    cToken = MiniMeToken(_cTokenAddr);
+    sToken = MiniMeToken(_sTokenAddr);
     kyber = KyberNetwork(_kyberAddr);
     dai = DetailedERC20(_daiAddr);
 
@@ -256,8 +257,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   {
     require(allowEmergencyWithdraw);
 
-    uint256 amountInDAI = getBalance(sToken, msg.sender).mul(totalFundsInDAI).div(sToken.totalSupply());
-    sToken.ownerBurn(msg.sender, getBalance(sToken, msg.sender));
+    uint256 amountInDAI = sToken.balanceOf(msg.sender).mul(totalFundsInDAI).div(sToken.totalSupply());
+    sToken.destroyTokens(msg.sender, sToken.balanceOf(msg.sender));
     totalFundsInDAI = totalFundsInDAI.sub(amountInDAI);
 
     // Transfer
@@ -390,23 +391,20 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
       }
 
       cycleNumber = cycleNumber.add(1);
-
-      if (cToken.paused()) {
-        cToken.unpause();
-      }
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
-      require(cToken.burnOwnerBalance());
+      require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
 
-      cToken.pause();
       __distributeFundsAfterCycleEnd();
+
+      commissionPhaseStartBlock = block.number;
     }
 
     cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 3));
     startTimeOfCyclePhase = now;
 
     // Reward caller
-    cToken.mint(msg.sender, functionCallReward);
+    cToken.generateTokens(msg.sender, functionCallReward);
 
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now);
   }
@@ -453,14 +451,11 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
 
     // Register investment
     if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      sToken.mint(msg.sender, actualDAIDeposited);
+      sToken.generateTokens(msg.sender, actualDAIDeposited);
     } else {
-      sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
+      sToken.generateTokens(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
     }
     totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
-
-    // Only for test version. Remove for release.
-    cToken.mint(msg.sender, actualDAIDeposited);
 
     // Emit event
     emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
@@ -497,7 +492,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     }
 
     // Burn Shares
-    sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    sToken.destroyTokens(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer tokens to user
@@ -532,7 +527,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     DetailedERC20 token = DetailedERC20(_tokenAddress);
 
     // Collect stake
-    require(cToken.ownerCollectFrom(msg.sender, _stake));
+    require(cToken.generateTokens(address(this), _stake));
+    require(cToken.destroyTokens(msg.sender, _stake));
 
     // Add investment to list
     userInvestments[msg.sender].push(Investment({
@@ -582,10 +578,10 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
     uint256 receiveKairoAmount = investment.stake.mul(multiplier).div(PRECISION);
     if (receiveKairoAmount > investment.stake) {
       cToken.transfer(msg.sender, investment.stake);
-      cToken.mint(msg.sender, receiveKairoAmount.sub(investment.stake));
+      cToken.generateTokens(msg.sender, receiveKairoAmount.sub(investment.stake));
     } else {
       cToken.transfer(msg.sender, receiveKairoAmount);
-      require(cToken.burnOwnerTokens(investment.stake.sub(receiveKairoAmount)));
+      require(cToken.destroyTokens(address(this), investment.stake.sub(receiveKairoAmount)));
     }
 
     // Emit event
@@ -607,7 +603,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    uint256 commission = totalCommission.mul(getBalance(cToken, msg.sender)).div(cToken.totalSupply());
+    uint256 commission = totalCommission.mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock))
+        .div(cToken.totalSupplyAt(commissionPhaseStartBlock));
     dai.transfer(msg.sender, commission);
 
     delete userInvestments[msg.sender];
@@ -626,8 +623,9 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    uint256 commission = totalCommission.mul(getBalance(cToken, msg.sender)).div(cToken.totalSupply());
-    sToken.mint(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    uint256 commission = totalCommission.mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock))
+        .div(cToken.totalSupplyAt(commissionPhaseStartBlock));
+    sToken.generateTokens(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.add(commission);
 
     delete userInvestments[msg.sender];
@@ -657,6 +655,39 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard {
   /**
    * Internal use functions
    */
+
+  // MiniMe TokenController functions, not used right now
+  /**
+   * @notice Called when `_owner` sends ether to the MiniMe Token contract
+   * @param _owner The address that sent the ether to create tokens
+   * @return True if the ether is accepted, false if it throws
+   */
+  function proxyPayment(address _owner) public payable returns(bool) {
+    return false;
+  }
+
+  /**
+   * @notice Notifies the controller about a token transfer allowing the
+   *  controller to react if desired
+   * @param _from The origin of the transfer
+   * @param _to The destination of the transfer
+   * @param _amount The amount of the transfer
+   * @return False if the controller does not authorize the transfer
+   */
+  function onTransfer(address _from, address _to, uint _amount) public returns(bool) {
+    return true;
+  }
+
+  /// @notice Notifies the controller about an approval allowing the
+  ///  controller to react if desired
+  /// @param _owner The address that calls `approve()`
+  /// @param _spender The spender in the `approve()` call
+  /// @param _amount The amount in the `approve()` call
+  /// @return False if the controller does not authorize the approval
+  function onApprove(address _owner, address _spender, uint _amount) public
+      returns(bool) {
+    return true;
+  }
 
   /**
    * @notice Update fund statistics, and pay developer fees.

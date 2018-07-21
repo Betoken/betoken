@@ -1,6 +1,6 @@
 BetokenFund = artifacts.require "BetokenFund"
-ControlToken = artifacts.require "ControlToken"
-ShareToken = artifacts.require "ShareToken"
+MiniMeToken = artifacts.require "MiniMeToken"
+MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
 
 module.exports = (deployer, network, accounts) ->
   deployer.then () ->
@@ -36,8 +36,19 @@ module.exports = (deployer, network, accounts) ->
       for token in tokenAddrs
         await TestToken.at(token).mint(TestKyberNetwork.address, 1e11 * PRECISION) # one trillion
 
-      # deploy Betoken fund contracts
-      await deployer.deploy([ControlToken, ShareToken])
+      # deploy Kairo and Betoken Shares contracts
+      await deployer.deploy(MiniMeTokenFactory)
+      minimeFactory = await MiniMeTokenFactory.deployed()
+      ControlToken = MiniMeToken.at((await minimeFactory.createCloneToken(
+          "0x0", 0, "Kairo", 18, "KRO", true)).logs[0].args.addr)
+      ShareToken = MiniMeToken.at((await minimeFactory.createCloneToken(
+          "0x0", 0, "Betoken Shares", 18, "BTKS", true)).logs[0].args.addr)
+
+      if network == "development"
+        await ControlToken.generateTokens(accounts[1], 1e4 * PRECISION)
+        await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION)
+
+      # deploy BetokenFund contract
       await deployer.deploy(
         BetokenFund,
         ControlToken.address,
@@ -54,7 +65,5 @@ module.exports = (deployer, network, accounts) ->
         "0x0"
       )
 
-      controlToken = await ControlToken.deployed()
-      shareToken = await ShareToken.deployed()
-      controlToken.transferOwnership(BetokenFund.address)
-      shareToken.transferOwnership(BetokenFund.address)
+      await ControlToken.transferOwnership(BetokenFund.address)
+      await ShareToken.transferOwnership(BetokenFund.address)
