@@ -91,11 +91,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   // Amount of Kairo rewarded to the user who calls a phase transition/investment handling function
   uint256 public functionCallReward;
 
-  // Amount of commission to be paid out this cycle
-  uint256 public totalCommission;
-
-  // The block number at which the RedeemCommission phase started for the current cycle
-  uint256 public commissionPhaseStartBlock;
+  // Total amount of commission unclaimed by managers
+  uint256 public totalCommissionLeft;
 
   // Flag for whether emergency withdrawing is allowed.
   bool public allowEmergencyWithdraw;
@@ -111,6 +108,12 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
 
   // Records if a token's contract maliciously treats the BetokenFund differently when calling transfer(), transferFrom(), or approve().
   mapping(address => bool) public isMaliciousCoin;
+
+  // Total commission to be paid in a certain cycle
+  mapping(uint256 => uint256) public totalCommissionOfCycle;
+
+  // The block number at which the RedeemCommission phase started for the given cycle
+  mapping(uint256 => uint256) public commissionPhaseStartBlock;
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -131,7 +134,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
 
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
-  event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInWeis);
+  event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
   /**
    * Contract initialization functions
@@ -234,10 +237,34 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
+   * @notice Redeems commission under emergency situations. Should be called by users.
+   */
+  function emergencyRedeemCommission()
+    public
+    whenPaused
+    nonReentrant
+  {
+    require(lastCommissionRedemption[msg.sender] < cycleNumber);
+    uint256 commission = 0;
+    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
+      commission = commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
+          .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
+    }
+
+    lastCommissionRedemption[msg.sender] = cycleNumber;
+    totalCommissionLeft = totalCommissionLeft.sub(commission);
+    delete userInvestments[msg.sender];
+
+    dai.transfer(msg.sender, commission);
+
+    emit CommissionPaid(cycleNumber, msg.sender, commission);
+  }
+
+  /**
    * @notice Updates the current fund balance. Only callable by owner.
    */
   function emergencyUpdateBalance() onlyOwner whenPaused public {
-    totalFundsInDAI = getBalance(dai, this);
+    totalFundsInDAI = getBalance(dai, this).sub(totalCommissionLeft);
   }
 
   /**
@@ -397,7 +424,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
 
       __distributeFundsAfterCycleEnd();
 
-      commissionPhaseStartBlock = block.number;
+      commissionPhaseStartBlock[cycleNumber] = block.number;
     }
 
     cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 3));
@@ -602,12 +629,17 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
-    lastCommissionRedemption[msg.sender] = cycleNumber;
-    uint256 commission = totalCommission.mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock))
-        .div(cToken.totalSupplyAt(commissionPhaseStartBlock));
-    dai.transfer(msg.sender, commission);
+    uint256 commission = 0;
+    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
+      commission = commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
+          .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
+    }
 
+    lastCommissionRedemption[msg.sender] = cycleNumber;
+    totalCommissionLeft = totalCommissionLeft.sub(commission);
     delete userInvestments[msg.sender];
+
+    dai.transfer(msg.sender, commission);
 
     emit CommissionPaid(cycleNumber, msg.sender, commission);
   }
@@ -622,9 +654,15 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
+    uint256 commission = 0;
+    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
+      commission = commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
+          .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
+    }
+
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    uint256 commission = totalCommission.mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock))
-        .div(cToken.totalSupplyAt(commissionPhaseStartBlock));
+    totalCommissionLeft = totalCommissionLeft.sub(commission);
+
     sToken.generateTokens(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.add(commission);
 
@@ -697,10 +735,10 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     if (getBalance(dai, this) > totalFundsInDAI) {
       profit = getBalance(dai, this).sub(totalFundsInDAI);
     }
-    totalCommission = commissionRate.mul(profit).div(PRECISION);
-    totalCommission = totalCommission.add(assetFeeRate.mul(getBalance(dai, this)).div(PRECISION));
+    totalCommissionOfCycle[cycleNumber] = commissionRate.mul(profit).add(assetFeeRate.mul(getBalance(dai, this))).div(PRECISION);
+    totalCommissionLeft = totalCommissionLeft.add(totalCommissionOfCycle[cycleNumber]);
     uint256 devFee = developerFeeRate.mul(getBalance(dai, this)).div(PRECISION);
-    uint256 newTotalFunds = getBalance(dai, this).sub(totalCommission).sub(devFee);
+    uint256 newTotalFunds = getBalance(dai, this).sub(totalCommissionLeft).sub(devFee);
 
     // Update values
     emit ROI(cycleNumber, totalFundsInDAI, newTotalFunds);
@@ -710,7 +748,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     dai.transfer(developerFeeAccount, devFee);
 
     // Emit event
-    emit TotalCommissionPaid(cycleNumber, totalCommission);
+    emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle[cycleNumber]);
   }
 
   function __handleInvestment(uint256 _investmentId, bool _buy) internal {
