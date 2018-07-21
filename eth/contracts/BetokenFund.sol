@@ -253,7 +253,6 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
 
     lastCommissionRedemption[msg.sender] = cycleNumber;
     totalCommissionLeft = totalCommissionLeft.sub(commission);
-    delete userInvestments[msg.sender];
 
     dai.transfer(msg.sender, commission);
 
