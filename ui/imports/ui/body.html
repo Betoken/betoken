@@ -29,7 +29,7 @@
       </div>
 
       <!-- Tab contents -->
-      <div class="ui bottom attached tab large-tab segment active" data-tab="t1">
+      <div class="ui bottom attached tab segment active" data-tab="t1">
         {{> stats_tab}}
       </div>
 
@@ -316,10 +316,6 @@
     </div>
 
     <div class="ui horizontal divider"></div>
-    <div class="ui horizontal divider"></div>
-    <div class="ui horizontal divider"></div>
-    <p></p>
-    <p></p>
     
     <button class="deposit_button {{is_disabled}} ui primary bottom attached button fluid">Deposit</button>
   </div>
@@ -347,7 +343,7 @@
     <button class="withdraw_button {{is_disabled}} ui primary button fluid">Withdraw</button>
   </div>
 
-  <div class="ui bottom attached tab scroll segment" data-tab="send_token">
+  <div class="ui bottom attached tab segment scroll" data-tab="send_token">
     <!--Amount Input-->
     <div class="{{has_error 2}} ui right labeled input fluid">
       <input id="send_token_amount_input" placeholder="Send Amount..." type="text">
