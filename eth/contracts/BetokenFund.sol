@@ -64,6 +64,9 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   // Address of the DAI stable-coin contract.
   address public daiAddr;
 
+  // Address of the TestTokenFactory used (remove for Mainnet)
+  address public tokenFactoryAddr;
+
   // Address of the previous version of BetokenFund.
   address public previousVersion;
 
@@ -146,6 +149,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     address _sTokenAddr,
     address _kyberAddr,
     address _daiAddr,
+    address _tokenFactoryAddr,
     address _developerFeeAccount,
     uint256[3] _phaseLengths,
     uint256 _commissionRate,
@@ -163,6 +167,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     shareTokenAddr = _sTokenAddr;
     kyberAddr = _kyberAddr;
     daiAddr = _daiAddr;
+    tokenFactoryAddr = _tokenFactoryAddr;
     cToken = MiniMeToken(_cTokenAddr);
     sToken = MiniMeToken(_sTokenAddr);
     kyber = KyberNetwork(_kyberAddr);

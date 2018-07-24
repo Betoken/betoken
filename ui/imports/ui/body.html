@@ -1,7 +1,17 @@
-<body>
-  <link rel="stylesheet" target="_blank" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css"/>
-  <link rel="shortcut icon" target="_blank" href="/betoken-ui/images/favicon.ico">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
+<body style="background-color: #f1f4f6;">
+  <script
+    src="https://code.jquery.com/jquery-3.3.1.min.js"
+    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
+  <link rel="stylesheet" target="_blank" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.3.3/semantic.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.3.3/semantic.min.js"></script>
+
+  <link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon-16x16.png">
+  <link rel="manifest" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/site.webmanifest">
+  <link rel="mask-icon" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/safari-pinned-tab.svg" color="#22C88A">
 
   <div class="ui stackable grid" style="margin-top: 0.02%;">
     <!-- Top Bar -->
@@ -19,11 +29,11 @@
       </div>
 
       <!-- Tab contents -->
-      <div class="ui bottom attached tab segment active" data-tab="t1">
+      <div class="ui bottom attached tab large-tab segment active" data-tab="t1">
         {{> stats_tab}}
       </div>
 
-      <div class="ui bottom attached tab segment" data-tab="t2">
+      <div class="ui bottom attached tab large-tab segment" data-tab="t2">
         {{> decisions_tab}}
       </div>
     </div>
@@ -36,13 +46,13 @@
     <!-- Transaction Message Modal -->
     <div class="ui modal" id="transaction_sent_modal">
       <div class="ui icon header">
-        <i class="ui green checkmark icon"></i>
+        <i class="ui btkgreen checkmark icon"></i>
         <p>You've successfully sent an Ethereum transaction!</p>
         <p>Changes you've just made will be in effect after the transaction has been written to the blockchain.</p>
         <p>You can monitor the status of your transaction here: <a target="_blank" href="https://{{network_prefix}}etherscan.io/tx/{{transaction_hash}}">{{transaction_hash}}</a></p>
       </div>
       <div class="actions">
-        <div class="ui green ok button fluid">
+        <div class="ui ok button fluid" style="background-color: #1fdaa6">
           Hooray!
         </div>
       </div>
@@ -64,11 +74,11 @@
     <!-- Success Message Modal -->
     <div class="ui modal" id="success_modal">
       <div class="ui icon header">
-        <i class="ui green checkmark icon"></i>
+        <i class="ui btkgreen checkmark icon"></i>
         <p>{{success_msg}}</p>
       </div>
       <div class="actions">
-        <div class="ui green ok button fluid">
+        <div class="ui ok button fluid" style="background-color: #1fdaa6">
           Hooray!
         </div>
       </div>
@@ -80,7 +90,7 @@
   <div class="ui top three item menu">
     <div class="item">
       <h1>
-        <img src="/betoken-ui/images/Betoken%20Logo.png" style="max-height: 60%; max-width: 60%;">
+        <img src="https://raw.githubusercontent.com/Betoken/assets/master/logo/betoken-logo.png" style="max-height: 60%; max-width: 60%;">
       </h1>
     </div>
 
@@ -92,7 +102,7 @@
           Withdraw All Funds
         </button>
       {{else}}
-        <button class="ui positive button next_phase">
+        <button class="ui positive button next_phase" style="background-color: #1fdaa6">
           Next Phase
         </button>
       {{/if}}
@@ -110,10 +120,12 @@
   <div class="ui modal" id="contract_info_modal">
     <div class="ui icon header">
       <i class="info icon"></i>
-      Smart Contract Addresses
+      Advanced Info
     </div>
     <div class="content" style="text-align: center;">
       <h5>
+        <p></p>
+        Current Network: {{network_name}}
         <p></p>
         BetokenFund: <a target="_blank" href="https://{{network_prefix}}etherscan.io/address/{{betoken_addr}}">{{betoken_addr}}</a>
         <p></p>
@@ -198,10 +210,6 @@
     <h2>My Account</h2>
     <div class="ui menu vertical fluid">
       <div class="ui item">
-        <div class="ui horizontal divider">Current Network</div>
-        <h4 style="text-align: center;">{{network_name}}</h4>
-      </div>
-      <div class="ui item">
         <div class="ui horizontal divider">Address</div>
         <h5 style="text-align: center;" class="copyable">{{user_address}}</h5>
       </div>
@@ -266,11 +274,11 @@
           </div>
         </div>
         {{#if can_redeem_commission}}
-          <button class="ui positive button fluid redeem_commission">
+          <button class="ui positive button fluid redeem_commission" style="background-color: #1fdaa6">
             Redeem Commission
           </button>
           <p></p>
-          <button class="ui positive button fluid redeem_commission_in_shares">
+          <button class="ui positive button fluid redeem_commission_in_shares" style="background-color: #1fdaa6">
             Redeem Commission In Shares
           </button>
         {{/if}}
@@ -295,24 +303,28 @@
   </div>
 
   <!-- Actual Tab Content -->
-  <div class="ui bottom attached tab segment active" data-tab="deposit">
+  <div class="ui bottom attached tab segment scroll active" data-tab="deposit">
     <!--Amount Input-->
     <div class="{{has_error 0}} ui right labeled input fluid">
       <input id="deposit_input" placeholder="Deposit Amount..." type="text">
       <select id="deposit_token_type" class="ui selection compact dropdown">
         <option selected="">DAI</option>
-        {{#each tokens}}
-          <option>{{symbol}}</option>
+        {{#each token in tokens}}
+          <option>{{token}}</option>
         {{/each}}
       </select>
     </div>
 
     <div class="ui horizontal divider"></div>
-
-    <button class="deposit_button {{is_disabled 'deposit'}} ui primary button fluid">Deposit</button>
+    <div class="ui horizontal divider"></div>
+    <div class="ui horizontal divider"></div>
+    <p></p>
+    <p></p>
+    
+    <button class="deposit_button {{is_disabled}} ui primary bottom attached button fluid">Deposit</button>
   </div>
 
-  <div class="ui bottom attached tab segment" data-tab="withdraw">
+  <div class="ui bottom attached tab segment scroll" data-tab="withdraw">
     <!--Amount Input-->
     <div class="{{has_error 1}} ui right labeled input fluid">
       <input id="withdraw_input" placeholder="Withdraw Amount..." type="text">
@@ -325,16 +337,17 @@
     <b>Into Currency: </b>
     <select id="withdraw_token_type" class="ui selection compact dropdown">
       <option selected="">DAI</option>
-      <option>ETH</option>
-      <option>AST</option>
+        {{#each token in tokens}}
+          <option>{{token}}</option>
+        {{/each}}
     </select>
 
-    <div class="ui horizontal divider"></div>
-
-    <button class="withdraw_button {{is_disabled 'withdraw'}} ui primary button fluid">Withdraw</button>
+    <p></p>
+    
+    <button class="withdraw_button {{is_disabled}} ui primary button fluid">Withdraw</button>
   </div>
 
-  <div class="ui bottom attached tab segment" data-tab="send_token">
+  <div class="ui bottom attached tab scroll segment" data-tab="send_token">
     <!--Amount Input-->
     <div class="{{has_error 2}} ui right labeled input fluid">
       <input id="send_token_amount_input" placeholder="Send Amount..." type="text">
@@ -344,18 +357,18 @@
       </select>
     </div>
 
-    <div class="ui horizontal divider"></div>
-
+    <p></p>
+    
     <div class="{{has_error 3}} ui right input fluid">
       <input id="send_token_recipient_input" placeholder="Recipient Address..." type="text">
     </div>
 
-    <div class="ui horizontal divider"></div>
-
-    <button class="token_send_button {{is_disabled "token"}} ui primary button fluid">Send</button>
+    <p></p>
+    
+    <button class="token_send_button ui primary button fluid">Send</button>
   </div>
 
-  <div class="ui bottom attached tab segment" data-tab="history">
+  <div class="ui bottom attached tab segment scroll" data-tab="history">
     <!--History Tab-->
     <table class="ui tablet stackable table celled sortable">
       <!-- Table header -->
@@ -453,7 +466,7 @@
 <template name="decisions_tab">
   <div class="ui menu">
     <div class="item">
-      <div class="ui button new_investment {{new_investment_is_disabled}}">
+      <div class="ui positive button new_investment {{new_investment_is_disabled}}" style="background-color: #1fdaa6">
         New Decision
       </div>
     </div>
@@ -521,8 +534,9 @@
     </div>
     <div class="content">
       <select id="invest_token_type" class="ui selection fluid dropdown">
-        <option selected="">ETH</option>
-        <option>AST</option>
+        {{#each token in tokens}}
+          <option>{{token}}</option>
+        {{/each}}
       </select>
       <p></p>
       <div class="ui left fluid input">
@@ -530,7 +544,7 @@
       </div>
     </div>
     <div class="actions">
-      <div class="ui green ok button fluid">
+      <div class="ui ok button fluid" style="background-color: #1fdaa6">
         Invest
       </div>
     </div>

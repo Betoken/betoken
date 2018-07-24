@@ -1,10 +1,13 @@
 import "./body.html"
 import "./body.css"
 import "./tablesort.js"
-import { Betoken } from "../objects/betoken.js"
+import { Betoken, ETH_TOKEN_ADDRESS } from "../objects/betoken.js"
 import Chart from "chart.js"
 import BigNumber from "bignumber.js"
 
+TOKENS = require("../objects/kn_token_symbols.json")
+
+WRONG_NETWORK_ERR = "Please switch to Rinkeby Testnet in order to try Betoken Omen"
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 INPUT_ERR = "There was an error in your input. Please fix it and try again."
 NO_WEB3_ERR = "Betoken can only be used in a Web3 enabled browser. Please install <a target=\"_blank\" href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions."
@@ -20,13 +23,9 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 # Fund object
-betoken_addr = new ReactiveVar("0xbc0b2a468679b845c76d6fdc56b53b4e02ec3715")
-betoken = new Betoken(betoken_addr.get())
+BETOKEN_ADDR = "0x539e1b6133e98640579d3dd38f9e291d30fb5940"
+betoken = new Betoken(BETOKEN_ADDR)
 
-tokenAddresses = new ReactiveVar(
-  AST: "0x6757fadab78b4fd413c130fd0b5babc0577fda9a"
-  ETH: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-)
 # Session data
 userAddress = new ReactiveVar("Not Available")
 kairoBalance = new ReactiveVar(BigNumber(0))
@@ -52,6 +51,7 @@ kairoAddr = new ReactiveVar("")
 sharesAddr = new ReactiveVar("")
 kyberAddr = new ReactiveVar("")
 daiAddr = new ReactiveVar("")
+tokenFactoryAddr = new ReactiveVar("")
 displayedInvestmentBalance = new ReactiveVar(BigNumber(0))
 displayedInvestmentUnit = new ReactiveVar("DAI")
 displayedKairoBalance = new ReactiveVar(BigNumber(0))
@@ -153,32 +153,6 @@ clock = () ->
 loadFundData = () ->
   investments = []
   receivedROICount = 0
-
-  # Get Network ID
-  netID = await web3.eth.net.getId()
-  switch netID
-    when 1
-      net = "Main Ethereum Network"
-      pre = ""
-    when 3
-      net = "Ropsten Testnet"
-      pre = "ropsten."
-    when 4
-      net = "Rinkeby Testnet"
-      pre = "rinkeby."
-    when 42
-      net = "Kovan Testnet"
-      pre = "kovan."
-    else
-      net = "Unknown Network"
-      pre = ""
-  networkName.set(net)
-  networkPrefix.set(pre)
-  if netID != 4
-    showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha")
-
-  if !hasWeb3
-    showError(NO_WEB3_ERR)
     
   ###
   # Get fund data
@@ -190,7 +164,7 @@ loadFundData = () ->
   commissionRate.set(BigNumber(await betoken.getPrimitiveVar("commissionRate")).div(1e18))
   paused.set(await betoken.getPrimitiveVar("paused"))
   allowEmergencyWithdraw.set(await betoken.getPrimitiveVar("allowEmergencyWithdraw"))
-  cycleTotalCommission.set(BigNumber(await betoken.getPrimitiveVar("totalCommission")))
+  cycleTotalCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get())))
   assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate")))
 
   sharesTotalSupply.set(BigNumber(await betoken.getShareTotalSupply()))
@@ -202,9 +176,7 @@ loadFundData = () ->
   sharesAddr.set(betoken.addrs.shareToken)
   kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr"))
   daiAddr.set(await betoken.getPrimitiveVar("daiAddr"))
-  tmp = tokenAddresses.get()
-  tmp["DAI"] = daiAddr.get()
-  tokenAddresses.set(tmp)
+  tokenFactoryAddr.set(await betoken.addrs.tokenFactory)
 
   # Get statistics
   prevROI.set(BigNumber(0))
@@ -219,7 +191,7 @@ loadFundData = () ->
   for _event in events
     data = _event.returnValues
 
-    commission = BigNumber(data._totalCommissionInWeis)
+    commission = BigNumber(data._totalCommissionInDAI)
     # Update previous cycle commission
     if +data._cycleNumber == cycleNumber.get() - 1
       prevCommission.set(commission)
@@ -316,16 +288,21 @@ loadFundData = () ->
         when "KRO" then betoken.contracts.controlToken
         when "BTKS" then betoken.contracts.shareToken
         else null
-      events = await tokenContract.getPastEvents("Transfer",
+      events = await tokenContract.getPastEvents("Transfer", {
         fromBlock: 0
-        filter: if not isIn then {from: userAddr} else {to: userAddr}
-      )
+        filter: if isIn then { to: userAddr } else { from: userAddr }
+      })
       for _event in events
+        if not _event?
+          continue
         data = _event.returnValues
+        if (isIn && data._to != userAddr) || (!isIn && data._from != userAddr)
+          continue
+
         entry =
           type: "Transfer " + if isIn then "In" else "Out"
           token: token
-          amount: BigNumber(data.value).div(1e18).toFormat(4)
+          amount: BigNumber(data._amount).div(1e18).toFormat(4)
           timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
         tmp = transactionHistory.get()
         tmp.push(entry)
@@ -335,20 +312,42 @@ loadFundData = () ->
     getTransferHistory("KRO", false)
     getTransferHistory("BTKS", true)
     getTransferHistory("BTKS", false)
-  return
+      
+    return
+
+postFundLoad = () ->
+  $('a.item').tab()
+
+  # Get Network ID
+  netID = await web3.eth.net.getId()
+  switch netID
+    when 1
+      net = "Main Ethereum Network"
+      pre = ""
+    when 3
+      net = "Ropsten Testnet"
+      pre = "ropsten."
+    when 4
+      net = "Rinkeby Testnet"
+      pre = "rinkeby."
+    when 42
+      net = "Kovan Testnet"
+      pre = "kovan."
+    else
+      net = "Unknown Network"
+      pre = ""
+  networkName.set(net)
+  networkPrefix.set(pre)
+  if netID != 4
+    showError(WRONG_NETWORK_ERR)
+
+  if !hasWeb3
+    showError(NO_WEB3_ERR)
 
 $("document").ready(() ->
-  $(".menu .item").tab()
   $("table").tablesort()
 
   if web3?
-    web3.eth.net.getId().then(
-      (_id) ->
-        if _id != 4
-          showError("Please switch to Rinkeby Testnet in order to try Betoken Alpha")
-        return
-    )
-
     clock()
 
     chart = new Chart($("#myChart"),
@@ -356,8 +355,8 @@ $("document").ready(() ->
       data:
         datasets: [
           label: "ROI Per Cycle"
-          backgroundColor: "rgba(0, 0, 100, 0.5)"
-          borderColor: "rgba(0, 0, 100, 1)"
+          backgroundColor: "#b9eee1"
+          borderColor: "#1fdaa6"
           data: []
         ]
       ,
@@ -371,6 +370,8 @@ $("document").ready(() ->
               labelString: "Investment Cycle"
             ticks:
               stepSize: 1
+            gridLines:
+              display: false
           ]
           yAxes: [
             type: "linear"
@@ -380,11 +381,13 @@ $("document").ready(() ->
               labelString: "Percent"
             ticks:
               beginAtZero: true
+            gridLines:
+              display: false
           ]
     )
 
     #Initialize Betoken object
-    betoken.init().then(loadFundData)
+    betoken.init().then(loadFundData).then(postFundLoad)
 )
 
 Template.body.helpers(
@@ -403,13 +406,14 @@ Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
   paused: () -> paused.get()
   allow_emergency_withdraw: () -> if allowEmergencyWithdraw.get() then "" else "disabled"
-  betoken_addr: () -> betoken_addr.get()
+  betoken_addr: () -> BETOKEN_ADDR
   kairo_addr: () -> kairoAddr.get()
   shares_addr: () -> sharesAddr.get()
   kyber_addr: () -> kyberAddr.get()
   dai_addr: () -> daiAddr.get()
-  ast_addr: () -> tokenAddresses.get()["AST"]
+  token_factory_addr: () -> tokenFactoryAddr.get()
   network_prefix: () -> networkPrefix.get()
+  network_name: () -> networkName.get()
 )
 
 Template.top_bar.events(
@@ -441,7 +445,6 @@ Template.phase_indicator.helpers(
 )
 
 Template.sidebar.helpers(
-  network_name: () -> networkName.get()
   user_address: () -> userAddress.get()
   user_balance: () -> displayedInvestmentBalance.get().toFormat(18)
   balance_unit: () -> displayedInvestmentUnit.get()
@@ -497,9 +500,9 @@ Template.transact_box.onCreated(
     Template.instance().sendTokenRecipientInputHasError = new ReactiveVar(false)
 )
 
-Template.transact_box.helpers(
-  is_disabled: (_type) ->
-    if (cyclePhase.get() != 0 && _type != "token") || (cyclePhase.get() == 2 && _type == "token")
+Template.transact_box.helpers({
+  is_disabled: () ->
+    if cyclePhase.get() != 0
       "disabled"
 
   has_error: (input_id) ->
@@ -519,25 +522,22 @@ Template.transact_box.helpers(
 
   transaction_history: () -> transactionHistory.get()
 
-  tokens: () ->
-)
+  tokens: () -> TOKENS
+})
 
-Template.transact_box.events(
+Template.transact_box.events({
   "click .deposit_button": (event) ->
     try
       Template.instance().depositInputHasError.set(false)
       amount = BigNumber($("#deposit_input")[0].value)
-      tokenType = $("#deposit_token_type")[0].value
+      tokenSymbol = $("#deposit_token_type")[0].value
 
-      if !amount.greaterThan(0)
-        Template.instance().sendTokenAmountInputHasError.set(true)
+      if !amount.gt(0)
+        Template.instance().depositInputHasError.set(true)
         return
 
-      if tokenType == "ETH"
-        betoken.deposit(amount.mul(1e18), showTransaction)
-      else
-        tokenAddr = tokenAddresses.get()[tokenType]
-        betoken.depositToken(tokenAddr, amount, showTransaction)
+      tokenAddr = await betoken.tokenSymbolToAddress(tokenSymbol)
+      betoken.depositToken(tokenAddr, amount, showTransaction)
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -545,17 +545,14 @@ Template.transact_box.events(
     try
       Template.instance().withdrawInputHasError.set(false)
       amount = BigNumber($("#withdraw_input")[0].value)
-      tokenType = $("#withdraw_token_type")[0].value
+      tokenSymbol = $("#withdraw_token_type")[0].value
 
       if !amount.greaterThan(0)
-        Template.instance().sendTokenAmountInputHasError.set(true)
+        Template.instance().withdrawInputHasError.set(true)
         return
 
-      if tokenType == "ETH"
-        betoken.withdraw(amount.mul(1e18), showTransaction)
-      else
-        tokenAddr = tokenAddresses.get()[tokenType]
-        betoken.withdrawToken(tokenAddr, amount, showTransaction)
+      tokenAddr = await betoken.tokenSymbolToAddress(tokenSymbol)
+      betoken.withdrawToken(tokenAddr, amount, showTransaction)
     catch error
       Template.instance().withdrawInputHasError.set(true)
 
@@ -588,9 +585,9 @@ Template.transact_box.events(
         betoken.sendShares(toAddress, amount, showTransaction)
     catch
       Template.instance().sendTokenAmountInputHasError.set(true)
-)
+})
 
-Template.stats_tab.helpers(
+Template.stats_tab.helpers({
   cycle_length: () ->
     if phaseLengths.get().length > 0
       BigNumber(phaseLengths.get().reduce((t, n) -> t+n)).div(24 * 60 * 60).toDigits(3)
@@ -599,27 +596,28 @@ Template.stats_tab.helpers(
   avg_roi: () -> avgROI.get().toFormat(2)
   prev_commission: () -> prevCommission.get().div(1e18).toFormat(2)
   historical_commission: () -> historicalTotalCommission.get().div(1e18).toFormat(2)
-)
+})
 
-Template.decisions_tab.helpers(
+Template.decisions_tab.helpers({
   investment_list: () -> investmentList.get()
   wei_to_eth: (_weis) -> BigNumber(_weis).div(1e18).toFormat(4)
   new_investment_is_disabled: () ->
     if cyclePhase.get() == 1 then "" else "disabled"
-)
+  tokens: () -> TOKENS
+})
 
-Template.decisions_tab.events(
+Template.decisions_tab.events({
   "click .sell_investment": (event) ->
     id = this.id
     if cyclePhase.get() == 1
       betoken.sellAsset(id, showTransaction)
 
   "click .new_investment": (event) ->
-    $("#new_investment_modal").modal(
+    $("#new_investment_modal").modal({
       onApprove: (e) ->
         try
-          tokenType = $("#invest_token_type")[0].value
-          address = tokenAddresses.get()[tokenType]
+          tokenSymbol = $("#invest_token_type")[0].value
+          address = await betoken.tokenSymbolToAddress(tokenSymbol)
 
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)
@@ -627,11 +625,11 @@ Template.decisions_tab.events(
           betoken.createInvestment(address, kairoAmountInWeis, showTransaction)
         catch error
           showError(error.toString() || INPUT_ERR)
-    ).modal("show")
-)
+    }).modal("show")
+})
 
 checkKairoAmountError = (kairoAmountInWeis) ->
   if !kairoAmountInWeis.greaterThan(0)
-    throw "Stake amount should be positive."
+    throw new Error("Stake amount should be positive.")
   if kairoAmountInWeis.greaterThan(kairoBalance.get())
-    throw "You can't stake more Kairos than you have!"
+    throw new Error("You can't stake more Kairos than you have!")

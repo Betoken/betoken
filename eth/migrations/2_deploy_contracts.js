@@ -24,6 +24,8 @@
         // create TestDAI
         testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
         TestDAI = TestToken.at(testDAIAddr);
+        // mint DAI for owner
+        await TestDAI.mint(accounts[0], 1e9 * PRECISION);
         // create TestTokens
         tokens = require("../deployment_configs/kn_tokens.json");
         tokenAddrs = [];
@@ -58,7 +60,7 @@
           await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION);
         }
         // deploy BetokenFund contract
-        await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, TestKyberNetwork.address, TestDAI.address, accounts[0], config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, "0x0");
+        await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, TestKyberNetwork.address, TestDAI.address, TestTokenFactory.address, accounts[0], config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, "0x0");
         await ControlToken.transferOwnership(BetokenFund.address);
         return (await ShareToken.transferOwnership(BetokenFund.address));
       }

@@ -4,11 +4,11 @@
  * Sets the first account as defaultAccount
  * @return {Promise} .then(()->)
  */
-var ERC20, ETH_TOKEN_ADDRESS, Web3, getDefaultAccount, web3;
+var ERC20, Web3, getDefaultAccount, web3;
 
 import BigNumber from "bignumber.js";
 
-//Import web3
+// Import web3
 Web3 = require('web3');
 
 web3 = window.web3;
@@ -19,7 +19,7 @@ if (typeof web3 !== "undefined") {
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"));
 }
 
-ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+export var ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 getDefaultAccount = async function() {
   return web3.eth.defaultAccount = ((await web3.eth.getAccounts()))[0];
@@ -27,7 +27,7 @@ getDefaultAccount = async function() {
 
 ERC20 = function(_tokenAddr) {
   var erc20ABI;
-  erc20ABI = require("./abi/ERC20.json").abi;
+  erc20ABI = require("./abi/ERC20.json");
   return new web3.eth.Contract(erc20ABI, _tokenAddr);
 };
 
@@ -41,12 +41,14 @@ export var Betoken = function(_address) {
   self.contracts = {
     betokenFund: null,
     controlToken: null,
-    shareToken: null
+    shareToken: null,
+    tokenFactory: null
   };
   self.addrs = {
     betokenFund: null,
     controlToken: null,
-    shareToken: null
+    shareToken: null,
+    tokenFactory: null
   };
   /*
   Getters
@@ -96,6 +98,12 @@ export var Betoken = function(_address) {
     }
     return ERC20(_tokenAddr).methods.decimals().call();
   };
+  // Uses TestTokenFactory to obtain a token's address from its symbol
+  self.tokenSymbolToAddress = function(_symbol) {
+    var symbolHash;
+    symbolHash = web3.utils.soliditySha3(_symbol);
+    return self.contracts.tokenFactory.methods.createdTokens(symbolHash).call();
+  };
   /**
    * Gets the Kairo balance of an address
    * @param  {String} _address the address whose balance we're getting
@@ -136,22 +144,12 @@ export var Betoken = function(_address) {
   ChangeMakingTime functions
   */
   /**
-   * Allows user to deposit into the GroupFund
-   * @param  {BigNumber} _amountInWeis the deposit amount
+   * Allows user to deposit into the fund
+   * @param  {String} _tokenAddr the token address
+   * @param  {BigNumber} _tokenAmount the deposit token amount
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.deposit = async function(_amountInWeis, _callback) {
-    var funcSignature;
-    funcSignature = web3.eth.abi.encodeFunctionSignature("deposit()");
-    await getDefaultAccount();
-    return web3.eth.sendTransaction({
-      from: web3.eth.defaultAccount,
-      to: self.addrs.betokenFund,
-      value: _amountInWeis,
-      data: funcSignature
-    }).on("transactionHash", _callback);
-  };
   self.depositToken = async function(_tokenAddr, _tokenAmount, _callback) {
     var amount, token;
     await getDefaultAccount();
@@ -168,17 +166,12 @@ export var Betoken = function(_address) {
     }).on("transactionHash", _callback));
   };
   /**
-   * Allows user to withdraw from GroupFund balance
-   * @param  {BigNumber} _amountInWeis the withdrawl amount
+   * Allows user to withdraw from fund balance
+   * @param  {String} _tokenAddr the token address
+   * @param  {BigNumber} _amountInDAI the withdrawal amount in DAI
    * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.withdraw = async function(_amountInWeis, _callback) {
-    await getDefaultAccount();
-    return self.contracts.betokenFund.methods.withdraw(_amountInWeis).send({
-      from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
-  };
   self.withdrawToken = async function(_tokenAddr, _amountInDAI, _callback) {
     var amount;
     await getDefaultAccount();
@@ -304,29 +297,35 @@ export var Betoken = function(_address) {
   Object Initialization
   */
   self.init = function() {
-    var betokenFundABI;
-    //Initialize GroupFund contract
+    var betokenFundABI, minimeABI;
+    // Initialize BetokenFund contract
     self.addrs.betokenFund = _address;
-    betokenFundABI = require("./abi/BetokenFund.json").abi;
+    betokenFundABI = require("./abi/BetokenFund.json");
     self.contracts.betokenFund = new web3.eth.Contract(betokenFundABI, self.addrs.betokenFund);
-    //Get ControlToken address
-    return self.contracts.betokenFund.methods.controlTokenAddr().call().then(function(_controlTokenAddr) {
-      var controlTokenABI;
-      //Initialize ControlToken contract
-      self.addrs.controlToken = _controlTokenAddr;
-      controlTokenABI = require("./abi/ControlToken.json").abi;
-      self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken);
-      //Get ShareToken address
-      return self.contracts.betokenFund.methods.shareTokenAddr().call();
-    }).then(function(_shareTokenAddr) {
-      var shareTokenABI;
-      //Initialize ShareToken contract
-      self.addrs.shareToken = _shareTokenAddr;
-      shareTokenABI = require("./abi/ShareToken.json").abi;
-      return self.contracts.shareToken = new web3.eth.Contract(shareTokenABI, self.addrs.shareToken);
-    });
+    // Get token addresses
+    minimeABI = require("./abi/MiniMeToken.json");
+    return Promise.all([
+      self.contracts.betokenFund.methods.controlTokenAddr().call().then(function(_addr) {
+        // Initialize ControlToken contract
+        self.addrs.controlToken = _addr;
+        return self.contracts.controlToken = new web3.eth.Contract(minimeABI,
+      _addr);
+      }),
+      self.contracts.betokenFund.methods.shareTokenAddr().call().then(function(_addr) {
+        // Initialize ShareToken contract
+        self.addrs.shareToken = _addr;
+        return self.contracts.shareToken = new web3.eth.Contract(minimeABI,
+      _addr);
+      }),
+      self.contracts.betokenFund.methods.tokenFactoryAddr().call().then(function(_addr) {
+        var factoryABI;
+        // Initialize TestTokenFactory contract
+        self.addrs.tokenFactory = _addr;
+        factoryABI = require("./abi/TestTokenFactory.json");
+        return self.contracts.tokenFactory = new web3.eth.Contract(factoryABI,
+      _addr);
+      })
+    ]);
   };
   return self;
 };
-
-//# sourceMappingURL=betoken.js.map

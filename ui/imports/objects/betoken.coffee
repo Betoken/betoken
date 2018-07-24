@@ -1,6 +1,6 @@
 import BigNumber from "bignumber.js"
 
-#Import web3
+# Import web3
 Web3 = require 'web3'
 web3 = window.web3
 if typeof web3 != "undefined"
@@ -8,7 +8,7 @@ if typeof web3 != "undefined"
 else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
-ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+export ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
 ###*
  * Sets the first account as defaultAccount
@@ -18,7 +18,7 @@ getDefaultAccount = () ->
   web3.eth.defaultAccount = (await web3.eth.getAccounts())[0]
 
 ERC20 = (_tokenAddr) ->
-  erc20ABI = require("./abi/ERC20.json").abi
+  erc20ABI = require("./abi/ERC20.json")
   return new web3.eth.Contract(erc20ABI, _tokenAddr)
 
 ###*
@@ -31,10 +31,12 @@ export Betoken = (_address) ->
     betokenFund: null
     controlToken: null
     shareToken: null
+    tokenFactory: null
   self.addrs =
     betokenFund: null
     controlToken: null
     shareToken: null
+    tokenFactory: null
 
   ###
     Getters
@@ -76,6 +78,11 @@ export Betoken = (_address) ->
     if _tokenAddr == ETH_TOKEN_ADDRESS
       return Promise.resolve().then(() -> 18)
     return ERC20(_tokenAddr).methods.decimals().call()
+
+  # Uses TestTokenFactory to obtain a token's address from its symbol
+  self.tokenSymbolToAddress = (_symbol) ->
+    symbolHash = web3.utils.soliditySha3(_symbol)
+    return self.contracts.tokenFactory.methods.createdTokens(symbolHash).call()
 
 
   ###*
@@ -239,27 +246,31 @@ export Betoken = (_address) ->
   ###
 
   self.init = () ->
-    #Initialize GroupFund contract
+    # Initialize BetokenFund contract
     self.addrs.betokenFund = _address
-    betokenFundABI = require("./abi/BetokenFund.json").abi
+    betokenFundABI = require("./abi/BetokenFund.json")
     self.contracts.betokenFund = new web3.eth.Contract(betokenFundABI, self.addrs.betokenFund)
 
-    #Get ControlToken address
-    return self.contracts.betokenFund.methods.controlTokenAddr().call().then(
-      (_controlTokenAddr) ->
-        #Initialize ControlToken contract
-        self.addrs.controlToken = _controlTokenAddr
-        controlTokenABI = require("./abi/ControlToken.json").abi
-        self.contracts.controlToken = new web3.eth.Contract(controlTokenABI, self.addrs.controlToken)
-
-        #Get ShareToken address
-        return self.contracts.betokenFund.methods.shareTokenAddr().call()
-    ).then(
-      (_shareTokenAddr) ->
-        #Initialize ShareToken contract
-        self.addrs.shareToken = _shareTokenAddr
-        shareTokenABI = require("./abi/ShareToken.json").abi
-        self.contracts.shareToken = new web3.eth.Contract(shareTokenABI, self.addrs.shareToken)
-    )
+    # Get token addresses
+    minimeABI = require("./abi/MiniMeToken.json")
+    return Promise.all([
+      self.contracts.betokenFund.methods.controlTokenAddr().call().then(
+        (_addr) ->
+          # Initialize ControlToken contract
+          self.addrs.controlToken = _addr
+          self.contracts.controlToken = new web3.eth.Contract(minimeABI, _addr)
+      ), self.contracts.betokenFund.methods.shareTokenAddr().call().then(
+        (_addr) ->
+          # Initialize ShareToken contract
+          self.addrs.shareToken = _addr
+          self.contracts.shareToken = new web3.eth.Contract(minimeABI, _addr)
+      ), self.contracts.betokenFund.methods.tokenFactoryAddr().call().then(
+        (_addr) ->
+          # Initialize TestTokenFactory contract
+          self.addrs.tokenFactory = _addr
+          factoryABI = require("./abi/TestTokenFactory.json")
+          self.contracts.tokenFactory = new web3.eth.Contract(factoryABI, _addr)
+      )
+    ])
 
   return self

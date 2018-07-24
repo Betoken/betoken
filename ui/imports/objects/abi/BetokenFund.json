@@ -1,1144 +1,1229 @@
-{
-  "abi": [
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "developerFeeRate",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "totalFundsInDAI",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "isMaliciousCoin",
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "allowEmergencyWithdraw",
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "developerFeeAccount",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "assetFeeRate",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "startTimeOfCyclePhase",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "cycleNumber",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "unpause",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "paused",
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "commissionRate",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "functionCallReward",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "daiAddr",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "lastCommissionRedemption",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "pause",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "owner",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
-          "name": "",
-          "type": "address"
-        },
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "userInvestments",
-      "outputs": [
-        {
-          "name": "tokenAddress",
-          "type": "address"
-        },
-        {
-          "name": "cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "name": "stake",
-          "type": "uint256"
-        },
-        {
-          "name": "tokenAmount",
-          "type": "uint256"
-        },
-        {
-          "name": "buyPrice",
-          "type": "uint256"
-        },
-        {
-          "name": "sellPrice",
-          "type": "uint256"
-        },
-        {
-          "name": "isSold",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "kyberAddr",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "exitFeeRate",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "totalCommission",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "shareTokenAddr",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "previousVersion",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "controlTokenAddr",
-      "outputs": [
-        {
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "transferOwnership",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "cyclePhase",
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "name": "_cTokenAddr",
-          "type": "address"
-        },
-        {
-          "name": "_sTokenAddr",
-          "type": "address"
-        },
-        {
-          "name": "_kyberAddr",
-          "type": "address"
-        },
-        {
-          "name": "_daiAddr",
-          "type": "address"
-        },
-        {
-          "name": "_developerFeeAccount",
-          "type": "address"
-        },
-        {
-          "name": "_phaseLengths",
-          "type": "uint256[3]"
-        },
-        {
-          "name": "_commissionRate",
-          "type": "uint256"
-        },
-        {
-          "name": "_assetFeeRate",
-          "type": "uint256"
-        },
-        {
-          "name": "_developerFeeRate",
-          "type": "uint256"
-        },
-        {
-          "name": "_exitFeeRate",
-          "type": "uint256"
-        },
-        {
-          "name": "_functionCallReward",
-          "type": "uint256"
-        },
-        {
-          "name": "_previousVersion",
-          "type": "address"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "payable": true,
-      "stateMutability": "payable",
-      "type": "fallback"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "name": "_newPhase",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "ChangedPhase",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "name": "_sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_tokenAddress",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_tokenAmount",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_daiAmount",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "Deposit",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "name": "_sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_tokenAddress",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_tokenAmount",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "daiAmount",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "Withdraw",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "name": "_sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_id",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_tokenAddress",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_stakeInWeis",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_buyPrice",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_costDAIAmount",
-          "type": "uint256"
-        }
-      ],
-      "name": "CreatedInvestment",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "name": "_sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_investmentId",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_receivedKairos",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_sellPrice",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_earnedDAIAmount",
-          "type": "uint256"
-        }
-      ],
-      "name": "SoldInvestment",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_beforeTotalFunds",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_afterTotalFunds",
-          "type": "uint256"
-        }
-      ],
-      "name": "ROI",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "name": "_sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_commission",
-          "type": "uint256"
-        }
-      ],
-      "name": "CommissionPaid",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "_cycleNumber",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "name": "_totalCommissionInWeis",
-          "type": "uint256"
-        }
-      ],
-      "name": "TotalCommissionPaid",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "Pause",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "Unpause",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "name": "previousOwner",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "name": "newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "OwnershipTransferred",
-      "type": "event"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
-          "name": "_userAddr",
-          "type": "address"
-        }
-      ],
-      "name": "investmentsCount",
-      "outputs": [
-        {
-          "name": "_count",
-          "type": "uint256"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
-          "name": "_userAddr",
-          "type": "address"
-        }
-      ],
-      "name": "getInvestments",
-      "outputs": [
-        {
-          "components": [
-            {
-              "name": "tokenAddress",
-              "type": "address"
-            },
-            {
-              "name": "cycleNumber",
-              "type": "uint256"
-            },
-            {
-              "name": "stake",
-              "type": "uint256"
-            },
-            {
-              "name": "tokenAmount",
-              "type": "uint256"
-            },
-            {
-              "name": "buyPrice",
-              "type": "uint256"
-            },
-            {
-              "name": "sellPrice",
-              "type": "uint256"
-            },
-            {
-              "name": "isSold",
-              "type": "bool"
-            }
-          ],
-          "name": "",
-          "type": "tuple[]"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "getPhaseLengths",
-      "outputs": [
-        {
-          "name": "_phaseLengths",
-          "type": "uint256[3]"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_tokenAddr",
-          "type": "address"
-        }
-      ],
-      "name": "emergencyDumpToken",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_investmentId",
-          "type": "uint256"
-        }
-      ],
-      "name": "emergencyRedeemStake",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "emergencyUpdateBalance",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newVal",
-          "type": "bool"
-        }
-      ],
-      "name": "setAllowEmergencyWithdraw",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "emergencyWithdraw",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newAddr",
-          "type": "address"
-        }
-      ],
-      "name": "changeKyberNetworkAddress",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newAddr",
-          "type": "address"
-        }
-      ],
-      "name": "changeDeveloperFeeAccount",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newAddr",
-          "type": "address"
-        }
-      ],
-      "name": "changeDAIAddress",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newProp",
-          "type": "uint256"
-        }
-      ],
-      "name": "changeCommissionRate",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newProp",
-          "type": "uint256"
-        }
-      ],
-      "name": "changeAssetFeeRate",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newProp",
-          "type": "uint256"
-        }
-      ],
-      "name": "changeDeveloperFeeProportion",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newProp",
-          "type": "uint256"
-        }
-      ],
-      "name": "changeExitFeeRate",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newVal",
-          "type": "uint256"
-        }
-      ],
-      "name": "changeCallReward",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newVal",
-          "type": "uint256[3]"
-        }
-      ],
-      "name": "changePhaseLengths",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "changeControlTokenOwner",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_coin",
-          "type": "address"
-        },
-        {
-          "name": "_status",
-          "type": "bool"
-        }
-      ],
-      "name": "setMaliciousCoinStatus",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "nextPhase",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "deposit",
-      "outputs": [],
-      "payable": true,
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_tokenAddr",
-          "type": "address"
-        },
-        {
-          "name": "_tokenAmount",
-          "type": "uint256"
-        }
-      ],
-      "name": "depositToken",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_amountInDAI",
-          "type": "uint256"
-        }
-      ],
-      "name": "withdraw",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_tokenAddr",
-          "type": "address"
-        },
-        {
-          "name": "_amountInDAI",
-          "type": "uint256"
-        }
-      ],
-      "name": "withdrawToken",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_tokenAddress",
-          "type": "address"
-        },
-        {
-          "name": "_stake",
-          "type": "uint256"
-        }
-      ],
-      "name": "createInvestment",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_investmentId",
-          "type": "uint256"
-        }
-      ],
-      "name": "sellInvestmentAsset",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "redeemCommission",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [],
-      "name": "redeemCommissionInShares",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_tokenAddr",
-          "type": "address"
-        }
-      ],
-      "name": "sellLeftoverToken",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    }
-  ]
-}
+[
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "developerFeeRate",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "totalFundsInDAI",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "isMaliciousCoin",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "allowEmergencyWithdraw",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "developerFeeAccount",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "assetFeeRate",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "startTimeOfCyclePhase",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "cycleNumber",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "tokenFactoryAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "commissionPhaseStartBlock",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "paused",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "commissionRate",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "functionCallReward",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "daiAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "totalCommissionOfCycle",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "lastCommissionRedemption",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userInvestments",
+    "outputs": [
+      {
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "name": "cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "name": "stake",
+        "type": "uint256"
+      },
+      {
+        "name": "tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "name": "buyPrice",
+        "type": "uint256"
+      },
+      {
+        "name": "sellPrice",
+        "type": "uint256"
+      },
+      {
+        "name": "isSold",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "kyberAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "totalCommissionLeft",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "exitFeeRate",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "shareTokenAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "previousVersion",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "controlTokenAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "cyclePhase",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "_cTokenAddr",
+        "type": "address"
+      },
+      {
+        "name": "_sTokenAddr",
+        "type": "address"
+      },
+      {
+        "name": "_kyberAddr",
+        "type": "address"
+      },
+      {
+        "name": "_daiAddr",
+        "type": "address"
+      },
+      {
+        "name": "_tokenFactoryAddr",
+        "type": "address"
+      },
+      {
+        "name": "_developerFeeAccount",
+        "type": "address"
+      },
+      {
+        "name": "_phaseLengths",
+        "type": "uint256[3]"
+      },
+      {
+        "name": "_commissionRate",
+        "type": "uint256"
+      },
+      {
+        "name": "_assetFeeRate",
+        "type": "uint256"
+      },
+      {
+        "name": "_developerFeeRate",
+        "type": "uint256"
+      },
+      {
+        "name": "_exitFeeRate",
+        "type": "uint256"
+      },
+      {
+        "name": "_functionCallReward",
+        "type": "uint256"
+      },
+      {
+        "name": "_previousVersion",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "payable": true,
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "_newPhase",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "ChangedPhase",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "_sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_daiAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "Deposit",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "_sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "daiAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "Withdraw",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "_sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_stakeInWeis",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_buyPrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_costDAIAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "CreatedInvestment",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "_sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_investmentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_receivedKairos",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_sellPrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_earnedDAIAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "SoldInvestment",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_beforeTotalFunds",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_afterTotalFunds",
+        "type": "uint256"
+      }
+    ],
+    "name": "ROI",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "_sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_commission",
+        "type": "uint256"
+      }
+    ],
+    "name": "CommissionPaid",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_cycleNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_totalCommissionInDAI",
+        "type": "uint256"
+      }
+    ],
+    "name": "TotalCommissionPaid",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "Pause",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "Unpause",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "previousOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipRenounced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_userAddr",
+        "type": "address"
+      }
+    ],
+    "name": "investmentsCount",
+    "outputs": [
+      {
+        "name": "_count",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getPhaseLengths",
+    "outputs": [
+      {
+        "name": "_phaseLengths",
+        "type": "uint256[3]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_tokenAddr",
+        "type": "address"
+      }
+    ],
+    "name": "emergencyDumpToken",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_investmentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "emergencyRedeemStake",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "emergencyRedeemCommission",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "emergencyUpdateBalance",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newVal",
+        "type": "bool"
+      }
+    ],
+    "name": "setAllowEmergencyWithdraw",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "emergencyWithdraw",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newAddr",
+        "type": "address"
+      }
+    ],
+    "name": "changeKyberNetworkAddress",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newAddr",
+        "type": "address"
+      }
+    ],
+    "name": "changeDeveloperFeeAccount",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newAddr",
+        "type": "address"
+      }
+    ],
+    "name": "changeDAIAddress",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newProp",
+        "type": "uint256"
+      }
+    ],
+    "name": "changeCommissionRate",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newProp",
+        "type": "uint256"
+      }
+    ],
+    "name": "changeAssetFeeRate",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newProp",
+        "type": "uint256"
+      }
+    ],
+    "name": "changeDeveloperFeeRate",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newProp",
+        "type": "uint256"
+      }
+    ],
+    "name": "changeExitFeeRate",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newVal",
+        "type": "uint256"
+      }
+    ],
+    "name": "changeCallReward",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newVal",
+        "type": "uint256[3]"
+      }
+    ],
+    "name": "changePhaseLengths",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "changeControlTokenOwner",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_coin",
+        "type": "address"
+      },
+      {
+        "name": "_status",
+        "type": "bool"
+      }
+    ],
+    "name": "setMaliciousCoinStatus",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "nextPhase",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_tokenAddr",
+        "type": "address"
+      },
+      {
+        "name": "_tokenAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "depositToken",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_tokenAddr",
+        "type": "address"
+      },
+      {
+        "name": "_amountInDAI",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawToken",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_tokenAddress",
+        "type": "address"
+      },
+      {
+        "name": "_stake",
+        "type": "uint256"
+      }
+    ],
+    "name": "createInvestment",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_investmentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "sellInvestmentAsset",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "redeemCommission",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "redeemCommissionInShares",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_tokenAddr",
+        "type": "address"
+      }
+    ],
+    "name": "sellLeftoverToken",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_owner",
+        "type": "address"
+      }
+    ],
+    "name": "proxyPayment",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": true,
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_from",
+        "type": "address"
+      },
+      {
+        "name": "_to",
+        "type": "address"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "onTransfer",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "name": "_spender",
+        "type": "address"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "onApprove",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

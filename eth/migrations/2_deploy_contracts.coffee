@@ -21,6 +21,9 @@ module.exports = (deployer, network, accounts) ->
       testDAIAddr = (await TokenFactory.newToken("DAI Stable Coin", "DAI", 18)).logs[0].args.addr
       TestDAI = TestToken.at(testDAIAddr)
 
+      # mint DAI for owner
+      await TestDAI.mint(accounts[0], 1e9 * PRECISION)
+
       # create TestTokens
       tokens = require "../deployment_configs/kn_tokens.json"
       tokenAddrs = []
@@ -55,6 +58,7 @@ module.exports = (deployer, network, accounts) ->
         ShareToken.address,
         TestKyberNetwork.address,
         TestDAI.address,
+        TestTokenFactory.address,
         accounts[0], #developerFeeAccount
         config.phaseLengths,
         config.commissionRate,

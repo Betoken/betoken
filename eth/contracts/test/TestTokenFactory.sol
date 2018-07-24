@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 import "./TestToken.sol";
 
 contract TestTokenFactory {
-  mapping(bytes32 => address) private createdTokens;
+  mapping(bytes32 => address) public createdTokens;
 
   event CreatedToken(string symbol, address addr);
 
