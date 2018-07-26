@@ -187,6 +187,25 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
+   * Betoken Omen specific functions
+   */
+
+  /**
+   * @notice Mints `_amount` Kairo for each address in the receipients list.
+   * @dev Remove for Mainnet
+   */
+  function airdropKairo(address[] _receipients, uint256 _amount) 
+    public 
+    onlyOwner
+    whenNotPaused
+    nonReentrant
+  {
+    for (uint256 i = 0; i < _receipients.length; i = i.add(1)) {
+      cToken.generateTokens(_receipients[i], _amount);
+    }
+  }
+
+  /**
    * Getters
    */
 

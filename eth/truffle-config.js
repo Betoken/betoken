@@ -13,7 +13,7 @@ module.exports = {
     rinkeby: {
       provider: function() {
         const mnemonic = require("./secret.json").mnemonic;
-        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI")
+        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724")
       },
       host: "localhost",
       port: 8545,
