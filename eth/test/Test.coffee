@@ -45,6 +45,25 @@ KRO = (fund) ->
 epsilon_equal = (curr, prev) ->
   curr.sub(prev).div(prev).abs().lt(epsilon)
 
+contract("omen_airdrop", (accounts) ->
+  owner = accounts[0]
+  receipients = accounts.slice(3)
+  amount = 1e2 * PRECISION
+  
+  it("do_airdrop", () ->
+    this.fund = await FUND(1, -1, owner)
+    kro = await KRO(this.fund)
+
+    # do airdrop
+    await this.fund.airdropKairo(receipients, amount, {from: owner})
+
+    # check balances
+    for r in receipients
+      received = (await kro.balanceOf.call(r)).toNumber()
+      assert.equal(received, amount, "received airdrop amount incorrect")
+  )
+)
+
 contract("first_cycle", (accounts) ->
   owner = accounts[0]
   account = accounts[1]

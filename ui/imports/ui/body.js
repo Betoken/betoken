@@ -37,7 +37,7 @@ if (web3 != null) {
   web3 = new Web3(web3.currentProvider);
   hasWeb3 = true;
 } else {
-  web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"));
+  web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724"));
 }
 
 // Fund object

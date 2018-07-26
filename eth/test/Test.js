@@ -77,6 +77,30 @@
     return curr.sub(prev).div(prev).abs().lt(epsilon);
   };
 
+  contract("omen_airdrop", function(accounts) {
+    var amount, owner, receipients;
+    owner = accounts[0];
+    receipients = accounts.slice(3);
+    amount = 1e2 * PRECISION;
+    return it("do_airdrop", async function() {
+      var k, kro, len, r, received, results;
+      this.fund = (await FUND(1, -1, owner));
+      kro = (await KRO(this.fund));
+      // do airdrop
+      await this.fund.airdropKairo(receipients, amount, {
+        from: owner
+      });
+// check balances
+      results = [];
+      for (k = 0, len = receipients.length; k < len; k++) {
+        r = receipients[k];
+        received = ((await kro.balanceOf.call(r))).toNumber();
+        results.push(assert.equal(received, amount, "received airdrop amount incorrect"));
+      }
+      return results;
+    });
+  });
+
   contract("first_cycle", function(accounts) {
     var account, owner;
     owner = accounts[0];
