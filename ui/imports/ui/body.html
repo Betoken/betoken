@@ -52,7 +52,7 @@
         <p>You can monitor the status of your transaction here: <a target="_blank" href="https://{{network_prefix}}etherscan.io/tx/{{transaction_hash}}">{{transaction_hash}}</a></p>
       </div>
       <div class="actions">
-        <div class="ui ok button fluid" style="background-color: #1fdaa6">
+        <div class="ui ok positive button fluid" style="background-color: #1fdaa6">
           Hooray!
         </div>
       </div>
@@ -65,7 +65,7 @@
         <p>{{{error_msg}}}</p>
       </div>
       <div class="actions">
-        <div class="ui ok button fluid">
+        <div class="ui ok positive button fluid" style="background-color: #1fdaa6">
           Got It
         </div>
       </div>
@@ -78,7 +78,7 @@
         <p>{{success_msg}}</p>
       </div>
       <div class="actions">
-        <div class="ui ok button fluid" style="background-color: #1fdaa6">
+        <div class="ui ok positive button fluid" style="background-color: #1fdaa6">
           Hooray!
         </div>
       </div>
@@ -316,6 +316,10 @@
     </div>
 
     <div class="ui horizontal divider"></div>
+    <div class="ui horizontal divider"></div>
+    <div class="ui horizontal divider"></div>
+    <div class="ui horizontal divider"></div>
+    <p></p>
     
     <button class="deposit_button {{is_disabled}} ui primary bottom attached button fluid">Deposit</button>
   </div>
@@ -395,7 +399,7 @@
 <template name="stats_tab">
   <div class="ui grid stackable">
     <div class="twelve wide column">
-      <canvas id="myChart" width="400" height="400"></canvas>
+      <canvas id="ROIChart" width="400" height="400"></canvas>
     </div>
 
     <div class="four wide column">
@@ -540,7 +544,7 @@
       </div>
     </div>
     <div class="actions">
-      <div class="ui ok button fluid" style="background-color: #1fdaa6">
+      <div class="ui ok positive button fluid" style="background-color: #1fdaa6">
         Invest
       </div>
     </div>

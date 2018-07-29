@@ -131,14 +131,13 @@ export var Betoken = function(_address) {
   */
   /**
    * Ends the current phase
-   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise} .then(()->)
    */
-  self.nextPhase = async function(_callback) {
+  self.nextPhase = async function(_onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.betokenFund.methods.nextPhase().send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /*
   ChangeMakingTime functions
@@ -147,75 +146,67 @@ export var Betoken = function(_address) {
    * Allows user to deposit into the fund
    * @param  {String} _tokenAddr the token address
    * @param  {BigNumber} _tokenAmount the deposit token amount
-   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.depositToken = async function(_tokenAddr, _tokenAmount, _callback) {
+  self.depositToken = async function(_tokenAddr, _tokenAmount, _onTxHash, _onReceipt) {
     var amount, token;
     await getDefaultAccount();
     token = ERC20(_tokenAddr);
     amount = BigNumber(_tokenAmount).mul(BigNumber(10).toPower((await self.getTokenDecimals(_tokenAddr))));
     await token.methods.approve(self.addrs.betokenFund, amount).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
-    await self.contracts.betokenFund.methods.depositToken(_tokenAddr, amount).send({
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
+    return self.contracts.betokenFund.methods.depositToken(_tokenAddr, amount).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
-    return (await token.methods.approve(self.addrs.betokenFund, 0).send({
-      from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback));
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /**
    * Allows user to withdraw from fund balance
    * @param  {String} _tokenAddr the token address
    * @param  {BigNumber} _amountInDAI the withdrawal amount in DAI
-   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.withdrawToken = async function(_tokenAddr, _amountInDAI, _callback) {
+  self.withdrawToken = async function(_tokenAddr, _amountInDAI, _onTxHash, _onReceipt) {
     var amount;
     await getDefaultAccount();
     amount = BigNumber(_amountInDAI).mul(1e18);
     return self.contracts.betokenFund.methods.withdrawToken(_tokenAddr, amount).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /**
    * Withdraws all of user's balance in cases of emergency
-   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}           .then(()->)
    */
-  self.emergencyWithdraw = async function(_callback) {
+  self.emergencyWithdraw = async function(_onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.betokenFund.methods.emergencyWithdraw().send({
       from: web3.eth.defaultAccount
-    }).on("transactionhash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /**
    * Sends Kairo to another address
    * @param  {String} _to           the recipient address
    * @param  {BigNumber} _amountInWeis the amount
-   * @param  {Function} _callback     will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.sendKairo = async function(_to, _amountInWeis, _callback) {
+  self.sendKairo = async function(_to, _amountInWeis, _onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.controlToken.methods.transfer(_to, _amountInWeis).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /**
    * Sends Shares to another address
    * @param  {String} _to           the recipient address
    * @param  {BigNumber} _amountInWeis the amount
-   * @param  {Function} _callback     will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.sendShares = async function(_to, _amountInWeis, _callback) {
+  self.sendShares = async function(_to, _amountInWeis, _onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.shareToken.methods.transfer(_to, _amountInWeis).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /*
   ProposalMakingTime functions
@@ -263,35 +254,34 @@ export var Betoken = function(_address) {
    * Creates proposal
    * @param  {String} _tokenAddress the token address
    * @param  {BigNumber} _stakeInWeis the investment amount
-   * @param  {Function} _callback will be called after tx hash is generated
    * @return {Promise}               .then(()->)
    */
-  self.createInvestment = async function(_tokenAddress, _stakeInWeis, _callback) {
+  self.createInvestment = async function(_tokenAddress, _stakeInWeis, _onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.betokenFund.methods.createInvestment(_tokenAddress, _stakeInWeis).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
-  self.sellAsset = async function(_proposalId, _callback) {
+  self.sellAsset = async function(_proposalId, _onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.betokenFund.methods.sellInvestmentAsset(_proposalId).send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /*
   Finalized Phase functions
   */
-  self.redeemCommission = async function(_callback) {
+  self.redeemCommission = async function(_onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.betokenFund.methods.redeemCommission().send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
-  self.redeemCommissionInShares = async function(_callback) {
+  self.redeemCommissionInShares = async function(_onTxHash, _onReceipt) {
     await getDefaultAccount();
     return self.contracts.betokenFund.methods.redeemCommissionInShares().send({
       from: web3.eth.defaultAccount
-    }).on("transactionHash", _callback);
+    }).on("transactionHash", _onTxHash).on("receipt", _onReceipt);
   };
   /*
   Object Initialization

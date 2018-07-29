@@ -23,7 +23,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724"))
 
 # Fund object
-BETOKEN_ADDR = "0x539e1b6133e98640579d3dd38f9e291d30fb5940"
+BETOKEN_ADDR = "0xef4a097bcc1250de8b68839210e3d0796481e2b8"
 betoken = new Betoken(BETOKEN_ADDR)
 
 # Session data
@@ -73,18 +73,22 @@ transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
 
+
 showTransaction = (_txHash) ->
   transactionHash.set(_txHash)
   $("#transaction_sent_modal").modal("show")
   return
 
+
 showError = (_msg) ->
   errorMessage.set(_msg)
   $("#error_modal").modal("show")
 
+
 showSuccess = (_msg) ->
   successMessage.set(_msg)
   $("#success_modal").modal("show")
+
 
 copyTextToClipboard = (text) ->
   textArea = document.createElement("textarea")
@@ -128,6 +132,7 @@ copyTextToClipboard = (text) ->
   document.body.removeChild(textArea)
   return
 
+
 clock = () ->
   setInterval(
     () ->
@@ -150,8 +155,60 @@ clock = () ->
         showCountdown.set(false)
   , 1000)
 
+
+drawChart = () ->
+  chart = new Chart($("#ROIChart"),
+    type: "line",
+    data:
+      datasets: [
+        label: "ROI Per Cycle"
+        backgroundColor: "#b9eee1"
+        borderColor: "#1fdaa6"
+        data: []
+      ]
+    ,
+    options:
+      scales:
+        xAxes: [
+          type: "linear"
+          position: "bottom"
+          scaleLabel:
+            display: true
+            labelString: "Investment Cycle"
+          ticks:
+            stepSize: 1
+          gridLines:
+            display: false
+        ]
+        yAxes: [
+          type: "linear"
+          position: "left"
+          scaleLabel:
+            display: true
+            labelString: "Percent"
+          ticks:
+            beginAtZero: true
+          gridLines:
+            display: false
+        ]
+  )
+
+
+loadFundMetadata = () ->
+  # get params
+  phaseLengths.set((await betoken.getPrimitiveVar("getPhaseLengths")).map((x) -> +x))
+  commissionRate.set(BigNumber(await betoken.getPrimitiveVar("commissionRate")).div(1e18))
+  assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate")))
+  
+  # Get contract addresses
+  kairoAddr.set(betoken.addrs.controlToken)
+  sharesAddr.set(betoken.addrs.shareToken)
+  kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr"))
+  daiAddr.set(await betoken.getPrimitiveVar("daiAddr"))
+  tokenFactoryAddr.set(await betoken.addrs.tokenFactory)
+
+
 loadFundData = () ->
-  investments = []
   receivedROICount = 0
     
   ###
@@ -160,23 +217,14 @@ loadFundData = () ->
   cycleNumber.set(+await betoken.getPrimitiveVar("cycleNumber"))
   cyclePhase.set(+await betoken.getPrimitiveVar("cyclePhase"))
   startTimeOfCyclePhase.set(+await betoken.getPrimitiveVar("startTimeOfCyclePhase"))
-  phaseLengths.set((await betoken.getPrimitiveVar("getPhaseLengths")).map((x) -> +x))
-  commissionRate.set(BigNumber(await betoken.getPrimitiveVar("commissionRate")).div(1e18))
+  
   paused.set(await betoken.getPrimitiveVar("paused"))
   allowEmergencyWithdraw.set(await betoken.getPrimitiveVar("allowEmergencyWithdraw"))
   cycleTotalCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get())))
-  assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate")))
 
   sharesTotalSupply.set(BigNumber(await betoken.getShareTotalSupply()))
   totalFunds.set(BigNumber(await betoken.getPrimitiveVar("totalFundsInDAI")))
   kairoTotalSupply.set(BigNumber(await betoken.getKairoTotalSupply()))
-
-  # Get contract addresses
-  kairoAddr.set(betoken.addrs.controlToken)
-  sharesAddr.set(betoken.addrs.shareToken)
-  kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr"))
-  daiAddr.set(await betoken.getPrimitiveVar("daiAddr"))
-  tokenFactoryAddr.set(await betoken.addrs.tokenFactory)
 
   # Get statistics
   prevROI.set(BigNumber(0))
@@ -223,9 +271,11 @@ loadFundData = () ->
     # Update average ROI
     receivedROICount += 1
     avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
-  ###
-  # Get user related data
-  ###
+
+  return
+
+
+loadUserData = () ->
   if hasWeb3
     # Get user address
     userAddr = (await web3.eth.getAccounts())[0]
@@ -312,10 +362,9 @@ loadFundData = () ->
     getTransferHistory("KRO", false)
     getTransferHistory("BTKS", true)
     getTransferHistory("BTKS", false)
-      
-    return
 
-postFundLoad = () ->
+
+postLoadAllData = () ->
   $('a.item').tab()
 
   # Get Network ID
@@ -344,51 +393,28 @@ postFundLoad = () ->
   if !hasWeb3
     showError(NO_WEB3_ERR)
 
+
+loadAllData = () ->
+  await loadFundMetadata()
+  await loadFundData()
+  await loadUserData()
+
+
 $("document").ready(() ->
   $("table").tablesort()
 
   if web3?
     clock()
+    drawChart()
 
-    chart = new Chart($("#myChart"),
-      type: "line",
-      data:
-        datasets: [
-          label: "ROI Per Cycle"
-          backgroundColor: "#b9eee1"
-          borderColor: "#1fdaa6"
-          data: []
-        ]
-      ,
-      options:
-        scales:
-          xAxes: [
-            type: "linear"
-            position: "bottom"
-            scaleLabel:
-              display: true
-              labelString: "Investment Cycle"
-            ticks:
-              stepSize: 1
-            gridLines:
-              display: false
-          ]
-          yAxes: [
-            type: "linear"
-            position: "left"
-            scaleLabel:
-              display: true
-              labelString: "Percent"
-            ticks:
-              beginAtZero: true
-            gridLines:
-              display: false
-          ]
+    # Initialize Betoken object and then load data
+    betoken.init().then(() -> await loadAllData()).then(() -> await postLoadAllData()).then(
+      () ->
+        # refresh every 5 minutes
+        setInterval(loadAllData, 2 * 60 * 1000)
     )
-
-    #Initialize Betoken object
-    betoken.init().then(loadFundData).then(postFundLoad)
 )
+
 
 Template.body.helpers(
   transaction_hash: () -> transactionHash.get()
@@ -397,10 +423,12 @@ Template.body.helpers(
   success_msg: () -> successMessage.get()
 )
 
+
 Template.body.events(
   "click .copyable": (event) ->
     copyTextToClipboard(event.target.innerText)
 )
+
 
 Template.top_bar.helpers(
   show_countdown: () -> showCountdown.get()
@@ -416,19 +444,24 @@ Template.top_bar.helpers(
   network_name: () -> networkName.get()
 )
 
+
 Template.top_bar.events(
   "click .next_phase": (event) ->
     try
-      betoken.nextPhase(showTransaction)
+      betoken.nextPhase(showTransaction, () ->
+        await loadFundData()
+        await loadUserData()
+      )
     catch error
       console.log error
 
   "click .emergency_withdraw": (event) ->
-    betoken.emergencyWithdraw(showTransaction)
+    betoken.emergencyWithdraw(showTransaction, loadUserData)
 
   "click .info_button": (event) ->
     $("#contract_info_modal").modal("show")
 )
+
 
 Template.countdown_timer.helpers(
   day: () -> countdownDay.get()
@@ -437,12 +470,14 @@ Template.countdown_timer.helpers(
   second: () -> countdownSec.get()
 )
 
+
 Template.phase_indicator.helpers(
   phase_active: (index) ->
     if cyclePhase.get() == index
       return "active"
     return ""
 )
+
 
 Template.sidebar.helpers(
   user_address: () -> userAddress.get()
@@ -461,6 +496,7 @@ Template.sidebar.helpers(
       return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(roi.div(100).mul(commissionRate.get()).add(assetFeeRate.get().div(1e18))).toFormat(18)
     return BigNumber(0).toFormat(18)
 )
+
 
 Template.sidebar.events(
   "click .kairo_unit_switch": (event) ->
@@ -486,11 +522,15 @@ Template.sidebar.events(
       displayedInvestmentUnit.set("DAI")
 
   "click .redeem_commission": (event) ->
-    betoken.redeemCommission(showTransaction)
+    betoken.redeemCommission(showTransaction, loadUserData)
 
   "click .redeem_commission_in_shares": (event) ->
-    betoken.redeemCommissionInShares(showTransaction)
+    betoken.redeemCommissionInShares(showTransaction, () -> 
+      await loadFundData()
+      await loadUserData()
+    )
 )
+
 
 Template.transact_box.onCreated(
   () ->
@@ -499,6 +539,7 @@ Template.transact_box.onCreated(
     Template.instance().sendTokenAmountInputHasError = new ReactiveVar(false)
     Template.instance().sendTokenRecipientInputHasError = new ReactiveVar(false)
 )
+
 
 Template.transact_box.helpers({
   is_disabled: () ->
@@ -525,6 +566,7 @@ Template.transact_box.helpers({
   tokens: () -> TOKENS
 })
 
+
 Template.transact_box.events({
   "click .deposit_button": (event) ->
     try
@@ -537,7 +579,10 @@ Template.transact_box.events({
         return
 
       tokenAddr = await betoken.tokenSymbolToAddress(tokenSymbol)
-      betoken.depositToken(tokenAddr, amount, showTransaction)
+      betoken.depositToken(tokenAddr, amount, showTransaction, () -> 
+        await loadFundData()
+        await loadUserData()
+      )
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -552,7 +597,10 @@ Template.transact_box.events({
         return
 
       tokenAddr = await betoken.tokenSymbolToAddress(tokenSymbol)
-      betoken.withdrawToken(tokenAddr, amount, showTransaction)
+      betoken.withdrawToken(tokenAddr, amount, showTransaction, () -> 
+        await loadFundData()
+        await loadUserData()
+      )
     catch error
       Template.instance().withdrawInputHasError.set(true)
 
@@ -577,15 +625,16 @@ Template.transact_box.events({
         if amount.greaterThan(kairoBalance.get())
           Template.instance().sendTokenAmountInputHasError.set(true)
           return
-        betoken.sendKairo(toAddress, amount, showTransaction)
+        betoken.sendKairo(toAddress, amount, showTransaction, loadUserData)
       else if tokenType == "BTKS"
         if amount.greaterThan(sharesBalance.get())
           Template.instance().sendTokenAmountInputHasError.set(true)
           return
-        betoken.sendShares(toAddress, amount, showTransaction)
+        betoken.sendShares(toAddress, amount, showTransaction, loadUserData)
     catch
       Template.instance().sendTokenAmountInputHasError.set(true)
 })
+
 
 Template.stats_tab.helpers({
   cycle_length: () ->
@@ -598,6 +647,7 @@ Template.stats_tab.helpers({
   historical_commission: () -> historicalTotalCommission.get().div(1e18).toFormat(2)
 })
 
+
 Template.decisions_tab.helpers({
   investment_list: () -> investmentList.get()
   wei_to_eth: (_weis) -> BigNumber(_weis).div(1e18).toFormat(4)
@@ -606,11 +656,15 @@ Template.decisions_tab.helpers({
   tokens: () -> TOKENS
 })
 
+
 Template.decisions_tab.events({
   "click .sell_investment": (event) ->
     id = this.id
     if cyclePhase.get() == 1
-      betoken.sellAsset(id, showTransaction)
+      betoken.sellAsset(id, showTransaction, () -> 
+        await loadFundData()
+        await loadUserData()
+      )
 
   "click .new_investment": (event) ->
     $("#new_investment_modal").modal({
@@ -622,11 +676,12 @@ Template.decisions_tab.events({
           kairoAmountInWeis = BigNumber($("#stake_input_new")[0].value).times("1e18")
           checkKairoAmountError(kairoAmountInWeis)
 
-          betoken.createInvestment(address, kairoAmountInWeis, showTransaction)
+          betoken.createInvestment(address, kairoAmountInWeis, showTransaction, loadUserData)
         catch error
           showError(error.toString() || INPUT_ERR)
     }).modal("show")
 })
+
 
 checkKairoAmountError = (kairoAmountInWeis) ->
   if !kairoAmountInWeis.greaterThan(0)

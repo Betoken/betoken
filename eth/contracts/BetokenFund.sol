@@ -139,6 +139,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
+  event NewUser(address _user); // Omen only
+
   /**
    * Contract initialization functions
    */
@@ -202,6 +204,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   {
     for (uint256 i = 0; i < _receipients.length; i = i.add(1)) {
       cToken.generateTokens(_receipients[i], _amount);
+      emit NewUser(_receipients[i]);
     }
   }
 
