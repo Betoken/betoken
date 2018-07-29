@@ -77,4 +77,5 @@ module.exports = (deployer, network, accounts) ->
       await ShareToken.transferOwnership(BetokenFund.address)
 
       if network == "rinkeby"
-        BetokenFund.transferOwnership(HD_WALLET)
+        fund = await BetokenFund.deployed()
+        await fund.transferOwnership(HD_WALLET)

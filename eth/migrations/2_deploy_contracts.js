@@ -10,7 +10,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ControlToken, HD_WALLET, PRECISION, ShareToken, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, TokenFactory, config, i, j, k, len, len1, minimeFactory, testDAIAddr, token, tokenAddrs, tokenPrices, tokens;
+      var ControlToken, HD_WALLET, PRECISION, ShareToken, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, TokenFactory, config, fund, i, j, k, len, len1, minimeFactory, testDAIAddr, token, tokenAddrs, tokenPrices, tokens;
       if (network === "development" || network === "rinkeby") {
         // Testnet Migration
         config = require("../deployment_configs/rinkeby_beta.json");
@@ -66,7 +66,8 @@
         await ControlToken.transferOwnership(BetokenFund.address);
         await ShareToken.transferOwnership(BetokenFund.address);
         if (network === "rinkeby") {
-          return BetokenFund.transferOwnership(HD_WALLET);
+          fund = (await BetokenFund.deployed());
+          return (await fund.transferOwnership(HD_WALLET));
         }
       }
     });
