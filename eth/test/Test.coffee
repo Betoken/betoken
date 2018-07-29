@@ -88,7 +88,7 @@ contract("first_cycle", (accounts) ->
     st = await ST(this.fund)
     account2 = accounts[2]
 
-    # mint DAI for user
+    # give DAI to user
     amount = 1 * PRECISION
     await dai.mint(account2, amount, {from: owner})
 

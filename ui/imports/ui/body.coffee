@@ -272,6 +272,9 @@ loadFundData = () ->
     receivedROICount += 1
     avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
 
+  # load Kairo ranking
+  
+
   return
 
 
@@ -411,7 +414,10 @@ $("document").ready(() ->
     betoken.init().then(() -> await loadAllData()).then(() -> await postLoadAllData()).then(
       () ->
         # refresh every 5 minutes
-        setInterval(loadAllData, 2 * 60 * 1000)
+        setInterval(() ->
+          await loadFundData()
+          await loadUserData()
+        , 2 * 60 * 1000)
     )
 )
 

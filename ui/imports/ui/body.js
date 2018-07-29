@@ -333,6 +333,7 @@ loadFundData = async function() {
   }
 };
 
+// load Kairo ranking
 loadUserData = async function() {
   var getDepositWithdrawHistory, getTransferHistory, handleAllProposals, handleProposal, i, investments, userAddr;
   if (hasWeb3) {
@@ -508,7 +509,10 @@ $("document").ready(function() {
       return (await postLoadAllData());
     }).then(function() {
       // refresh every 5 minutes
-      return setInterval(loadAllData, 2 * 60 * 1000);
+      return setInterval(async function() {
+        await loadFundData();
+        return (await loadUserData());
+      }, 2 * 60 * 1000);
     });
   }
 });

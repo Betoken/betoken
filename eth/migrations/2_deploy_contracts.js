@@ -10,65 +10,110 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ControlToken, HD_WALLET, PRECISION, ShareToken, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, TokenFactory, config, fund, i, j, k, len, len1, minimeFactory, testDAIAddr, token, tokenAddrs, tokenPrices, tokens;
-      if (network === "development" || network === "rinkeby") {
-        // Testnet Migration
-        config = require("../deployment_configs/rinkeby_beta.json");
-        TestKyberNetwork = artifacts.require("TestKyberNetwork");
-        TestToken = artifacts.require("TestToken");
-        TestTokenFactory = artifacts.require("TestTokenFactory");
-        PRECISION = 1e18;
-        HD_WALLET = "0x45755b7876F0b67BE1BBdB700Bc0118A930A3cb8";
-        // deploy TestToken factory
-        await deployer.deploy(TestTokenFactory);
-        TokenFactory = (await TestTokenFactory.deployed());
-        // create TestDAI
-        testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
-        TestDAI = TestToken.at(testDAIAddr);
-        // mint DAI for owner
-        await TestDAI.mint(accounts[0], 1e7 * PRECISION); // ten million
-        
-        // create TestTokens
-        tokens = require("../deployment_configs/kn_tokens.json");
-        tokenAddrs = [];
-        for (j = 0, len = tokens.length; j < len; j++) {
-          token = tokens[j];
-          tokenAddrs.push(((await TokenFactory.newToken(token.name, token.symbol, token.decimals))).logs[0].args.addr);
-        }
-        tokenAddrs.push(TestDAI.address);
-        tokenPrices = ((function() {
-          var k, ref, results;
-          results = [];
-          for (i = k = 1, ref = tokens.length; (1 <= ref ? k <= ref : k >= ref); i = 1 <= ref ? ++k : --k) {
-            results.push(1000 * PRECISION);
+      var ControlToken, HD_WALLET, PRECISION, ShareToken, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, TokenFactory, config, fund, i, j, k, l, len, len1, len2, len3, m, minimeFactory, testDAIAddr, token, tokenAddrs, tokenPrices, tokens;
+      switch (network) {
+        case "development":
+          // Local testnet migration
+          config = require("../deployment_configs/testnet.json");
+          TestKyberNetwork = artifacts.require("TestKyberNetwork");
+          TestToken = artifacts.require("TestToken");
+          TestTokenFactory = artifacts.require("TestTokenFactory");
+          PRECISION = 1e18;
+          // deploy TestToken factory
+          await deployer.deploy(TestTokenFactory);
+          TokenFactory = (await TestTokenFactory.deployed());
+          // create TestDAI
+          testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
+          TestDAI = TestToken.at(testDAIAddr);
+          // mint DAI for owner
+          await TestDAI.mint(accounts[0], 1e7 * PRECISION); // ten million
+          
+          // create TestTokens
+          tokens = require("../deployment_configs/kn_tokens.json");
+          tokenAddrs = [];
+          for (j = 0, len = tokens.length; j < len; j++) {
+            token = tokens[j];
+            tokenAddrs.push(((await TokenFactory.newToken(token.name, token.symbol, token.decimals))).logs[0].args.addr);
           }
-          return results;
-        })()).concat([PRECISION]);
-        // deploy TestKyberNetwork
-        await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);
+          tokenAddrs.push(TestDAI.address);
+          tokenPrices = ((function() {
+            var k, ref, results;
+            results = [];
+            for (i = k = 1, ref = tokens.length; (1 <= ref ? k <= ref : k >= ref); i = 1 <= ref ? ++k : --k) {
+              results.push(1000 * PRECISION);
+            }
+            return results;
+          })()).concat([PRECISION]);
+          // deploy TestKyberNetwork
+          await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);
 // mint tokens for KN
-        for (k = 0, len1 = tokenAddrs.length; k < len1; k++) {
-          token = tokenAddrs[k];
-          await TestToken.at(token).mint(TestKyberNetwork.address, 1e12 * PRECISION); // one trillion tokens
-          await TestToken.at(token).finishMinting();
-        }
-        await deployer.deploy(MiniMeTokenFactory);
-        minimeFactory = (await MiniMeTokenFactory.deployed());
-        ControlToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Kairo", 18, "KRO", true))).logs[0].args.addr);
-        ShareToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr);
-        // used for unit tests
-        if (network === "development") {
+          for (k = 0, len1 = tokenAddrs.length; k < len1; k++) {
+            token = tokenAddrs[k];
+            await TestToken.at(token).mint(TestKyberNetwork.address, 1e12 * PRECISION); // one trillion tokens
+          }
+          
+          // deploy Kairo and Betoken Shares contracts
+          await deployer.deploy(MiniMeTokenFactory);
+          minimeFactory = (await MiniMeTokenFactory.deployed());
+          ControlToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Kairo", 18, "KRO", true))).logs[0].args.addr);
+          ShareToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr);
           await ControlToken.generateTokens(accounts[1], 1e4 * PRECISION);
           await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION);
-        }
-        // deploy BetokenFund contract
-        await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, TestKyberNetwork.address, TestDAI.address, TestTokenFactory.address, accounts[0], config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, "0x0");
-        await ControlToken.transferOwnership(BetokenFund.address);
-        await ShareToken.transferOwnership(BetokenFund.address);
-        if (network === "rinkeby") {
+          // deploy BetokenFund contract
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, TestKyberNetwork.address, TestDAI.address, TestTokenFactory.address, accounts[0], config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, "0x0");
+          await ControlToken.transferOwnership(BetokenFund.address);
+          return (await ShareToken.transferOwnership(BetokenFund.address));
+        case "rinkeby":
+          // Rinkeby Migration
+          config = require("../deployment_configs/rinkeby_beta.json");
+          TestKyberNetwork = artifacts.require("TestKyberNetwork");
+          TestToken = artifacts.require("TestToken");
+          TestTokenFactory = artifacts.require("TestTokenFactory");
+          PRECISION = 1e18;
+          HD_WALLET = "0x45755b7876F0b67BE1BBdB700Bc0118A930A3cb8";
+          // deploy TestToken factory
+          await deployer.deploy(TestTokenFactory);
+          TokenFactory = (await TestTokenFactory.deployed());
+          // create TestDAI
+          testDAIAddr = ((await TokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
+          TestDAI = TestToken.at(testDAIAddr);
+          // mint DAI for owner
+          await TestDAI.mint(accounts[0], 1e7 * PRECISION); // ten million
+          
+          // create TestTokens
+          tokens = require("../deployment_configs/kn_tokens.json");
+          tokenAddrs = [];
+          for (l = 0, len2 = tokens.length; l < len2; l++) {
+            token = tokens[l];
+            tokenAddrs.push(((await TokenFactory.newToken(token.name, token.symbol, token.decimals))).logs[0].args.addr);
+          }
+          tokenAddrs.push(TestDAI.address);
+          tokenPrices = ((function() {
+            var m, ref, results;
+            results = [];
+            for (i = m = 1, ref = tokens.length; (1 <= ref ? m <= ref : m >= ref); i = 1 <= ref ? ++m : --m) {
+              results.push(1000 * PRECISION);
+            }
+            return results;
+          })()).concat([PRECISION]);
+          // deploy TestKyberNetwork
+          await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);
+// mint tokens for KN
+          for (m = 0, len3 = tokenAddrs.length; m < len3; m++) {
+            token = tokenAddrs[m];
+            await TestToken.at(token).mint(TestKyberNetwork.address, 1e12 * PRECISION); // one trillion tokens
+            await TestToken.at(token).finishMinting();
+          }
+          await deployer.deploy(MiniMeTokenFactory);
+          minimeFactory = (await MiniMeTokenFactory.deployed());
+          ControlToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Kairo", 18, "KRO", true))).logs[0].args.addr);
+          ShareToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr);
+          // deploy BetokenFund contract
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, TestKyberNetwork.address, TestDAI.address, TestTokenFactory.address, accounts[0], config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, "0x0");
+          await ControlToken.transferOwnership(BetokenFund.address);
+          await ShareToken.transferOwnership(BetokenFund.address);
           fund = (await BetokenFund.deployed());
           return (await fund.transferOwnership(HD_WALLET));
-        }
       }
     });
   };
