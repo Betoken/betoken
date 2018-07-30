@@ -10,7 +10,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon-16x16.png">
-  <link rel="manifest" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/site.webmanifest">
   <link rel="mask-icon" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/safari-pinned-tab.svg" color="#22C88A">
 
   <div class="ui stackable grid" style="margin-top: 0.02%;">
@@ -24,17 +23,22 @@
     <div class="ui container nine wide column">
       <!-- Tabs -->
       <div class="ui top attached tabular menu">
-        <a class="item active" data-tab="t1">Statistics</a>
-        <a class="item" data-tab="t2">My Decisions</a>
+        <a class="item active" data-tab="stats">Statistics</a>
+        <a class="item" data-tab="decisions">My Decisions</a>
+        <a class="item" data-tab="ranking">Ranking</a>
       </div>
 
       <!-- Tab contents -->
-      <div class="ui bottom attached tab segment active" data-tab="t1">
+      <div class="ui bottom attached tab segment active" data-tab="stats">
         {{> stats_tab}}
       </div>
 
-      <div class="ui bottom attached tab large-tab segment" data-tab="t2">
+      <div class="ui bottom attached tab large-tab segment" data-tab="decisions">
         {{> decisions_tab}}
+      </div>
+
+      <div class="ui bottom attached tab large-tab segment" data-tab="ranking">
+        {{> ranking_tab}}
       </div>
     </div>
 
@@ -90,7 +94,7 @@
   <div class="ui top three item menu">
     <div class="item">
       <h1>
-        <img src="https://raw.githubusercontent.com/Betoken/assets/master/logo/betoken-logo.png" style="max-height: 60%; max-width: 60%;">
+        <img src="https://raw.githubusercontent.com/Betoken/assets/master/logo/betoken-logo.png" style="max-height: 30%; max-width: 30%;">
       </h1>
     </div>
 
@@ -102,7 +106,7 @@
           Withdraw All Funds
         </button>
       {{else}}
-        <button class="ui positive button next_phase" style="background-color: #1fdaa6">
+        <button class="ui positive button next_phase {{need_web3}}" style="background-color: #1fdaa6">
           Next Phase
         </button>
       {{/if}}
@@ -145,7 +149,7 @@
 
 <template name="countdown_timer">
   <h3>Phase Change In&nbsp;&nbsp;&nbsp;&nbsp;</h3>
-  <div class="ui mini statistics">
+  <div class="ui mini statistics" style="margin-top: 0%;">
     <div class="ui statistic">
       <div class="value">
         {{day}}
@@ -321,7 +325,7 @@
     <div class="ui horizontal divider"></div>
     <p></p>
     
-    <button class="deposit_button {{is_disabled}} ui primary bottom attached button fluid">Deposit</button>
+    <button class="deposit_button {{is_disabled}} ui primary bottom attached button fluid {{need_web3}}">Deposit</button>
   </div>
 
   <div class="ui bottom attached tab segment scroll" data-tab="withdraw">
@@ -344,7 +348,7 @@
 
     <p></p>
     
-    <button class="withdraw_button {{is_disabled}} ui primary button fluid">Withdraw</button>
+    <button class="withdraw_button {{is_disabled}} ui primary button fluid {{need_web3}}">Withdraw</button>
   </div>
 
   <div class="ui bottom attached tab segment scroll" data-tab="send_token">
@@ -365,7 +369,7 @@
 
     <p></p>
     
-    <button class="token_send_button ui primary button fluid">Send</button>
+    <button class="token_send_button ui primary button fluid {{need_web3}}">Send</button>
   </div>
 
   <div class="ui bottom attached tab segment scroll" data-tab="history">
@@ -549,4 +553,28 @@
       </div>
     </div>
   </div>
+</template>
+
+<template name="ranking_tab">
+  <table class="ui tablet stackable table celled sortable">
+    <!-- Table header -->
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>Manager Address</th>
+      <th>Kairo Balance</th>
+    </tr>
+    </thead>
+
+    <!-- Actual table rows go here -->
+    <tbody>
+      {{#each kairo_ranking}}
+        <tr>
+          <td>{{rank}}</td>
+          <td>{{address}}</td>
+          <td>{{kairoBalance}}</td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
 </template>

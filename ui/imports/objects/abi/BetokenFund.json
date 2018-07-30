@@ -745,6 +745,18 @@
   },
   {
     "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "NewUser",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [],
     "name": "Pause",
     "type": "event"
@@ -783,6 +795,24 @@
     ],
     "name": "OwnershipTransferred",
     "type": "event"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_receipients",
+        "type": "address[]"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "airdropKairo",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "constant": true,

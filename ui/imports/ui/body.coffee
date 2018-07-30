@@ -11,6 +11,7 @@ WRONG_NETWORK_ERR = "Please switch to Rinkeby Testnet in order to try Betoken Om
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 INPUT_ERR = "There was an error in your input. Please fix it and try again."
 NO_WEB3_ERR = "Betoken can only be used in a Web3 enabled browser. Please install <a target=\"_blank\" href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions."
+METAMASK_LOCKED_ERR = "Your browser seems to be Web3 enabled, but you need to unlock your account to interact with Betoken."
 
 # Import web3
 Web3 = require "web3"
@@ -23,11 +24,12 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724"))
 
 # Fund object
-BETOKEN_ADDR = "0xef4a097bcc1250de8b68839210e3d0796481e2b8"
+BETOKEN_ADDR = "0x5910d5abd4d5fd58b39957664cd9735cbfe42bf0"
+DEPLOYED_BLOCK = 2721413
 betoken = new Betoken(BETOKEN_ADDR)
 
 # Session data
-userAddress = new ReactiveVar("Not Available")
+userAddress = new ReactiveVar("0x0")
 kairoBalance = new ReactiveVar(BigNumber(0))
 kairoTotalSupply = new ReactiveVar(BigNumber(0))
 sharesBalance = new ReactiveVar(BigNumber(0))
@@ -72,6 +74,7 @@ historicalTotalCommission = new ReactiveVar(BigNumber(0))
 transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
+kairoRanking = new ReactiveVar([])
 
 
 showTransaction = (_txHash) ->
@@ -234,7 +237,7 @@ loadFundData = () ->
 
   # Get commission
   events = await betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
-    fromBlock: 0
+    fromBlock: DEPLOYED_BLOCK
   )
   for _event in events
     data = _event.returnValues
@@ -251,7 +254,7 @@ loadFundData = () ->
   chart.data.datasets[0].data = []
   chart.update()
   events = await betoken.contracts.betokenFund.getPastEvents("ROI",
-    fromBlock: 0
+    fromBlock: DEPLOYED_BLOCK
   )
   for _event in events
     data = _event.returnValues
@@ -272,9 +275,6 @@ loadFundData = () ->
     receivedROICount += 1
     avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
 
-  # load Kairo ranking
-  
-
   return
 
 
@@ -286,85 +286,85 @@ loadUserData = () ->
     if userAddr?
       userAddress.set(userAddr)
 
-    # Get shares balance
-    sharesBalance.set(BigNumber(await betoken.getShareBalance(userAddr)))
-    if !sharesTotalSupply.get().isZero()
-      displayedInvestmentBalance.set(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()).div(1e18))
+      # Get shares balance
+      sharesBalance.set(BigNumber(await betoken.getShareBalance(userAddr)))
+      if !sharesTotalSupply.get().isZero()
+        displayedInvestmentBalance.set(sharesBalance.get().div(sharesTotalSupply.get()).mul(totalFunds.get()).div(1e18))
 
-    # Get user's Kairo balance
-    kairoBalance.set(BigNumber(await betoken.getKairoBalance(userAddr)))
-    displayedKairoBalance.set(kairoBalance.get().div(1e18))
+      # Get user's Kairo balance
+      kairoBalance.set(BigNumber(await betoken.getKairoBalance(userAddr)))
+      displayedKairoBalance.set(kairoBalance.get().div(1e18))
 
-    # Get last commission redemption cycle number
-    lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
+      # Get last commission redemption cycle number
+      lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
 
-    # Get list of user's investments
-    investments = await betoken.getInvestments(userAddress.get())
-    if investments.length != 0
-      handleProposal = (id) ->
-        betoken.getTokenSymbol(investments[id].tokenAddress).then(
-          (_symbol) ->
-            investments[id].id = id
-            investments[id].tokenSymbol = _symbol
-            investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
-            investments[id].ROI = if investments[id].isSold then BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).toFormat(4) else "N/A"
-            investments[id].kroChange = if investments[id].isSold then BigNumber(investments[id].ROI).mul(investments[id].stake).div(1e18).toFormat(4) else "N/A"
-            investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
+      # Get list of user's investments
+      investments = await betoken.getInvestments(userAddress.get())
+      if investments.length != 0
+        handleProposal = (id) ->
+          betoken.getTokenSymbol(investments[id].tokenAddress).then(
+            (_symbol) ->
+              investments[id].id = id
+              investments[id].tokenSymbol = _symbol
+              investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
+              investments[id].ROI = if investments[id].isSold then BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).toFormat(4) else "N/A"
+              investments[id].kroChange = if investments[id].isSold then BigNumber(investments[id].ROI).mul(investments[id].stake).div(1e18).toFormat(4) else "N/A"
+              investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
+          )
+        handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
+        await Promise.all(handleAllProposals)
+        investmentList.set(investments)
+
+      # Get deposit and withdraw history
+      transactionHistory.set([])
+      getDepositWithdrawHistory = (_type) ->
+        events = await betoken.contracts.betokenFund.getPastEvents(_type,
+          fromBlock: DEPLOYED_BLOCK
+          filter: {_sender: userAddr}
         )
-      handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
-      await Promise.all(handleAllProposals)
-      investmentList.set(investments)
+        for event in events
+          data = event.returnValues
+          entry =
+            type: _type
+            timestamp: new Date(+data._timestamp * 1e3).toString()
+            token: await betoken.getTokenSymbol(data._tokenAddress)
+            amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
+          tmp = transactionHistory.get()
+          tmp.push(entry)
+          transactionHistory.set(tmp)
+      getDepositWithdrawHistory("Deposit")
+      getDepositWithdrawHistory("Withdraw")
 
-    # Get deposit and withdraw history
-    transactionHistory.set([])
-    getDepositWithdrawHistory = (_type) ->
-      events = await betoken.contracts.betokenFund.getPastEvents(_type,
-        fromBlock: 0
-        filter: {_sender: userAddr}
-      )
-      for event in events
-        data = event.returnValues
-        entry =
-          type: _type
-          timestamp: new Date(+data._timestamp * 1e3).toString()
-          token: await betoken.getTokenSymbol(data._tokenAddress)
-          amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
-        tmp = transactionHistory.get()
-        tmp.push(entry)
-        transactionHistory.set(tmp)
-    getDepositWithdrawHistory("Deposit")
-    getDepositWithdrawHistory("Withdraw")
+      # Get token transfer history
+      getTransferHistory = (token, isIn) ->
+        tokenContract = switch token
+          when "KRO" then betoken.contracts.controlToken
+          when "BTKS" then betoken.contracts.shareToken
+          else null
+        events = await tokenContract.getPastEvents("Transfer", {
+          fromBlock: DEPLOYED_BLOCK
+          filter: if isIn then { to: userAddr } else { from: userAddr }
+        })
+        for _event in events
+          if not _event?
+            continue
+          data = _event.returnValues
+          if (isIn && data._to != userAddr) || (!isIn && data._from != userAddr)
+            continue
 
-    # Get token transfer history
-    getTransferHistory = (token, isIn) ->
-      tokenContract = switch token
-        when "KRO" then betoken.contracts.controlToken
-        when "BTKS" then betoken.contracts.shareToken
-        else null
-      events = await tokenContract.getPastEvents("Transfer", {
-        fromBlock: 0
-        filter: if isIn then { to: userAddr } else { from: userAddr }
-      })
-      for _event in events
-        if not _event?
-          continue
-        data = _event.returnValues
-        if (isIn && data._to != userAddr) || (!isIn && data._from != userAddr)
-          continue
+          entry =
+            type: "Transfer " + if isIn then "In" else "Out"
+            token: token
+            amount: BigNumber(data._amount).div(1e18).toFormat(4)
+            timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
+          tmp = transactionHistory.get()
+          tmp.push(entry)
+          transactionHistory.set(tmp)
 
-        entry =
-          type: "Transfer " + if isIn then "In" else "Out"
-          token: token
-          amount: BigNumber(data._amount).div(1e18).toFormat(4)
-          timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
-        tmp = transactionHistory.get()
-        tmp.push(entry)
-        transactionHistory.set(tmp)
-
-    getTransferHistory("KRO", true)
-    getTransferHistory("KRO", false)
-    getTransferHistory("BTKS", true)
-    getTransferHistory("BTKS", false)
+      getTransferHistory("KRO", true)
+      getTransferHistory("KRO", false)
+      getTransferHistory("BTKS", true)
+      getTransferHistory("BTKS", false)
 
 
 postLoadAllData = () ->
@@ -395,13 +395,48 @@ postLoadAllData = () ->
 
   if !hasWeb3
     showError(NO_WEB3_ERR)
+  else if userAddress.get() == "0x0"
+    showError(METAMASK_LOCKED_ERR)
+
+
+loadRanking = () ->
+  # load Kairo ranking
+  kairoRanking.set([])
+  events = await betoken.contracts.betokenFund.getPastEvents("NewUser",
+    fromBlock: DEPLOYED_BLOCK
+  )
+  for _event in events
+    user = _event.returnValues._user
+    userKairoBalance = BigNumber(await betoken.getKairoBalance(user)).div(1e18).toFixed(4)
+
+    ranking = kairoRanking.get()
+    ranking.push({
+      rank: 0
+      address: user
+      kairoBalance: userKairoBalance
+    })
+
+    ranking.sort((a, b) -> BigNumber(b.kairoBalance).sub(a.kairoBalance).toNumber())
+    
+    rank = 1
+    for user in ranking
+      user.rank = rank
+      rank += 1
+
+    kairoRanking.set(ranking)
 
 
 loadAllData = () ->
   await loadFundMetadata()
   await loadFundData()
   await loadUserData()
+  await postLoadAllData()
+  await loadRanking()
 
+loadDynamicData = () ->
+  await loadFundData()
+  await loadUserData()
+  await loadRanking()
 
 $("document").ready(() ->
   $("table").tablesort()
@@ -411,13 +446,10 @@ $("document").ready(() ->
     drawChart()
 
     # Initialize Betoken object and then load data
-    betoken.init().then(() -> await loadAllData()).then(() -> await postLoadAllData()).then(
+    betoken.init().then(loadAllData).then(
       () ->
-        # refresh every 5 minutes
-        setInterval(() ->
-          await loadFundData()
-          await loadUserData()
-        , 2 * 60 * 1000)
+        # refresh every 2 minutes
+        setInterval(loadDynamicData, 2 * 60 * 1000)
     )
 )
 
@@ -448,16 +480,14 @@ Template.top_bar.helpers(
   token_factory_addr: () -> tokenFactoryAddr.get()
   network_prefix: () -> networkPrefix.get()
   network_name: () -> networkName.get()
+  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3) then "" else "disabled"
 )
 
 
 Template.top_bar.events(
   "click .next_phase": (event) ->
     try
-      betoken.nextPhase(showTransaction, () ->
-        await loadFundData()
-        await loadUserData()
-      )
+      betoken.nextPhase(showTransaction, loadDynamicData)
     catch error
       console.log error
 
@@ -531,10 +561,7 @@ Template.sidebar.events(
     betoken.redeemCommission(showTransaction, loadUserData)
 
   "click .redeem_commission_in_shares": (event) ->
-    betoken.redeemCommissionInShares(showTransaction, () -> 
-      await loadFundData()
-      await loadUserData()
-    )
+    betoken.redeemCommissionInShares(showTransaction, loadDynamicData)
 )
 
 
@@ -570,6 +597,8 @@ Template.transact_box.helpers({
   transaction_history: () -> transactionHistory.get()
 
   tokens: () -> TOKENS
+
+  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3) then "" else "disabled"
 })
 
 
@@ -585,10 +614,7 @@ Template.transact_box.events({
         return
 
       tokenAddr = await betoken.tokenSymbolToAddress(tokenSymbol)
-      betoken.depositToken(tokenAddr, amount, showTransaction, () -> 
-        await loadFundData()
-        await loadUserData()
-      )
+      betoken.depositToken(tokenAddr, amount, showTransaction, loadDynamicData)
     catch
       Template.instance().depositInputHasError.set(true)
 
@@ -603,10 +629,7 @@ Template.transact_box.events({
         return
 
       tokenAddr = await betoken.tokenSymbolToAddress(tokenSymbol)
-      betoken.withdrawToken(tokenAddr, amount, showTransaction, () -> 
-        await loadFundData()
-        await loadUserData()
-      )
+      betoken.withdrawToken(tokenAddr, amount, showTransaction, loadDynamicData)
     catch error
       Template.instance().withdrawInputHasError.set(true)
 
@@ -660,6 +683,7 @@ Template.decisions_tab.helpers({
   new_investment_is_disabled: () ->
     if cyclePhase.get() == 1 then "" else "disabled"
   tokens: () -> TOKENS
+  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3) then "" else "disabled"
 })
 
 
@@ -667,10 +691,7 @@ Template.decisions_tab.events({
   "click .sell_investment": (event) ->
     id = this.id
     if cyclePhase.get() == 1
-      betoken.sellAsset(id, showTransaction, () -> 
-        await loadFundData()
-        await loadUserData()
-      )
+      betoken.sellAsset(id, showTransaction, loadDynamicData)
 
   "click .new_investment": (event) ->
     $("#new_investment_modal").modal({
@@ -694,3 +715,7 @@ checkKairoAmountError = (kairoAmountInWeis) ->
     throw new Error("Stake amount should be positive.")
   if kairoAmountInWeis.greaterThan(kairoBalance.get())
     throw new Error("You can't stake more Kairos than you have!")
+
+Template.ranking_tab.helpers({
+  kairo_ranking: () ->  kairoRanking.get()
+})
