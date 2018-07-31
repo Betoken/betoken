@@ -9,6 +9,7 @@ else
   web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/m7Pdc77PjIwgmp7t0iKI"))
 
 export ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+export NET_ID = 4 # Rinkeby
 
 ###*
  * Sets the first account as defaultAccount
@@ -247,6 +248,10 @@ export Betoken = (_address) ->
   ###
 
   self.init = () ->
+    netID = await web3.eth.net.getId()
+    if netID != NET_ID
+      web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724"))
+
     # Initialize BetokenFund contract
     self.addrs.betokenFund = _address
     betokenFundABI = require("./abi/BetokenFund.json")

@@ -21,6 +21,8 @@ if (typeof web3 !== "undefined") {
 
 export var ETH_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
+export var NET_ID = 4; // Rinkeby
+
 getDefaultAccount = async function() {
   return web3.eth.defaultAccount = ((await web3.eth.getAccounts()))[0];
 };
@@ -286,8 +288,12 @@ export var Betoken = function(_address) {
   /*
   Object Initialization
   */
-  self.init = function() {
-    var betokenFundABI, minimeABI;
+  self.init = async function() {
+    var betokenFundABI, minimeABI, netID;
+    netID = (await web3.eth.net.getId());
+    if (netID !== NET_ID) {
+      web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724"));
+    }
     // Initialize BetokenFund contract
     self.addrs.betokenFund = _address;
     betokenFundABI = require("./abi/BetokenFund.json");

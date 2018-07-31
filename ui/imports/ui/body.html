@@ -1,17 +1,4 @@
 <body style="background-color: #f1f4f6;">
-  <script
-    src="https://code.jquery.com/jquery-3.3.1.min.js"
-    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-    crossorigin="anonymous"></script>
-  <link rel="stylesheet" target="_blank" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.3.3/semantic.min.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.3.3/semantic.min.js"></script>
-
-  <link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon.ico">
-  <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/favicon-16x16.png">
-  <link rel="mask-icon" href="https://raw.githubusercontent.com/Betoken/assets/master/icons-fav/safari-pinned-tab.svg" color="#22C88A">
-
   <div class="ui stackable grid" style="margin-top: 0.02%;">
     <!-- Top Bar -->
     {{> top_bar}}
@@ -470,7 +457,7 @@
 <template name="decisions_tab">
   <div class="ui menu">
     <div class="item">
-      <div class="ui positive button new_investment {{new_investment_is_disabled}}" style="background-color: #1fdaa6">
+      <div class="ui positive button new_investment {{new_investment_is_disabled}} {{need_web3}}" style="background-color: #1fdaa6">
         New Decision
       </div>
     </div>

@@ -1,13 +1,13 @@
 import "./body.html"
 import "./body.css"
 import "./tablesort.js"
-import { Betoken, ETH_TOKEN_ADDRESS } from "../objects/betoken.js"
+import { Betoken, ETH_TOKEN_ADDRESS, NET_ID } from "../objects/betoken.js"
 import Chart from "chart.js"
 import BigNumber from "bignumber.js"
 
 TOKENS = require("../objects/kn_token_symbols.json")
 
-WRONG_NETWORK_ERR = "Please switch to Rinkeby Testnet in order to try Betoken Omen"
+WRONG_NETWORK_ERR = "Please switch to Rinkeby Testnet in order to use Betoken Omen. You can currently view the fund's data, but cannot make any interactions."
 SEND_TX_ERR = "There was an error during sending your transaction to the Ethereum blockchain. Please check that your inputs are valid and try again later."
 INPUT_ERR = "There was an error in your input. Please fix it and try again."
 NO_WEB3_ERR = "Betoken can only be used in a Web3 enabled browser. Please install <a target=\"_blank\" href=\"https://metamask.io/\">MetaMask</a> or switch to another browser that supports Web3. You can currently view the fund's data, but cannot make any interactions."
@@ -75,6 +75,7 @@ transactionHistory = new ReactiveVar([])
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
 kairoRanking = new ReactiveVar([])
+wrongNetwork = new ReactiveVar(false)
 
 
 showTransaction = (_txHash) ->
@@ -364,39 +365,7 @@ loadUserData = () ->
       getTransferHistory("KRO", true)
       getTransferHistory("KRO", false)
       getTransferHistory("BTKS", true)
-      getTransferHistory("BTKS", false)
-
-
-postLoadAllData = () ->
-  $('a.item').tab()
-
-  # Get Network ID
-  netID = await web3.eth.net.getId()
-  switch netID
-    when 1
-      net = "Main Ethereum Network"
-      pre = ""
-    when 3
-      net = "Ropsten Testnet"
-      pre = "ropsten."
-    when 4
-      net = "Rinkeby Testnet"
-      pre = "rinkeby."
-    when 42
-      net = "Kovan Testnet"
-      pre = "kovan."
-    else
-      net = "Unknown Network"
-      pre = ""
-  networkName.set(net)
-  networkPrefix.set(pre)
-  if netID != 4
-    showError(WRONG_NETWORK_ERR)
-
-  if !hasWeb3
-    showError(NO_WEB3_ERR)
-  else if userAddress.get() == "0x0"
-    showError(METAMASK_LOCKED_ERR)
+      getTransferHistory("BTKS", false)  
 
 
 loadRanking = () ->
@@ -410,6 +379,15 @@ loadRanking = () ->
     userKairoBalance = BigNumber(await betoken.getKairoBalance(user)).div(1e18).toFixed(4)
 
     ranking = kairoRanking.get()
+
+    # check duplicates
+    dupFlag = false
+    for u in ranking
+      if u.address == user
+        dupFlag = true
+        break
+    if dupFlag
+      continue
     ranking.push({
       rank: 0
       address: user
@@ -419,8 +397,8 @@ loadRanking = () ->
     ranking.sort((a, b) -> BigNumber(b.kairoBalance).sub(a.kairoBalance).toNumber())
     
     rank = 1
-    for user in ranking
-      user.rank = rank
+    for u in ranking
+      u.rank = rank
       rank += 1
 
     kairoRanking.set(ranking)
@@ -430,20 +408,54 @@ loadAllData = () ->
   await loadFundMetadata()
   await loadFundData()
   await loadUserData()
-  await postLoadAllData()
   await loadRanking()
+
 
 loadDynamicData = () ->
   await loadFundData()
   await loadUserData()
   await loadRanking()
 
+
 $("document").ready(() ->
   $("table").tablesort()
+  $('a.item').tab()
 
   if web3?
     clock()
     drawChart()
+
+    netID = await web3.eth.net.getId()
+    if netID != NET_ID
+      wrongNetwork.set(true)
+      showError(WRONG_NETWORK_ERR)
+      web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724"))
+    else
+      if !hasWeb3
+        showError(NO_WEB3_ERR)
+      else if (await web3.eth.getAccounts()).length == 0
+        showError(METAMASK_LOCKED_ERR)
+    
+    # Get Network ID
+    netID = await web3.eth.net.getId()
+    switch netID
+      when 1
+        net = "Main Ethereum Network"
+        pre = ""
+      when 3
+        net = "Ropsten Testnet"
+        pre = "ropsten."
+      when 4
+        net = "Rinkeby Testnet"
+        pre = "rinkeby."
+      when 42
+        net = "Kovan Testnet"
+        pre = "kovan."
+      else
+        net = "Unknown Network"
+        pre = ""
+    networkName.set(net)
+    networkPrefix.set(pre)
 
     # Initialize Betoken object and then load data
     betoken.init().then(loadAllData).then(
@@ -480,7 +492,7 @@ Template.top_bar.helpers(
   token_factory_addr: () -> tokenFactoryAddr.get()
   network_prefix: () -> networkPrefix.get()
   network_name: () -> networkName.get()
-  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3) then "" else "disabled"
+  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
 )
 
 
@@ -598,7 +610,7 @@ Template.transact_box.helpers({
 
   tokens: () -> TOKENS
 
-  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3) then "" else "disabled"
+  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
 })
 
 
@@ -683,7 +695,7 @@ Template.decisions_tab.helpers({
   new_investment_is_disabled: () ->
     if cyclePhase.get() == 1 then "" else "disabled"
   tokens: () -> TOKENS
-  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3) then "" else "disabled"
+  need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
 })
 
 
