@@ -44,13 +44,15 @@ export var Betoken = function(_address) {
     betokenFund: null,
     controlToken: null,
     shareToken: null,
-    tokenFactory: null
+    tokenFactory: null,
+    kyberNetwork: null
   };
   self.addrs = {
     betokenFund: null,
     controlToken: null,
     shareToken: null,
-    tokenFactory: null
+    tokenFactory: null,
+    kyberNetwork: null
   };
   /*
   Getters
@@ -105,6 +107,11 @@ export var Betoken = function(_address) {
     var symbolHash;
     symbolHash = web3.utils.soliditySha3(_symbol);
     return self.contracts.tokenFactory.methods.createdTokens(symbolHash).call();
+  };
+  self.getTokenPrice = async function(_symbol) {
+    var addr;
+    addr = (await self.tokenSymbolToAddress(_symbol));
+    return self.contracts.kyberNetwork.methods.priceInDAI(addr).call();
   };
   /**
    * Gets the Kairo balance of an address
@@ -319,6 +326,14 @@ export var Betoken = function(_address) {
         self.addrs.tokenFactory = _addr;
         factoryABI = require("./abi/TestTokenFactory.json");
         return self.contracts.tokenFactory = new web3.eth.Contract(factoryABI,
+      _addr);
+      }),
+      self.contracts.betokenFund.methods.kyberAddr().call().then(function(_addr) {
+        var knABI;
+        // Initialize TestKyberNetwork contract
+        self.addrs.kyberNetwork = _addr;
+        knABI = require("./abi/TestKyberNetwork.json");
+        return self.contracts.kyberNetwork = new web3.eth.Contract(knABI,
       _addr);
       })
     ]);

@@ -28,6 +28,7 @@ BETOKEN_ADDR = "0x5910d5abd4d5fd58b39957664cd9735cbfe42bf0"
 DEPLOYED_BLOCK = 2721413
 betoken = new Betoken(BETOKEN_ADDR)
 
+
 # Session data
 userAddress = new ReactiveVar("0x0")
 kairoBalance = new ReactiveVar(BigNumber(0))
@@ -48,34 +49,45 @@ allowEmergencyWithdraw = new ReactiveVar(false)
 lastCommissionRedemption = new ReactiveVar(0)
 cycleTotalCommission = new ReactiveVar(BigNumber(0))
 
+
 # Displayed variables
 kairoAddr = new ReactiveVar("")
 sharesAddr = new ReactiveVar("")
 kyberAddr = new ReactiveVar("")
 daiAddr = new ReactiveVar("")
 tokenFactoryAddr = new ReactiveVar("")
+
 displayedInvestmentBalance = new ReactiveVar(BigNumber(0))
 displayedInvestmentUnit = new ReactiveVar("DAI")
 displayedKairoBalance = new ReactiveVar(BigNumber(0))
 displayedKairoUnit = new ReactiveVar("KRO")
+
 countdownDay = new ReactiveVar(0)
 countdownHour = new ReactiveVar(0)
 countdownMin = new ReactiveVar(0)
 countdownSec = new ReactiveVar(0)
 showCountdown = new ReactiveVar(true)
+
 transactionHash = new ReactiveVar("")
 networkName = new ReactiveVar("")
 networkPrefix = new ReactiveVar("")
+
 chart = null
 prevROI = new ReactiveVar(BigNumber(0))
 avgROI = new ReactiveVar(BigNumber(0))
 prevCommission = new ReactiveVar(BigNumber(0))
 historicalTotalCommission = new ReactiveVar(BigNumber(0))
+
 transactionHistory = new ReactiveVar([])
+
 errorMessage = new ReactiveVar("")
 successMessage = new ReactiveVar("")
 kairoRanking = new ReactiveVar([])
 wrongNetwork = new ReactiveVar(false)
+
+isLoadingRanking = new ReactiveVar(true)
+isLoadingInvestments = new ReactiveVar(true)
+isLoadingRecords = new ReactiveVar(true)
 
 
 showTransaction = (_txHash) ->
@@ -199,17 +211,19 @@ drawChart = () ->
 
 
 loadFundMetadata = () ->
-  # get params
-  phaseLengths.set((await betoken.getPrimitiveVar("getPhaseLengths")).map((x) -> +x))
-  commissionRate.set(BigNumber(await betoken.getPrimitiveVar("commissionRate")).div(1e18))
-  assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate")))
-  
-  # Get contract addresses
-  kairoAddr.set(betoken.addrs.controlToken)
-  sharesAddr.set(betoken.addrs.shareToken)
-  kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr"))
-  daiAddr.set(await betoken.getPrimitiveVar("daiAddr"))
-  tokenFactoryAddr.set(await betoken.addrs.tokenFactory)
+  await Promise.all([
+    # get params
+    phaseLengths.set((await betoken.getPrimitiveVar("getPhaseLengths")).map((x) -> +x)),
+    commissionRate.set(BigNumber(await betoken.getPrimitiveVar("commissionRate")).div(1e18)),
+    assetFeeRate.set(BigNumber(await betoken.getPrimitiveVar("assetFeeRate"))),
+    
+    # Get contract addresses
+    kairoAddr.set(betoken.addrs.controlToken),
+    sharesAddr.set(betoken.addrs.shareToken),
+    kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr")),
+    daiAddr.set(await betoken.getPrimitiveVar("daiAddr")),
+    tokenFactoryAddr.set(await betoken.addrs.tokenFactory)
+  ])
 
 
 loadFundData = () ->
@@ -218,64 +232,66 @@ loadFundData = () ->
   ###
   # Get fund data
   ###
-  cycleNumber.set(+await betoken.getPrimitiveVar("cycleNumber"))
-  cyclePhase.set(+await betoken.getPrimitiveVar("cyclePhase"))
-  startTimeOfCyclePhase.set(+await betoken.getPrimitiveVar("startTimeOfCyclePhase"))
+  await Promise.all([
+    cycleNumber.set(+await betoken.getPrimitiveVar("cycleNumber")),
+    cyclePhase.set(+await betoken.getPrimitiveVar("cyclePhase")),
+    startTimeOfCyclePhase.set(+await betoken.getPrimitiveVar("startTimeOfCyclePhase")),
+    paused.set(await betoken.getPrimitiveVar("paused")),
+    allowEmergencyWithdraw.set(await betoken.getPrimitiveVar("allowEmergencyWithdraw")),
+    sharesTotalSupply.set(BigNumber(await betoken.getShareTotalSupply())),
+    totalFunds.set(BigNumber(await betoken.getPrimitiveVar("totalFundsInDAI"))),
+    kairoTotalSupply.set(BigNumber(await betoken.getKairoTotalSupply()))
+  ])
   
-  paused.set(await betoken.getPrimitiveVar("paused"))
-  allowEmergencyWithdraw.set(await betoken.getPrimitiveVar("allowEmergencyWithdraw"))
-  cycleTotalCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get())))
-
-  sharesTotalSupply.set(BigNumber(await betoken.getShareTotalSupply()))
-  totalFunds.set(BigNumber(await betoken.getPrimitiveVar("totalFundsInDAI")))
-  kairoTotalSupply.set(BigNumber(await betoken.getKairoTotalSupply()))
 
   # Get statistics
   prevROI.set(BigNumber(0))
   avgROI.set(BigNumber(0))
-  prevCommission.set(BigNumber(0))
   historicalTotalCommission.set(BigNumber(0))
+  await Promise.all([
+    cycleTotalCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get()))),
+    prevCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get() - 1)))
+  ])
 
-  # Get commission
-  events = await betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
-    fromBlock: DEPLOYED_BLOCK
-  )
-  for _event in events
-    data = _event.returnValues
-
-    commission = BigNumber(data._totalCommissionInDAI)
-    # Update previous cycle commission
-    if +data._cycleNumber == cycleNumber.get() - 1
-      prevCommission.set(commission)
-
-    # Update total commission
-    historicalTotalCommission.set(historicalTotalCommission.get().add(commission))
-
-  # Draw chart
+  # Get commission and draw ROI chart
   chart.data.datasets[0].data = []
   chart.update()
-  events = await betoken.contracts.betokenFund.getPastEvents("ROI",
-    fromBlock: DEPLOYED_BLOCK
-  )
-  for _event in events
-    data = _event.returnValues
-    ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
 
-    # Update chart data
-    chart.data.datasets[0].data.push(
-      x: data._cycleNumber
-      y: ROI.toString()
+  await Promise.all([
+    betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
+      fromBlock: DEPLOYED_BLOCK
+    ).then(
+      (events) ->
+        for _event in events
+          commission = BigNumber(_event.returnValues._totalCommissionInDAI)
+          # Update total commission
+          historicalTotalCommission.set(historicalTotalCommission.get().add(commission))
+    ),
+    betoken.contracts.betokenFund.getPastEvents("ROI",
+      fromBlock: DEPLOYED_BLOCK
+    ).then(
+      (events) ->
+        for _event in events
+          data = _event.returnValues
+          ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
+
+          # Update chart data
+          chart.data.datasets[0].data.push(
+            x: data._cycleNumber
+            y: ROI.toString()
+          )
+          chart.update()
+
+          # Update previous cycle ROI
+          if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
+            prevROI.set(ROI)
+
+          # Update average ROI
+          receivedROICount += 1
+          avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
     )
-    chart.update()
-
-    # Update previous cycle ROI
-    if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
-      prevROI.set(ROI)
-
-    # Update average ROI
-    receivedROICount += 1
-    avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
-
+  ])
+ 
   return
 
 
@@ -299,24 +315,8 @@ loadUserData = () ->
       # Get last commission redemption cycle number
       lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
 
-      # Get list of user's investments
-      investments = await betoken.getInvestments(userAddress.get())
-      if investments.length != 0
-        handleProposal = (id) ->
-          betoken.getTokenSymbol(investments[id].tokenAddress).then(
-            (_symbol) ->
-              investments[id].id = id
-              investments[id].tokenSymbol = _symbol
-              investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
-              investments[id].ROI = if investments[id].isSold then BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).toFormat(4) else "N/A"
-              investments[id].kroChange = if investments[id].isSold then BigNumber(investments[id].ROI).mul(investments[id].stake).div(1e18).toFormat(4) else "N/A"
-              investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
-          )
-        handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
-        await Promise.all(handleAllProposals)
-        investmentList.set(investments)
-
       # Get deposit and withdraw history
+      isLoadingRecords.set(true)
       transactionHistory.set([])
       getDepositWithdrawHistory = (_type) ->
         events = await betoken.contracts.betokenFund.getPastEvents(_type,
@@ -333,8 +333,6 @@ loadUserData = () ->
           tmp = transactionHistory.get()
           tmp.push(entry)
           transactionHistory.set(tmp)
-      getDepositWithdrawHistory("Deposit")
-      getDepositWithdrawHistory("Withdraw")
 
       # Get token transfer history
       getTransferHistory = (token, isIn) ->
@@ -362,46 +360,79 @@ loadUserData = () ->
           tmp.push(entry)
           transactionHistory.set(tmp)
 
-      getTransferHistory("KRO", true)
-      getTransferHistory("KRO", false)
-      getTransferHistory("BTKS", true)
-      getTransferHistory("BTKS", false)  
+      await Promise.all([
+        getDepositWithdrawHistory("Deposit"),
+        getDepositWithdrawHistory("Withdraw"),
+        getTransferHistory("KRO", true),
+        getTransferHistory("KRO", false),
+        getTransferHistory("BTKS", true),
+        getTransferHistory("BTKS", false)
+      ])
+      isLoadingRecords.set(false)
+
+      await loadDecisions()
+
+
+loadDecisions = () ->
+  # Get list of user's investments
+  isLoadingInvestments.set(true)
+  investments = await betoken.getInvestments(userAddress.get())
+  if investments.length != 0
+    handleProposal = (id) ->
+      betoken.getTokenSymbol(investments[id].tokenAddress).then(
+        (_symbol) ->
+          investments[id].id = id
+          investments[id].tokenSymbol = _symbol
+          investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
+          investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
+          investments[id].sellPrice = if investments[id].isSold then BigNumber(investments[id].sellPrice) else (await betoken.getTokenPrice(_symbol))
+          investments[id].ROI = BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).mul(100).toFormat(4)
+          investments[id].kroChange = BigNumber(investments[id].ROI).mul(investments[id].stake).div(100).toFormat(4)
+      )
+    handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
+    await Promise.all(handleAllProposals)
+    investmentList.set(investments)
+  isLoadingInvestments.set(false)
 
 
 loadRanking = () ->
-  # load Kairo ranking
-  kairoRanking.set([])
+  # activate loader
+  isLoadingRanking.set(true)
+
+  # load NewUser events to get list of users
   events = await betoken.contracts.betokenFund.getPastEvents("NewUser",
     fromBlock: DEPLOYED_BLOCK
   )
-  for _event in events
-    user = _event.returnValues._user
-    userKairoBalance = BigNumber(await betoken.getKairoBalance(user)).div(1e18).toFixed(4)
 
-    ranking = kairoRanking.get()
+  # fetch addresses
+  addresses = events.map((_event) -> _event.returnValues._user)
+  addresses = Array.from(new Set(addresses)) # remove duplicates
 
-    # check duplicates
-    dupFlag = false
-    for u in ranking
-      if u.address == user
-        dupFlag = true
-        break
-    if dupFlag
-      continue
-    ranking.push({
-      rank: 0
-      address: user
-      kairoBalance: userKairoBalance
-    })
+  # fetch KRO balances
+  ranking = await Promise.all(addresses.map(
+    (_addr) ->
+      return {
+        rank: 0
+        address: _addr
+        kairoBalance: BigNumber(await betoken.getKairoBalance(_addr)).div(1e18).toFixed(4)
+      }
+  ))
 
-    ranking.sort((a, b) -> BigNumber(b.kairoBalance).sub(a.kairoBalance).toNumber())
-    
-    rank = 1
-    for u in ranking
-      u.rank = rank
-      rank += 1
+  # sort entries
+  ranking.sort((a, b) -> BigNumber(b.kairoBalance).sub(a.kairoBalance).toNumber())
 
-    kairoRanking.set(ranking)
+  # give ranks
+  ranking = ranking.map(
+    (_entry, _id) ->
+      _entry.rank = _id + 1
+      return _entry
+  )
+
+  # display ranking
+  kairoRanking.set(ranking)
+
+  # deactivate loader
+  isLoadingRanking.set(false)
 
 
 loadAllData = () ->
@@ -420,10 +451,10 @@ loadDynamicData = () ->
 $("document").ready(() ->
   $("table").tablesort()
   $('a.item').tab()
+  drawChart()
 
   if web3?
     clock()
-    drawChart()
 
     netID = await web3.eth.net.getId()
     if netID != NET_ID
@@ -611,6 +642,8 @@ Template.transact_box.helpers({
   tokens: () -> TOKENS
 
   need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
+
+  is_loading: () -> isLoadingRecords.get()
 })
 
 
@@ -696,6 +729,7 @@ Template.decisions_tab.helpers({
     if cyclePhase.get() == 1 then "" else "disabled"
   tokens: () -> TOKENS
   need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
+  is_loading: () -> isLoadingInvestments.get()
 })
 
 
@@ -719,6 +753,12 @@ Template.decisions_tab.events({
         catch error
           showError(error.toString() || INPUT_ERR)
     }).modal("show")
+
+  "keyup .prompt": (event) ->
+    filterTable(event, "decision_table")
+
+  "click .refresh": (event) ->
+    await loadDecisions()
 })
 
 
@@ -730,4 +770,34 @@ checkKairoAmountError = (kairoAmountInWeis) ->
 
 Template.ranking_tab.helpers({
   kairo_ranking: () ->  kairoRanking.get()
+  is_loading: () -> isLoadingRanking.get()
+  user_rank: () ->
+    for entry in kairoRanking.get()
+      if entry.address == userAddress.get()
+        return entry.rank
+    return "N/A"
 })
+
+Template.ranking_tab.events({
+  "keyup .prompt": (event) ->
+    filterTable(event, "ranking_table")
+
+  "click .goto_my_rank": (event) ->
+    for entry in kairoRanking.get()
+      if entry.address == userAddress.get()
+        $("#ranking_table tr")[entry.rank - 1].scrollIntoView(true)
+
+  "click .refresh": (event) ->
+    await loadRanking()
+})
+
+filterTable = (event, tableID) ->
+  searchInput = event.target.value.toLowerCase()
+  entries = $("##{tableID} tr")
+  for entry in entries
+    searchTarget = entry.children[1]
+    if searchTarget
+      if searchTarget.innerText.toLowerCase().indexOf(searchInput) > -1
+        entry.style.display = ""
+      else
+        entry.style.display = "none"

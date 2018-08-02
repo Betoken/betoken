@@ -361,7 +361,11 @@
 
   <div class="ui bottom attached tab segment scroll" data-tab="history">
     <!--History Tab-->
-    <table class="ui tablet stackable table celled sortable">
+    <div class="ui inverted dimmer {{#if is_loading}} active {{/if}}">
+      <div class="ui text loader">Loading</div>
+    </div>
+
+    <table class="ui tablet stackable table striped celled sortable">
       <!-- Table header -->
       <thead>
       <tr>
@@ -455,15 +459,32 @@
 </template>
 
 <template name="decisions_tab">
+  <div class="ui inverted dimmer {{#if is_loading}} active {{/if}}">
+    <div class="ui text loader">Loading</div>
+  </div>
+
   <div class="ui menu">
     <div class="item">
       <div class="ui positive button new_investment {{new_investment_is_disabled}} {{need_web3}}" style="background-color: #1fdaa6">
         New Decision
       </div>
     </div>
+
+    <a class="item refresh">
+      <i class="sync icon"></i>
+    </a>
+
+    <div class="right item">
+      <div class="ui search">
+        <div class="ui icon input">
+          <input class="prompt" placeholder="Search for token..." type="text">
+          <i class="search icon"></i>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <table class="ui tablet stackable table celled sortable">
+  <table class="ui tablet stackable table striped celled sortable">
     <!-- Table header -->
     <thead>
     <tr>
@@ -480,7 +501,7 @@
     </thead>
 
     <!-- Actual table rows go here -->
-    <tbody>
+    <tbody id="decision_table">
       {{#each investment_list}}
           <tr>
             <td>{{id}}</td>
@@ -492,11 +513,7 @@
             <td>{{investment}} DAI / {{stake}} KRO</td>
             <td>{{wei_to_eth buyPrice}}</td>
             <td>
-              {{#if isSold}}
                 {{wei_to_eth sellPrice}}
-              {{else}}
-                N/A
-              {{/if}}
             </td>
             <td>{{ROI}}</td>
             <td>{{kroChange}}</td>
@@ -543,7 +560,30 @@
 </template>
 
 <template name="ranking_tab">
-  <table class="ui tablet stackable table celled sortable">
+  <div class="ui inverted dimmer {{#if is_loading}} active {{/if}}">
+      <div class="ui text loader">Loading</div>
+  </div>
+
+  <div class="ui menu">
+    <a class="item goto_my_rank">
+      <h4> My Rank: {{user_rank}} </h4>
+    </a>
+
+    <a class="item refresh">
+      <i class="sync icon"></i>
+    </a>
+
+    <div class="right item">
+      <div class="ui search">
+        <div class="ui icon input">
+          <input class="prompt" placeholder="Search for address..." type="text">
+          <i class="search icon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table class="ui tablet stackable table striped celled sortable">
     <!-- Table header -->
     <thead>
     <tr>
@@ -554,7 +594,7 @@
     </thead>
 
     <!-- Actual table rows go here -->
-    <tbody>
+    <tbody id="ranking_table">
       {{#each kairo_ranking}}
         <tr>
           <td>{{rank}}</td>

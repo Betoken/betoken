@@ -33,11 +33,13 @@ export Betoken = (_address) ->
     controlToken: null
     shareToken: null
     tokenFactory: null
+    kyberNetwork: null
   self.addrs =
     betokenFund: null
     controlToken: null
     shareToken: null
     tokenFactory: null
+    kyberNetwork: null
 
   ###
     Getters
@@ -84,6 +86,10 @@ export Betoken = (_address) ->
   self.tokenSymbolToAddress = (_symbol) ->
     symbolHash = web3.utils.soliditySha3(_symbol)
     return self.contracts.tokenFactory.methods.createdTokens(symbolHash).call()
+
+  self.getTokenPrice = (_symbol) ->
+    addr = await self.tokenSymbolToAddress(_symbol)
+    return self.contracts.kyberNetwork.methods.priceInDAI(addr).call()
 
 
   ###*
@@ -276,6 +282,12 @@ export Betoken = (_address) ->
           self.addrs.tokenFactory = _addr
           factoryABI = require("./abi/TestTokenFactory.json")
           self.contracts.tokenFactory = new web3.eth.Contract(factoryABI, _addr)
+      ), self.contracts.betokenFund.methods.kyberAddr().call().then(
+        (_addr) ->
+          # Initialize TestKyberNetwork contract
+          self.addrs.kyberNetwork = _addr
+          knABI = require("./abi/TestKyberNetwork.json")
+          self.contracts.kyberNetwork = new web3.eth.Contract(knABI, _addr)
       )
     ])
 
