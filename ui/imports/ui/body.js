@@ -685,15 +685,16 @@ Template.countdown_timer.helpers({
   },
   second: function() {
     return countdownSec.get();
-  }
-});
-
-Template.phase_indicator.helpers({
-  phase_active: function(index) {
-    if (cyclePhase.get() === index) {
-      return "active";
+  },
+  phase: function() {
+    switch (cyclePhase.get()) {
+      case 0:
+        return "Deposit & Withdraw";
+      case 1:
+        return "Manage Investments";
+      case 2:
+        return "Redeem Commission";
     }
-    return "";
   }
 });
 

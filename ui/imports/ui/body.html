@@ -3,29 +3,25 @@
     <!-- Top Bar -->
     {{> top_bar}}
 
-    <div class="ui container sixteen wide column">
-      {{> phase_indicator}}
-    </div>
-
     <div class="ui container nine wide column">
       <!-- Tabs -->
       <div class="ui top attached tabular menu">
-        <a class="item active" data-tab="stats">Statistics</a>
-        <a class="item" data-tab="decisions">My Decisions</a>
-        <a class="item" data-tab="ranking">Ranking</a>
+        <a class="item active" data-tab="ranking">Rankings</a>
+        <a class="item" data-tab="decisions">My Investments</a>
+        <a class="item" data-tab="stats">Statistics</a>
       </div>
 
       <!-- Tab contents -->
-      <div class="ui bottom attached tab segment active" data-tab="stats">
-        {{> stats_tab}}
+      <div class="ui bottom attached tab large-tab segment active" data-tab="ranking">
+        {{> ranking_tab}}
       </div>
 
       <div class="ui bottom attached tab large-tab segment" data-tab="decisions">
         {{> decisions_tab}}
       </div>
 
-      <div class="ui bottom attached tab large-tab segment" data-tab="ranking">
-        {{> ranking_tab}}
+      <div class="ui bottom attached tab segment" data-tab="stats">
+        {{> stats_tab}}
       </div>
     </div>
 
@@ -135,7 +131,7 @@
 </template>
 
 <template name="countdown_timer">
-  <h3>Phase Change In&nbsp;&nbsp;&nbsp;&nbsp;</h3>
+  <h3>{{phase}}:&nbsp;&nbsp;&nbsp;&nbsp;</h3>
   <div class="ui mini statistics" style="margin-top: 0%;">
     <div class="ui statistic">
       <div class="value">
@@ -172,28 +168,6 @@
   </div>
 </template>
 
-<template name="phase_indicator">
-  <!--Phase Indicator-->
-  <div class="ui steps fluid tablet stackable">
-    <div class="{{phase_active 0}} step">
-      <div class="content">
-        <div class="title">Deposit & Withdraw</div>
-      </div>
-    </div>
-    <div class="{{phase_active 1}} step">
-      <div class="content">
-        <div class="title">Make Decisions</div>
-        <div class="description">Buy and sell tokens for the fund</div>
-      </div>
-    </div>
-    <div class="{{phase_active 2}} step">
-      <div class="content">
-        <div class="title">Redeem Commission</div>
-        <div class="description">Redeem commission based on how much Kairos you hold</div>
-      </div>
-    </div>
-  </div>
-</template>
 
 <template name="sidebar">
   <!-- Account Sidebar -->
@@ -392,71 +366,71 @@
 </template>
 
 <template name="stats_tab">
-  <div class="ui grid stackable">
-    <div class="twelve wide column">
-      <canvas id="ROIChart" width="400" height="400"></canvas>
-    </div>
-
-    <div class="four wide column">
-      <div style="text-align: center;">
-        <div class="ui horizontal divider">Fund Stats</div>
-        <div class="ui mini statistic">
-          <div class="label">
-            Total Investment
+    <div class="ui grid stackable">
+      <div class="twelve wide column">
+        <canvas id="ROIChart" width="400" height="400"></canvas>
+      </div>
+  
+      <div class="four wide column">
+        <div style="text-align: center;">
+          <div class="ui horizontal divider">Fund Stats</div>
+          <div class="ui mini statistic">
+            <div class="label">
+              Total Investment
+            </div>
+            <div class="value">
+              {{total_funds}} DAI
+            </div>
           </div>
-          <div class="value">
-            {{total_funds}} DAI
+          <p></p>
+          <div class="ui mini statistic">
+            <div class="label">
+              Average ROI
+            </div>
+            <div class="value">
+              {{avg_roi}}%
+            </div>
           </div>
-        </div>
-        <p></p>
-        <div class="ui mini statistic">
-          <div class="label">
-            Average ROI
+          <p></p>
+          <div class="ui mini statistic">
+            <div class="label">
+              Previous Cycle ROI
+            </div>
+            <div class="value">
+              {{prev_roi}}%
+            </div>
           </div>
-          <div class="value">
-            {{avg_roi}}%
+          <p></p>
+          <div class="ui mini statistic">
+            <div class="label">
+              Cycle Length
+            </div>
+            <div class="value">
+              {{cycle_length}} Days
+            </div>
           </div>
-        </div>
-        <p></p>
-        <div class="ui mini statistic">
-          <div class="label">
-            Previous Cycle ROI
+          <p></p>
+          <div class="ui mini statistic">
+            <div class="label">
+              Previous Cycle Commission Payout
+            </div>
+            <div class="value">
+              {{prev_commission}} DAI
+            </div>
           </div>
-          <div class="value">
-            {{prev_roi}}%
-          </div>
-        </div>
-        <p></p>
-        <div class="ui mini statistic">
-          <div class="label">
-            Cycle Length
-          </div>
-          <div class="value">
-            {{cycle_length}} Days
-          </div>
-        </div>
-        <p></p>
-        <div class="ui mini statistic">
-          <div class="label">
-            Previous Cycle Commission Payout
-          </div>
-          <div class="value">
-            {{prev_commission}} DAI
-          </div>
-        </div>
-        <p></p>
-        <div class="ui mini statistic">
-          <div class="label">
-            Historical Commission Payout
-          </div>
-          <div class="value">
-            {{historical_commission}} DAI
+          <p></p>
+          <div class="ui mini statistic">
+            <div class="label">
+              Historical Commission Payout
+            </div>
+            <div class="value">
+              {{historical_commission}} DAI
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</template>
+  </template>
 
 <template name="decisions_tab">
   <div class="ui inverted dimmer {{#if is_loading}} active {{/if}}">
@@ -466,7 +440,7 @@
   <div class="ui menu">
     <div class="item">
       <div class="ui positive button new_investment {{new_investment_is_disabled}} {{need_web3}}" style="background-color: #1fdaa6">
-        New Decision
+        New Investment
       </div>
     </div>
 

@@ -547,14 +547,14 @@ Template.countdown_timer.helpers(
   hour: () -> countdownHour.get()
   minute: () -> countdownMin.get()
   second: () -> countdownSec.get()
-)
-
-
-Template.phase_indicator.helpers(
-  phase_active: (index) ->
-    if cyclePhase.get() == index
-      return "active"
-    return ""
+  phase: () ->
+    switch cyclePhase.get()
+      when 0
+        "Deposit & Withdraw"
+      when 1
+        "Manage Investments"
+      when 2
+        "Redeem Commission"
 )
 
 
