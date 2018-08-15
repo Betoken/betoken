@@ -89,6 +89,9 @@ isLoadingRanking = new ReactiveVar(true)
 isLoadingInvestments = new ReactiveVar(true)
 isLoadingRecords = new ReactiveVar(true)
 
+tokenPrices = new ReactiveVar([])
+tokenAddresses = new ReactiveVar([])
+
 
 showTransaction = (_txHash) ->
   transactionHash.set(_txHash)
@@ -210,6 +213,14 @@ drawChart = () ->
   )
 
 
+assetSymbolToPrice = (_symbol) ->
+  return tokenPrices.get()[TOKENS.indexOf(_symbol)]
+
+
+assetAddressToSymbol = (_addr) ->
+  return TOKENS[tokenAddresses.get().indexOf(_addr)]
+
+
 loadFundMetadata = () ->
   await Promise.all([
     # get params
@@ -222,7 +233,11 @@ loadFundMetadata = () ->
     sharesAddr.set(betoken.addrs.shareToken),
     kyberAddr.set(await betoken.getPrimitiveVar("kyberAddr")),
     daiAddr.set(await betoken.getPrimitiveVar("daiAddr")),
-    tokenFactoryAddr.set(await betoken.addrs.tokenFactory)
+    tokenFactoryAddr.set(await betoken.addrs.tokenFactory),
+    tokenAddresses.set(await Promise.all(TOKENS.map(
+      (_token) ->
+        return await betoken.tokenSymbolToAddress(_token)
+    )))
   ])
 
 
@@ -373,6 +388,13 @@ loadUserData = () ->
       await loadDecisions()
 
 
+loadTokenPrices = () ->
+  tokenPrices.set(await Promise.all(TOKENS.map(
+    (_token) ->
+      return BigNumber(await betoken.getTokenPrice(_token)).div(1e18)
+  )))
+
+
 loadDecisions = () ->
   # Get list of user's investments
   isLoadingInvestments.set(true)
@@ -385,7 +407,7 @@ loadDecisions = () ->
           investments[id].tokenSymbol = _symbol
           investments[id].investment = BigNumber(investments[id].stake).div(kairoTotalSupply.get()).mul(totalFunds.get()).div(1e18).toFormat(4)
           investments[id].stake = BigNumber(investments[id].stake).div(1e18).toFormat(4)
-          investments[id].sellPrice = if investments[id].isSold then BigNumber(investments[id].sellPrice) else (await betoken.getTokenPrice(_symbol))
+          investments[id].sellPrice = if investments[id].isSold then BigNumber(investments[id].sellPrice) else assetSymbolToPrice(_symbol).mul(1e18)
           investments[id].ROI = BigNumber(investments[id].sellPrice).sub(investments[id].buyPrice).div(investments[id].buyPrice).mul(100).toFormat(4)
           investments[id].kroChange = BigNumber(investments[id].ROI).mul(investments[id].stake).div(100).toFormat(4)
       )
@@ -411,11 +433,22 @@ loadRanking = () ->
   # fetch KRO balances
   ranking = await Promise.all(addresses.map(
     (_addr) ->
-      return {
-        rank: 0
-        address: _addr
-        kairoBalance: BigNumber(await betoken.getKairoBalance(_addr)).div(1e18).toFixed(4)
-      }
+      stake = BigNumber(0)
+      return betoken.getInvestments(_addr).then(
+        (investments) ->
+          addStake = (i) ->
+            if !i.isSold
+              currentStakeValue = assetSymbolToPrice(assetAddressToSymbol(i.tokenAddress)).mul(1e18).sub(i.buyPrice).div(i.buyPrice).mul(i.stake).add(i.stake)
+              stake = stake.add(currentStakeValue)
+          return Promise.all(addStake(i) for i in investments)
+      ).then(
+        () ->
+          return {
+            rank: 0
+            address: _addr
+            kairoBalance: BigNumber(await betoken.getKairoBalance(_addr)).add(stake).div(1e18).toFixed(18)
+          }
+      )
   ))
 
   # sort entries
@@ -438,12 +471,14 @@ loadRanking = () ->
 loadAllData = () ->
   await loadFundMetadata()
   await loadFundData()
+  await loadTokenPrices()
   await loadUserData()
   await loadRanking()
 
 
 loadDynamicData = () ->
   await loadFundData()
+  await loadTokenPrices()
   await loadUserData()
   await loadRanking()
 
@@ -758,6 +793,7 @@ Template.decisions_tab.events({
     filterTable(event, "decision_table")
 
   "click .refresh": (event) ->
+    await loadTokenPrices()
     await loadDecisions()
 })
 
@@ -776,6 +812,11 @@ Template.ranking_tab.helpers({
       if entry.address == userAddress.get()
         return entry.rank
     return "N/A"
+  user_value: () ->
+    for entry in kairoRanking.get()
+      if entry.address == userAddress.get()
+        return BigNumber(entry.kairoBalance).toFixed(4)
+    return "N/A"
 })
 
 Template.ranking_tab.events({
@@ -788,6 +829,7 @@ Template.ranking_tab.events({
         $("#ranking_table tr")[entry.rank - 1].scrollIntoView(true)
 
   "click .refresh": (event) ->
+    await loadTokenPrices()
     await loadRanking()
 })
 

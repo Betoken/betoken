@@ -542,6 +542,9 @@
     <a class="item goto_my_rank">
       <h4> My Rank: {{user_rank}} </h4>
     </a>
+    <a class="item goto_my_rank">
+      <h4> My Kairo: {{user_value}} </h4>
+    </a>
 
     <a class="item refresh">
       <i class="sync icon"></i>
@@ -561,9 +564,9 @@
     <!-- Table header -->
     <thead>
     <tr>
-      <th>#</th>
+      <th style="text-align: center;">#</th>
       <th>Manager Address</th>
-      <th>Kairo Balance</th>
+      <th style="text-align: center;">Kairo Balance + Portfolio Value</th>
     </tr>
     </thead>
 
@@ -571,9 +574,9 @@
     <tbody id="ranking_table">
       {{#each kairo_ranking}}
         <tr>
-          <td>{{rank}}</td>
+          <td style="text-align: center;">{{rank}}</td>
           <td>{{address}}</td>
-          <td>{{kairoBalance}}</td>
+          <td style="text-align: center;">{{kairoBalance}}</td>
         </tr>
       {{/each}}
     </tbody>
