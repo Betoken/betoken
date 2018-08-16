@@ -113,6 +113,9 @@ export var Betoken = function(_address) {
     addr = (await self.tokenSymbolToAddress(_symbol));
     return self.contracts.kyberNetwork.methods.priceInDAI(addr).call();
   };
+  self.getTokenBalance = function(_tokenAddr, _addr) {
+    return ERC20(_tokenAddr).methods.balanceOf(_addr).call();
+  };
   /**
    * Gets the Kairo balance of an address
    * @param  {String} _address the address whose balance we're getting

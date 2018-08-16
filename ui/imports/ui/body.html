@@ -376,10 +376,19 @@
           <div class="ui horizontal divider">Fund Stats</div>
           <div class="ui mini statistic">
             <div class="label">
-              Total Investment
+              Current Fund Value
             </div>
             <div class="value">
-              {{total_funds}} DAI
+              {{fund_value}} DAI
+            </div>
+          </div>
+          <p></p>
+          <div class="ui mini statistic">
+            <div class="label">
+              Current Cycle ROI
+            </div>
+            <div class="value">
+              {{cycle_roi}} %
             </div>
           </div>
           <p></p>
@@ -389,15 +398,6 @@
             </div>
             <div class="value">
               {{avg_roi}}%
-            </div>
-          </div>
-          <p></p>
-          <div class="ui mini statistic">
-            <div class="label">
-              Previous Cycle ROI
-            </div>
-            <div class="value">
-              {{prev_roi}}%
             </div>
           </div>
           <p></p>

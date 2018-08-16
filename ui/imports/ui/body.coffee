@@ -92,6 +92,8 @@ isLoadingRecords = new ReactiveVar(true)
 tokenPrices = new ReactiveVar([])
 tokenAddresses = new ReactiveVar([])
 
+fundValue = new ReactiveVar(BigNumber(0))
+
 
 showTransaction = (_txHash) ->
   transactionHash.set(_txHash)
@@ -219,6 +221,10 @@ assetSymbolToPrice = (_symbol) ->
 
 assetAddressToSymbol = (_addr) ->
   return TOKENS[tokenAddresses.get().indexOf(_addr)]
+
+
+assetSymbolToAddress = (_symbol) ->
+  return tokenAddresses.get()[TOKENS.indexOf(_symbol)]
 
 
 loadFundMetadata = () ->
@@ -468,12 +474,26 @@ loadRanking = () ->
   isLoadingRanking.set(false)
 
 
+loadStats = () ->
+  _fundValue = BigNumber(0)
+  getTokenValue = (_token) ->
+      balance = BigNumber(await betoken.getTokenBalance(assetSymbolToAddress(_token), betoken.addrs.betokenFund))
+          .div(BigNumber(10).toPower(await betoken.getTokenDecimals(assetSymbolToAddress(_token))))
+      value = balance.mul(assetSymbolToPrice(_token))
+      _fundValue = _fundValue.add(value)
+  await Promise.all((getTokenValue(t) for t in TOKENS))
+  fundDAIBalance = BigNumber(await betoken.getTokenBalance(daiAddr.get(), betoken.addrs.betokenFund))
+  _fundValue = _fundValue.add(fundDAIBalance.div(1e18))
+  fundValue.set(_fundValue)
+
+
 loadAllData = () ->
   await loadFundMetadata()
   await loadFundData()
   await loadTokenPrices()
   await loadUserData()
   await loadRanking()
+  await loadStats()
 
 
 loadDynamicData = () ->
@@ -481,6 +501,7 @@ loadDynamicData = () ->
   await loadTokenPrices()
   await loadUserData()
   await loadRanking()
+  await loadStats()
 
 
 $("document").ready(() ->
@@ -749,11 +770,13 @@ Template.stats_tab.helpers({
   cycle_length: () ->
     if phaseLengths.get().length > 0
       BigNumber(phaseLengths.get().reduce((t, n) -> t+n)).div(24 * 60 * 60).toDigits(3)
-  total_funds: () -> totalFunds.get().div("1e18").toFormat(2)
+  total_funds: () -> totalFunds.get().div(1e18).toFormat(2)
   prev_roi: () -> prevROI.get().toFormat(2)
   avg_roi: () -> avgROI.get().toFormat(2)
   prev_commission: () -> prevCommission.get().div(1e18).toFormat(2)
   historical_commission: () -> historicalTotalCommission.get().div(1e18).toFormat(2)
+  fund_value: () -> fundValue.get().toFormat(2)
+  cycle_roi: () -> fundValue.get().sub(totalFunds.get().div(1e18)).div(totalFunds.get().div(1e18)).mul(100).toFormat(4)
 })
 
 

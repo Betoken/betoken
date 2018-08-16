@@ -91,6 +91,9 @@ export Betoken = (_address) ->
     addr = await self.tokenSymbolToAddress(_symbol)
     return self.contracts.kyberNetwork.methods.priceInDAI(addr).call()
 
+  self.getTokenBalance = (_tokenAddr, _addr) ->
+    return ERC20(_tokenAddr).methods.balanceOf(_addr).call()
+
 
   ###*
    * Gets the Kairo balance of an address
