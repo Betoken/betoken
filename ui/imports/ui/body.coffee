@@ -88,11 +88,14 @@ wrongNetwork = new ReactiveVar(false)
 isLoadingRanking = new ReactiveVar(true)
 isLoadingInvestments = new ReactiveVar(true)
 isLoadingRecords = new ReactiveVar(true)
+isLoadingPrices = new ReactiveVar(true)
 
 tokenPrices = new ReactiveVar([])
 tokenAddresses = new ReactiveVar([])
 
 fundValue = new ReactiveVar(BigNumber(0))
+
+newInvestmentSelectedToken = new ReactiveVar(TOKENS[0])
 
 
 showTransaction = (_txHash) ->
@@ -395,10 +398,12 @@ loadUserData = () ->
 
 
 loadTokenPrices = () ->
+  isLoadingPrices.set(true)
   tokenPrices.set(await Promise.all(TOKENS.map(
     (_token) ->
       return BigNumber(await betoken.getTokenPrice(_token)).div(1e18)
   )))
+  isLoadingPrices.set(false)
 
 
 loadDecisions = () ->
@@ -549,6 +554,11 @@ $("document").ready(() ->
       () ->
         # refresh every 2 minutes
         setInterval(loadDynamicData, 2 * 60 * 1000)
+    )
+
+    $("#invest_token_type").on("change", (e) ->
+      tokenSymbol = e.target.value
+      newInvestmentSelectedToken.set(tokenSymbol)
     )
 )
 
@@ -788,6 +798,8 @@ Template.decisions_tab.helpers({
   tokens: () -> TOKENS
   need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
   is_loading: () -> isLoadingInvestments.get()
+  selected_token: () -> newInvestmentSelectedToken.get()
+  selected_token_price: () -> assetSymbolToPrice(newInvestmentSelectedToken.get())
 })
 
 
@@ -813,7 +825,7 @@ Template.decisions_tab.events({
     }).modal("show")
 
   "keyup .prompt": (event) ->
-    filterTable(event, "decision_table")
+    filterTable(event, "decision_table", 1)
 
   "click .refresh": (event) ->
     await loadTokenPrices()
@@ -844,7 +856,7 @@ Template.ranking_tab.helpers({
 
 Template.ranking_tab.events({
   "keyup .prompt": (event) ->
-    filterTable(event, "ranking_table")
+    filterTable(event, "ranking_table", 1)
 
   "click .goto_my_rank": (event) ->
     for entry in kairoRanking.get()
@@ -856,11 +868,32 @@ Template.ranking_tab.events({
     await loadRanking()
 })
 
-filterTable = (event, tableID) ->
+Template.price_tab.helpers({
+  prices: () ->
+    TOKENS.map(
+      (token) ->
+        {
+          token_symbol: token
+          price: assetSymbolToPrice(token)
+        }
+    )
+
+  is_loading: () -> isLoadingPrices.get()
+})
+
+Template.price_tab.events({
+  "keyup .prompt": (event) ->
+    filterTable(event, "price_table", 0)
+
+  "click .refresh": (event) ->
+    await loadTokenPrices()
+})
+
+filterTable = (event, tableID, searchID) ->
   searchInput = event.target.value.toLowerCase()
   entries = $("##{tableID} tr")
   for entry in entries
-    searchTarget = entry.children[1]
+    searchTarget = entry.children[searchID]
     if searchTarget
       if searchTarget.innerText.toLowerCase().indexOf(searchInput) > -1
         entry.style.display = ""
