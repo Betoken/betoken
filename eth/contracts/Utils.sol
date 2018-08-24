@@ -16,14 +16,6 @@ contract Utils {
   uint  constant internal ETH_DECIMALS = 18;
   uint  constant internal MIN_DECIMALS = 11;
 
-  /**
-   * @notice Calculates the invert of a fixed-point decimal with precision PRECISION
-   * @param x the fixed-point decimal to be inverted
-   */
-  function invert(uint256 x) internal pure returns(uint256) {
-    return PRECISION.mul(PRECISION).div(x);
-  }
-
   function getDecimals(DetailedERC20 _token) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
       return uint256(ETH_DECIMALS);
@@ -36,5 +28,20 @@ contract Utils {
       return _addr.balance;
     }
     return uint256(_token.balanceOf(_addr));
+  }
+
+  function calcRateFromQty(uint srcAmount, uint destAmount, uint srcDecimals, uint dstDecimals)
+        internal pure returns(uint)
+  {
+    require(srcAmount <= MAX_QTY);
+    require(destAmount <= MAX_QTY);
+
+    if (dstDecimals >= srcDecimals) {
+      require((dstDecimals - srcDecimals) <= MAX_DECIMALS);
+      return (destAmount * PRECISION / ((10 ** (dstDecimals - srcDecimals)) * srcAmount));
+    } else {
+      require((srcDecimals - dstDecimals) <= MAX_DECIMALS);
+      return (destAmount * PRECISION * (10 ** (srcDecimals - dstDecimals)) / srcAmount);
+    }
   }
 }

@@ -1,17 +1,17 @@
 pragma solidity ^0.4.24;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
 import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 import "./tokens/minime/MiniMeToken.sol";
 import "./KyberNetwork.sol";
 import "./Utils.sol";
+import "./BetokenProxy.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
  * @author Zefram Lou (Zebang Liu)
  */
-contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
+contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   using SafeMath for uint256;
 
   enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
@@ -49,6 +49,15 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     _;
   }
 
+  /**
+   * @notice Checks if the fund is ready for upgrading to the next version
+   */
+  modifier readyForUpgrade {
+    require(cycleNumber == ttlInCycles.add(1));
+    require(nextVersion != address(0));
+    require(now > startTimeOfCyclePhase.add(phaseLengths[uint(CyclePhase.DepositWithdraw)]))
+  }
+
   // Address of the control token contract.
   address public controlTokenAddr;
 
@@ -58,17 +67,20 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   // Address of the KyberNetwork contract
   address public kyberAddr;
 
+  // Address of the BetokenProxy contract
+  address public proxyAddr;
+
   // Address to which the developer fees will be paid.
   address public developerFeeAccount;
 
   // Address of the DAI stable-coin contract.
   address public daiAddr;
 
-  // Address of the TestTokenFactory used (remove for Mainnet)
-  address public tokenFactoryAddr;
-
   // Address of the previous version of BetokenFund.
   address public previousVersion;
+
+  // Address of the next version of BetokenFund.
+  address public nextVersion;
 
   // The number of the current investment cycle.
   uint256 public cycleNumber;
@@ -97,8 +109,10 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   // Total amount of commission unclaimed by managers
   uint256 public totalCommissionLeft;
 
-  // Flag for whether emergency withdrawing is allowed.
-  bool public allowEmergencyWithdraw;
+  // Number of cycles the fund runs until it needs to be updated
+  uint256 public ttlInCycles;
+
+  uint256 public totalVotes;
 
   // Stores the lengths of each cycle phase in seconds.
   uint256[3] phaseLengths;
@@ -118,6 +132,10 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   // The block number at which the RedeemCommission phase started for the given cycle
   mapping(uint256 => uint256) public commissionPhaseStartBlock;
 
+  mapping(address => bool) public hasVotedOnNextVersion;
+
+  mapping(address => uint256) public nextVersionToVotes;
+
   // The current cycle phase.
   CyclePhase public cyclePhase;
 
@@ -126,6 +144,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   MiniMeToken internal sToken;
   KyberNetwork internal kyber;
   DetailedERC20 internal dai;
+  BetokenProxy internal proxy;
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
 
@@ -139,19 +158,18 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
-  event NewUser(address _user); // Omen only
+  event NewUser(address _user);
 
   /**
-   * Contract initialization functions
+   * Meta functions
    */
 
-  // Constructor
   constructor(
     address _cTokenAddr,
     address _sTokenAddr,
     address _kyberAddr,
     address _daiAddr,
-    address _tokenFactoryAddr,
+    address _proxyAddr,
     address _developerFeeAccount,
     uint256[3] _phaseLengths,
     uint256 _commissionRate,
@@ -159,6 +177,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     uint256 _developerFeeRate,
     uint256 _exitFeeRate,
     uint256 _functionCallReward,
+    uint256 _ttlInCycles,
     address _previousVersion
   )
     public
@@ -169,7 +188,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     shareTokenAddr = _sTokenAddr;
     kyberAddr = _kyberAddr;
     daiAddr = _daiAddr;
-    tokenFactoryAddr = _tokenFactoryAddr;
+    proxyAddr = _proxyAddr;
     cToken = MiniMeToken(_cTokenAddr);
     sToken = MiniMeToken(_sTokenAddr);
     kyber = KyberNetwork(_kyberAddr);
@@ -181,30 +200,52 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     assetFeeRate = _assetFeeRate;
     developerFeeRate = _developerFeeRate;
     exitFeeRate = _exitFeeRate;
-    startTimeOfCyclePhase = 0;
     cyclePhase = CyclePhase.RedeemCommission;
     functionCallReward = _functionCallReward;
+    ttlInCycles = _ttlInCycles;
+
     previousVersion = _previousVersion;
-    allowEmergencyWithdraw = false;
   }
 
   /**
-   * Betoken Omen specific functions
+   * Upgrading functions
    */
 
-  /**
-   * @notice Mints `_amount` Kairo for each address in the receipients list.
-   * @dev Remove for Mainnet
-   */
-  function airdropKairo(address[] _receipients, uint256 _amount) 
-    public 
-    onlyOwner
-    whenNotPaused
-    nonReentrant
-  {
-    for (uint256 i = 0; i < _receipients.length; i = i.add(1)) {
-      cToken.generateTokens(_receipients[i], _amount);
-      emit NewUser(_receipients[i]);
+  function announceNextVersion(address _nextVersion) public onlyOwner during(CyclePhase.DepositWithdraw) {
+    require(_nextVersion != address(0));
+    require(nextVersion == address(0));
+    nextVersion = _nextVersion;
+    ttlInCycles = cycleNumber;
+  }
+
+  function voteForNextVersion(address _nextVersion) public during(CyclePhase.DepositWithdraw) {
+    require(_nextVersion != address(0));
+    require(cycleNumber >= ttlInCycles);
+    require(hasVotedOnNextVersion[msg.sender] == false)
+    hasVotedOnNextVersion[msg.sender] = true;
+    uint256 voteWeight = cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycleNumber.sub(1)]);
+    totalVotes = totalVotes.add(voteWeight);
+    nextVersionToVotes[_nextVersion] = nextVersionToVotes[_nextVersion].add(voteWeight);
+  }
+
+  function setNextVersionFromVotes(address _nextVersion) public {
+    require(_nextVersion != address(0));
+    require(cycleNumber >= ttlInCycles);
+
+  }
+
+  function migrateOwnedContractsToNextVersion() public readyForUpgrade onlyOwner {
+    cToken.transferOwnership(nextVersion);
+    sToken.transferOwnership(nextVersion);
+    proxy.updateBetokenFundAddress(nextVersion);
+  }
+
+  function transferAssetToNextVersion(address _assetAddress) public readyForUpgrade isValidToken(_assetAddress) onlyOwner {
+    if (_assetAddress == ETH_TOKEN_ADDRESS) {
+      nextVersion.transfer(address(this.balance));
+    } else {
+      DetailedERC20 token = DetailedERC20(_assetAddress);
+      token.transfer(nextVersion, token.balanceOf(address(this)));
     }
   }
 
@@ -229,111 +270,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * Meta functions
-   */
-
-  /**
-   * Emergency functions
-   */
-
-  /**
-   * @notice Sells token in emergency situations. Only callable by owner.
-   * @param _tokenAddr the address of the token to be sold
-   */
-  function emergencyDumpToken(address _tokenAddr)
-    public
-    onlyOwner
-    whenPaused
-  {
-    DetailedERC20 token = DetailedERC20(_tokenAddr);
-    __kyberTrade(token, getBalance(token, this), dai);
-  }
-
-  /**
-   * @notice Return staked Kairos for a investment under emergency situations. Should be called by users.
-   * @param _investmentId the ID of the investment
-   */
-  function emergencyRedeemStake(uint256 _investmentId) whenPaused public {
-    require(allowEmergencyWithdraw);
-    Investment storage investment = userInvestments[msg.sender][_investmentId];
-    require(investment.cycleNumber == cycleNumber);
-    uint256 stake = investment.stake;
-    require(stake > 0);
-    delete investment.stake;
-    cToken.transfer(msg.sender, stake);
-  }
-
-  /**
-   * @notice Redeems commission under emergency situations. Should be called by users.
-   */
-  function emergencyRedeemCommission()
-    public
-    whenPaused
-    nonReentrant
-  {
-    require(lastCommissionRedemption[msg.sender] < cycleNumber);
-    uint256 commission = 0;
-    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
-      commission = commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
-          .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
-    }
-
-    lastCommissionRedemption[msg.sender] = cycleNumber;
-    totalCommissionLeft = totalCommissionLeft.sub(commission);
-
-    dai.transfer(msg.sender, commission);
-
-    emit CommissionPaid(cycleNumber, msg.sender, commission);
-  }
-
-  /**
-   * @notice Updates the current fund balance. Only callable by owner.
-   */
-  function emergencyUpdateBalance() onlyOwner whenPaused public {
-    totalFundsInDAI = getBalance(dai, this).sub(totalCommissionLeft);
-  }
-
-  /**
-   * @notice Changes whether emergency withdrawals are allowed. Only callable by owner.
-   * @param _newVal the new value
-   */
-  function setAllowEmergencyWithdraw(bool _newVal) onlyOwner whenPaused public {
-    allowEmergencyWithdraw = _newVal;
-  }
-
-  /**
-   * @notice Function for withdrawing all funds in times of emergency. Only callable when fund is paused and allowEmergencyWithdraw is true.
-   */
-  function emergencyWithdraw()
-    public
-    whenPaused
-  {
-    require(allowEmergencyWithdraw);
-
-    uint256 amountInDAI = sToken.balanceOf(msg.sender).mul(totalFundsInDAI).div(sToken.totalSupply());
-    sToken.destroyTokens(msg.sender, sToken.balanceOf(msg.sender));
-    totalFundsInDAI = totalFundsInDAI.sub(amountInDAI);
-
-    // Transfer
-    dai.transfer(msg.sender, amountInDAI);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, daiAddr, amountInDAI, amountInDAI, now);
-  }
-
-  /**
    * Parameter setters
    */
-
-  /**
-   * @notice Changes the address of the KyberNetwork contract used in the contract. Only callable by owner.
-   * @param _newAddr the new address of KyberNetwork contract
-   */
-  function changeKyberNetworkAddress(address _newAddr) public onlyOwner whenPaused {
-    require(_newAddr != address(0));
-    kyberAddr = _newAddr;
-    kyber = KyberNetwork(_newAddr);
-  }
 
   /**
    * @notice Changes the address to which the developer fees will be sent. Only callable by owner.
@@ -345,21 +283,12 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-  * @notice Changes the address of the DAI token smart contract. Only callable by owner.
-  * @param _newAddr the new DAI smart contract address
-  */
-  function changeDAIAddress(address _newAddr) public onlyOwner whenPaused {
-    require(_newAddr != address(0));
-    daiAddr = _newAddr;
-    dai = DetailedERC20(_newAddr);
-  }
-
-  /**
    * @notice Changes the proportion of profits given to Kairo holders each cycle. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
    */
   function changeCommissionRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
+    require(_newProp < commissionRate);
     commissionRate = _newProp;
   }
 
@@ -369,6 +298,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   */
   function changeAssetFeeRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
+    require(_newProp < assetFeeRate);
     assetFeeRate = _newProp;
   }
 
@@ -390,31 +320,6 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     require(_newProp < PRECISION);
     require(_newProp < exitFeeRate);
     exitFeeRate = _newProp;
-  }
-
-  /**
-   * @notice Changes the amount of Kairo rewarded to whomever calls nextPhase() the first. Only callable by owner.
-   * @param _newVal the new reward value in Kairo, 18 decimals
-   */
-  function changeCallReward(uint256 _newVal) public onlyOwner {
-    functionCallReward = _newVal;
-  }
-
-  /**
-   * @notice Changes the lengths of the phases in an investment cycle. Only callable by owner.
-   * @param _newVal the new set of phase lengths, in the order of DepositWithdraw, MakeDecisions, RedeemCommission, in seconds
-   */
-  function changePhaseLengths(uint256[3] _newVal) public onlyOwner {
-    phaseLengths = _newVal;
-  }
-
-  /**
-   * @notice Changes the owner of the ControlToken contract. Only callable by owner.
-   * @param  _newOwner the new owner address
-   */
-  function changeControlTokenOwner(address _newOwner) public onlyOwner whenPaused {
-    require(_newOwner != address(0));
-    cToken.transferOwnership(_newOwner);
   }
 
   /**
@@ -444,6 +349,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
       }
 
       cycleNumber = cycleNumber.add(1);
+    } else if (cyclePhase == CyclePhase.DepositWithdraw) {
+      require(cycleNumber < ttlInCycles.add(1)); // Enforce TTL
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
       require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
@@ -466,6 +373,44 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
    * DepositWithdraw phase functions
    */
 
+   /**
+   * @notice Deposit Ether into the fund. Ether will be converted into DAI.
+   */
+  function depositEther()
+    public
+    payable
+    during(CyclePhase.DepositWithdraw)
+    whenNotPaused
+    nonReentrant
+  {
+    // Buy DAI with ETH
+    uint256 actualDAIDeposited;
+    uint256 actualETHDeposited;
+    uint256 beforeETHBalance = getBalance(ETH_TOKEN_ADDRESS, this);
+    uint256 beforeDAIBalance = getBalance(dai, this);
+    __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+    actualETHDeposited = beforeETHBalance.sub(getBalance(ETH_TOKEN_ADDRESS, this));
+    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
+    if (leftOverETH > 0) {
+      msg.sender.transfer(leftOverETH);
+    }
+    actualDAIDeposited = getBalance(dai, this).sub(beforeDAIBalance);
+
+    // Register investment
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
+      sToken.mint(msg.sender, actualDAIDeposited);
+    } else {
+      sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
+
+    // Only for test version. Remove for release.
+    cToken.mint(msg.sender, actualDAIDeposited);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
+  }
+
   /**
    * @notice Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
    * @param _tokenAddr the address of the token to be deposited
@@ -478,6 +423,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     whenNotPaused
     nonReentrant
   {
+    require(cycleNumber <= ttlInCycles); // Enforce TTL
     DetailedERC20 token = DetailedERC20(_tokenAddr);
 
     require(token.transferFrom(msg.sender, this, _tokenAmount));
@@ -515,6 +461,43 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
+   * @notice Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawEther(uint256 _amountInDAI)
+    public
+    during(CyclePhase.DepositWithdraw)
+    whenNotPaused
+    nonReentrant
+  {
+    // Buy ETH
+    uint256 actualETHWithdrawn;
+    uint256 actualDAIWithdrawn;
+    uint256 beforeETHBalance = getBalance(ETH_TOKEN_ADDRESS, this);
+    uint256 beforeDaiBalance = getBalance(dai, this);
+    __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
+    actualETHWithdrawn = getBalance(ETH_TOKEN_ADDRESS, this).sub(beforeETHBalance);
+    actualDAIWithdrawn = beforeDaiBalance.sub(getBalance(dai, this));
+    require(actualDAIWithdrawn > 0);
+
+    // Burn shares
+    sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
+
+    // Transfer Ether to user
+    if (cycleNumber > ttlInCycles) {
+      // Charge exit fee unless last cycle
+      uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
+      developerFeeAccount.transfer(exitFee);
+      actualETHWithdrawn = actualETHWithdrawn.sub(exitFee);
+    }
+    msg.sender.transfer(actualETHWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHWithdrawn, actualDAIWithdrawn, now);
+  }
+
+  /**
    * @notice Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
    * @param _tokenAddr the address of the token to be withdrawn into the caller's account
    * @param _amountInDAI The amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
@@ -549,9 +532,13 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer tokens to user
-    uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
-    token.transfer(developerFeeAccount, exitFee);
-    actualTokenWithdrawn = actualTokenWithdrawn.sub(exitFee);
+    if (cycleNumber > ttlInCycles) {
+      // Charge exit fee unless last cycle
+      uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
+      token.transfer(developerFeeAccount, exitFee);
+      actualTokenWithdrawn = actualTokenWithdrawn.sub(exitFee);
+    }
+    
     token.transfer(msg.sender, actualTokenWithdrawn);
 
     // Emit event
@@ -780,6 +767,8 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
   function __handleInvestment(uint256 _investmentId, bool _buy) internal {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
     uint256 srcAmount;
+    uint256 dInS;
+    uint256 sInD;
     if (_buy) {
       srcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
     } else {
@@ -787,9 +776,11 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
     }
     DetailedERC20 token = DetailedERC20(investment.tokenAddress);
     if (_buy) {
-      investment.buyPrice = __kyberTrade(dai, srcAmount, token);
+      (dInS, sInD) = __kyberTrade(dai, srcAmount, token);
+      investment.buyPrice = dInS;
     } else {
-      investment.sellPrice = invert(__kyberTrade(token, srcAmount, dai));
+      (dInS, sInD) = __kyberTrade(token, srcAmount, dai);
+      investment.sellPrice = sInD;
     }
   }
 
@@ -800,7 +791,7 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
    * @param _destToken the destination token
    * @return _destPriceInSrc the price of the destination token, in terms of source tokens
    */
-  function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc) {
+  function __kyberTrade(DetailedERC20 _srcToken, uint256 _srcAmount, DetailedERC20 _destToken) internal returns(uint256 _destPriceInSrc, uint256 _srcPriceInDest) {
     require(_srcToken != _destToken);
     uint256 actualDestAmount;
     uint256 beforeSrcBalance = getBalance(_srcToken, this);
@@ -827,11 +818,13 @@ contract BetokenFund is Pausable, Utils, ReentrancyGuard, TokenController {
       _srcToken.approve(kyberAddr, 0);
     }
 
-    _destPriceInSrc = beforeSrcBalance.sub(getBalance(_srcToken, this)).mul(PRECISION).mul(10**getDecimals(_destToken)).div(actualDestAmount.mul(10**getDecimals(_srcToken)));
+    uint256 actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, this));
+    _destPriceInSrc = calcRateFromQty(actualDestAmount, actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
+    _srcPriceInDest = calcRateFromQty(actualSrcAmount, actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
   }
 
   function() public payable {
-    if (msg.sender != kyberAddr) {
+    if (msg.sender != kyberAddr || msg.sender != previousVersion) {
       revert();
     }
   }
