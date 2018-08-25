@@ -40,7 +40,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
    * @param token the token's address
    */
   modifier isValidToken(address token) {
-    require(!isMaliciousCoin[token]);
     if (token != address(ETH_TOKEN_ADDRESS)) {
       DetailedERC20 _token = DetailedERC20(token);
       require(_token.totalSupply() > 0);
@@ -53,9 +52,9 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
    * @notice Checks if the fund is ready for upgrading to the next version
    */
   modifier readyForUpgrade {
-    require(cycleNumber == ttlInCycles.add(1));
+    require(cycleNumber == cycleOfUpgrade.add(1));
     require(nextVersion != address(0));
-    require(now > startTimeOfCyclePhase.add(phaseLengths[uint(CyclePhase.DepositWithdraw)]))
+    require(now > startTimeOfCyclePhase.add(phaseLengths[uint(CyclePhase.DepositWithdraw)]));
   }
 
   // Address of the control token contract.
@@ -109,11 +108,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   // Total amount of commission unclaimed by managers
   uint256 public totalCommissionLeft;
 
-  // Number of cycles the fund runs until it needs to be updated
-  uint256 public ttlInCycles;
-
-  uint256 public totalVotes;
-
   // Stores the lengths of each cycle phase in seconds.
   uint256[3] phaseLengths;
 
@@ -123,18 +117,25 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   // List of investments in the current cycle.
   mapping(address => Investment[]) public userInvestments;
 
-  // Records if a token's contract maliciously treats the BetokenFund differently when calling transfer(), transferFrom(), or approve().
-  mapping(address => bool) public isMaliciousCoin;
-
   // Total commission to be paid in a certain cycle
   mapping(uint256 => uint256) public totalCommissionOfCycle;
 
   // The block number at which the RedeemCommission phase started for the given cycle
   mapping(uint256 => uint256) public commissionPhaseStartBlock;
 
-  mapping(address => bool) public hasVotedOnNextVersion;
+  // Upgrade related variables
+  uint256 public cycleOfUpgrade; // Cycle when the contract is upgraded
+  uint256 public upgradeQuorum;
+  uint256 public nextVersionQuorum;
 
-  mapping(address => uint256) public nextVersionToVotes;
+  mapping(uint256 => mapping(address => bool)) public hasSignaledUpgrade;
+  mapping(uint256 => uint256) public votesSignalingUpgrade;
+  mapping(uint256 => uint256) public totalUpgradeVotes;
+
+  mapping(uint256 => mapping(address => bool)) public hasVotedOnNextVersion;
+  mapping(uint256 => mapping(address => uint256)) public votesForNextVersion;
+  mapping(uint256 => uint256) public totalNextVersionVotes;
+
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -160,6 +161,11 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
 
   event NewUser(address _user);
 
+  event BeganUpgradeProcess(uint256 indexed _cycleNumber, bool _byCommunity);
+  event VotedUpgrade(uint256 indexed _cycleNumber, address indexed _sender, uint256 _voteWeight, bool _support);
+  event VotedNextVersion(uint256 indexed _cycleNumber, address indexed _sender, uint256 _voteWeight, address _nextVersion);
+  event SetNextVersion(uint256 indexed _cycleNumber, address _nextVersion, bool _byCommunity);
+
   /**
    * Meta functions
    */
@@ -177,7 +183,8 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     uint256 _developerFeeRate,
     uint256 _exitFeeRate,
     uint256 _functionCallReward,
-    uint256 _ttlInCycles,
+    uint256 _upgradeQuorum,
+    uint256 _nextVersionQuorum,
     address _previousVersion
   )
     public
@@ -202,7 +209,8 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     exitFeeRate = _exitFeeRate;
     cyclePhase = CyclePhase.RedeemCommission;
     functionCallReward = _functionCallReward;
-    ttlInCycles = _ttlInCycles;
+    upgradeQuorum = _upgradeQuorum;
+    nextVersionQuorum = _nextVersionQuorum;
 
     previousVersion = _previousVersion;
   }
@@ -213,34 +221,76 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
 
   function announceNextVersion(address _nextVersion) public onlyOwner during(CyclePhase.DepositWithdraw) {
     require(_nextVersion != address(0));
-    require(nextVersion == address(0));
+    require(cycleOfUpgrade == 0);
     nextVersion = _nextVersion;
-    ttlInCycles = cycleNumber;
+    cycleOfUpgrade = cycleNumber;
+
+    emit BeganUpgradeProcess(cycleNumber, false);
+    emit SetNextVersion(cycleNumber, _nextVersion, false);
   }
 
-  function voteForNextVersion(address _nextVersion) public during(CyclePhase.DepositWithdraw) {
-    require(_nextVersion != address(0));
-    require(cycleNumber >= ttlInCycles);
-    require(hasVotedOnNextVersion[msg.sender] == false)
-    hasVotedOnNextVersion[msg.sender] = true;
+  function signalUpgrade(bool _support) public during(CyclePhase.DepositWithdraw) {
+    require(hasSignaledUpgrade[cycleNumber][msg.sender] == false);
+    hasSignaledUpgrade[cycleNumber][msg.sender] = true;
+
+    // add votes to tally
     uint256 voteWeight = cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycleNumber.sub(1)]);
-    totalVotes = totalVotes.add(voteWeight);
-    nextVersionToVotes[_nextVersion] = nextVersionToVotes[_nextVersion].add(voteWeight);
+    totalUpgradeVotes[cycleNumber] = totalUpgradeVotes[cycleNumber].add(voteWeight);
+    if (_support) {
+        votesSignalingUpgrade[cycleNumber] = votesSignalingUpgrade[cycleNumber].add(voteWeight);
+    }
+
+    emit VotedUpgrade(cycleNumber, msg.sender, voteWeight, _support);
   }
 
-  function setNextVersionFromVotes(address _nextVersion) public {
+  function tallyUpgradeVotes() public during(CyclePhase.MakeDecisions) {
+    // check if upgrade is initiated
+    if (votesSignalingUpgrade[cycleNumber].mul(2) > totalUpgradeVotes[cycleNumber]
+        && totalUpgradeVotes[cycleNumber] > cToken.totalSupplyAt(commissionPhaseStartBlock[cycleNumber.sub(1)]).mul(upgradeQuorum).div(PRECISION)) {
+      cycleOfUpgrade = cycleNumber;
+
+      emit BeganUpgradeProcess(cycleNumber, true);
+    }
+  }
+
+  function voteForNextVersion(address _nextVersion) public during(CyclePhase.MakeDecisions) {
     require(_nextVersion != address(0));
-    require(cycleNumber >= ttlInCycles);
+    require(cycleNumber == cycleOfUpgrade);
+    require(hasVotedOnNextVersion[cycleNumber][msg.sender] == false);
+    hasVotedOnNextVersion[cycleNumber][msg.sender] = true;
 
+    // add votes to tally
+    uint256 voteWeight = cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycleNumber.sub(1)]);
+    totalNextVersionVotes[cycleNumber] = totalNextVersionVotes[cycleNumber].add(voteWeight);
+    votesForNextVersion[cycleNumber][_nextVersion] = votesForNextVersion[cycleNumber][_nextVersion].add(voteWeight);
+
+    emit VotedNextVersion(cycleNumber, msg.sender, voteWeight, _nextVersion);
   }
 
-  function migrateOwnedContractsToNextVersion() public readyForUpgrade onlyOwner {
+  function tallyNextVersionVotes(address _nextVersion) public during(CyclePhase.RedeemCommission) {
+    // check if vote is passed
+    if (votesForNextVersion[cycleNumber][_nextVersion].mul(2) > totalNextVersionVotes[cycleNumber]
+        && totalNextVersionVotes[cycleNumber] > cToken.totalSupplyAt(commissionPhaseStartBlock[cycleNumber.sub(1)]).mul(nextVersionQuorum).div(PRECISION)) {
+      nextVersion = _nextVersion;
+
+      emit SetNextVersion(cycleNumber, _nextVersion, true);
+    }
+  }
+
+  function resetUpgrade() public during(CyclePhase.DepositWithdraw) {
+    require(nextVersion == address(0));
+    require(cycleNumber == cycleOfUpgrade.add(1));
+
+    cycleOfUpgrade = 0;
+  }
+
+  function migrateOwnedContractsToNextVersion() public readyForUpgrade {
     cToken.transferOwnership(nextVersion);
     sToken.transferOwnership(nextVersion);
     proxy.updateBetokenFundAddress(nextVersion);
   }
 
-  function transferAssetToNextVersion(address _assetAddress) public readyForUpgrade isValidToken(_assetAddress) onlyOwner {
+  function transferAssetToNextVersion(address _assetAddress) public readyForUpgrade isValidToken(_assetAddress) {
     if (_assetAddress == ETH_TOKEN_ADDRESS) {
       nextVersion.transfer(address(this.balance));
     } else {
@@ -283,26 +333,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Changes the proportion of profits given to Kairo holders each cycle. Only callable by owner.
-   * @param _newProp the new proportion, fixed point decimal
-   */
-  function changeCommissionRate(uint256 _newProp) public onlyOwner {
-    require(_newProp < PRECISION);
-    require(_newProp < commissionRate);
-    commissionRate = _newProp;
-  }
-
-  /**
-  * @notice Changes the proportion of fund balance given to Kairo holders each cycle. Only callable by owner.
-  * @param _newProp the new proportion, fixed point decimal
-  */
-  function changeAssetFeeRate(uint256 _newProp) public onlyOwner {
-    require(_newProp < PRECISION);
-    require(_newProp < assetFeeRate);
-    assetFeeRate = _newProp;
-  }
-
-  /**
    * @notice Changes the proportion of fund balance sent to the developers each cycle. May only decrease. Only callable by owner.
    * @param _newProp the new proportion, fixed point decimal
    */
@@ -320,16 +350,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     require(_newProp < PRECISION);
     require(_newProp < exitFeeRate);
     exitFeeRate = _newProp;
-  }
-
-  /**
-   * @notice Changes the maliciousness status of a token. Only callable by owner.
-   * @param _coin the token's address
-   * @param _status the new maliciousness status
-   */
-  function setMaliciousCoinStatus(address _coin, bool _status) public onlyOwner {
-    require(_coin != address(0));
-    isMaliciousCoin[_coin] = _status;
   }
 
 
@@ -350,7 +370,9 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
 
       cycleNumber = cycleNumber.add(1);
     } else if (cyclePhase == CyclePhase.DepositWithdraw) {
-      require(cycleNumber < ttlInCycles.add(1)); // Enforce TTL
+      if (cycleOfUpgrade > 0) {
+        require(cycleNumber < cycleOfUpgrade.add(1)); // Enforce upgrade
+      }
     } else if (cyclePhase == CyclePhase.MakeDecisions) {
       // Burn any Kairo left in BetokenFund's account
       require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
@@ -423,7 +445,7 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     whenNotPaused
     nonReentrant
   {
-    require(cycleNumber <= ttlInCycles); // Enforce TTL
+    require(cycleNumber <= cycleOfUpgrade); // prevent depositing when there's an upgrade
     DetailedERC20 token = DetailedERC20(_tokenAddr);
 
     require(token.transferFrom(msg.sender, this, _tokenAmount));
@@ -485,7 +507,7 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer Ether to user
-    if (cycleNumber > ttlInCycles) {
+    if (cycleNumber <= cycleOfUpgrade) {
       // Charge exit fee unless last cycle
       uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
       developerFeeAccount.transfer(exitFee);
@@ -532,7 +554,7 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer tokens to user
-    if (cycleNumber > ttlInCycles) {
+    if (cycleNumber <= cycleOfUpgrade) {
       // Charge exit fee unless last cycle
       uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
       token.transfer(developerFeeAccount, exitFee);
