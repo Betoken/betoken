@@ -1,8 +1,9 @@
 pragma solidity ^0.4.24;
 
 import "./BetokenFund.sol";
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
-contract BetokenFundProxy is Ownable {
+contract BetokenProxy is Ownable {
     address public betokenFundAddress;
     BetokenFund internal betokenFund;
 

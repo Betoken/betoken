@@ -11,7 +11,7 @@ import "./BetokenProxy.sol";
  * @title The main smart contract of the Betoken hedge fund.
  * @author Zefram Lou (Zebang Liu)
  */
-contract BetokenFund is Utils, ReentrancyGuard, TokenController {
+contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   using SafeMath for uint256;
 
   enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
@@ -55,6 +55,7 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     require(cycleNumber == cycleOfUpgrade.add(1));
     require(nextVersion != address(0));
     require(now > startTimeOfCyclePhase.add(phaseLengths[uint(CyclePhase.DepositWithdraw)]));
+    _;
   }
 
   // Address of the control token contract.
@@ -287,12 +288,12 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   function migrateOwnedContractsToNextVersion() public readyForUpgrade {
     cToken.transferOwnership(nextVersion);
     sToken.transferOwnership(nextVersion);
-    proxy.updateBetokenFundAddress(nextVersion);
+    proxy.updateBetokenFundAddress();
   }
 
   function transferAssetToNextVersion(address _assetAddress) public readyForUpgrade isValidToken(_assetAddress) {
-    if (_assetAddress == ETH_TOKEN_ADDRESS) {
-      nextVersion.transfer(address(this.balance));
+    if (_assetAddress == address(ETH_TOKEN_ADDRESS)) {
+      nextVersion.transfer(address(this).balance);
     } else {
       DetailedERC20 token = DetailedERC20(_assetAddress);
       token.transfer(nextVersion, token.balanceOf(address(this)));
@@ -358,7 +359,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
    */
   function nextPhase()
     public
-    whenNotPaused
   {
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
@@ -402,7 +402,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     public
     payable
     during(CyclePhase.DepositWithdraw)
-    whenNotPaused
     nonReentrant
   {
     // Buy DAI with ETH
@@ -420,14 +419,11 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
 
     // Register investment
     if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      sToken.mint(msg.sender, actualDAIDeposited);
+      sToken.generateTokens(msg.sender, actualDAIDeposited);
     } else {
-      sToken.mint(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
+      sToken.generateTokens(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
     }
     totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
-
-    // Only for test version. Remove for release.
-    cToken.mint(msg.sender, actualDAIDeposited);
 
     // Emit event
     emit Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
@@ -442,7 +438,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     public
     during(CyclePhase.DepositWithdraw)
     isValidToken(_tokenAddr)
-    whenNotPaused
     nonReentrant
   {
     require(cycleNumber <= cycleOfUpgrade); // prevent depositing when there's an upgrade
@@ -489,7 +484,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   function withdrawEther(uint256 _amountInDAI)
     public
     during(CyclePhase.DepositWithdraw)
-    whenNotPaused
     nonReentrant
   {
     // Buy ETH
@@ -503,7 +497,7 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     require(actualDAIWithdrawn > 0);
 
     // Burn shares
-    sToken.ownerBurn(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    sToken.destroyTokens(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
 
     // Transfer Ether to user
@@ -528,7 +522,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     public
     during(CyclePhase.DepositWithdraw)
     isValidToken(_tokenAddr)
-    whenNotPaused
     nonReentrant
   {
     DetailedERC20 token = DetailedERC20(_tokenAddr);
@@ -583,7 +576,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     public
     during(CyclePhase.MakeDecisions)
     isValidToken(_tokenAddress)
-    whenNotPaused
     nonReentrant
   {
     DetailedERC20 token = DetailedERC20(_tokenAddress);
@@ -621,7 +613,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   function sellInvestmentAsset(uint256 _investmentId)
     public
     during(CyclePhase.MakeDecisions)
-    whenNotPaused
     nonReentrant
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
@@ -660,7 +651,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   function redeemCommission()
     public
     during(CyclePhase.RedeemCommission)
-    whenNotPaused
     nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
@@ -685,7 +675,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
   function redeemCommissionInShares()
     public
     during(CyclePhase.RedeemCommission)
-    whenNotPaused
     nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
@@ -716,7 +705,6 @@ contract BetokenFund is Utils, ReentrancyGuard, TokenController {
     public
     during(CyclePhase.RedeemCommission)
     isValidToken(_tokenAddr)
-    whenNotPaused
     nonReentrant
   {
     uint256 beforeBalance = getBalance(dai, this);
