@@ -266,56 +266,6 @@ loadFundData = () ->
     totalFunds.set(BigNumber(await betoken.getPrimitiveVar("totalFundsInDAI"))),
     kairoTotalSupply.set(BigNumber(await betoken.getKairoTotalSupply()))
   ])
-  
-
-  # Get statistics
-  prevROI.set(BigNumber(0))
-  avgROI.set(BigNumber(0))
-  historicalTotalCommission.set(BigNumber(0))
-  await Promise.all([
-    cycleTotalCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get()))),
-    prevCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get() - 1)))
-  ])
-
-  # Get commission and draw ROI chart
-  chart.data.datasets[0].data = []
-  chart.update()
-
-  await Promise.all([
-    betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
-      fromBlock: DEPLOYED_BLOCK
-    ).then(
-      (events) ->
-        for _event in events
-          commission = BigNumber(_event.returnValues._totalCommissionInDAI)
-          # Update total commission
-          historicalTotalCommission.set(historicalTotalCommission.get().add(commission))
-    ),
-    betoken.contracts.betokenFund.getPastEvents("ROI",
-      fromBlock: DEPLOYED_BLOCK
-    ).then(
-      (events) ->
-        for _event in events
-          data = _event.returnValues
-          ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
-
-          # Update chart data
-          chart.data.datasets[0].data.push(
-            x: data._cycleNumber
-            y: ROI.toString()
-          )
-          chart.update()
-
-          # Update previous cycle ROI
-          if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
-            prevROI.set(ROI)
-
-          # Update average ROI
-          receivedROICount += 1
-          avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
-    )
-  ])
- 
   return
 
 
@@ -339,62 +289,65 @@ loadUserData = () ->
       # Get last commission redemption cycle number
       lastCommissionRedemption.set(+await betoken.getMappingOrArrayItem("lastCommissionRedemption", userAddr))
 
-      # Get deposit and withdraw history
-      isLoadingRecords.set(true)
-      transactionHistory.set([])
-      getDepositWithdrawHistory = (_type) ->
-        events = await betoken.contracts.betokenFund.getPastEvents(_type,
-          fromBlock: DEPLOYED_BLOCK
-          filter: {_sender: userAddr}
-        )
-        for event in events
-          data = event.returnValues
-          entry =
-            type: _type
-            timestamp: new Date(+data._timestamp * 1e3).toString()
-            token: await betoken.getTokenSymbol(data._tokenAddress)
-            amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
-          tmp = transactionHistory.get()
-          tmp.push(entry)
-          transactionHistory.set(tmp)
-
-      # Get token transfer history
-      getTransferHistory = (token, isIn) ->
-        tokenContract = switch token
-          when "KRO" then betoken.contracts.controlToken
-          when "BTKS" then betoken.contracts.shareToken
-          else null
-        events = await tokenContract.getPastEvents("Transfer", {
-          fromBlock: DEPLOYED_BLOCK
-          filter: if isIn then { to: userAddr } else { from: userAddr }
-        })
-        for _event in events
-          if not _event?
-            continue
-          data = _event.returnValues
-          if (isIn && data._to != userAddr) || (!isIn && data._from != userAddr)
-            continue
-
-          entry =
-            type: "Transfer " + if isIn then "In" else "Out"
-            token: token
-            amount: BigNumber(data._amount).div(1e18).toFormat(4)
-            timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
-          tmp = transactionHistory.get()
-          tmp.push(entry)
-          transactionHistory.set(tmp)
-
-      await Promise.all([
-        getDepositWithdrawHistory("Deposit"),
-        getDepositWithdrawHistory("Withdraw"),
-        getTransferHistory("KRO", true),
-        getTransferHistory("KRO", false),
-        getTransferHistory("BTKS", true),
-        getTransferHistory("BTKS", false)
-      ])
-      isLoadingRecords.set(false)
-
       await loadDecisions()
+
+
+loadTxHistory = () ->
+  # Get deposit and withdraw history
+  isLoadingRecords.set(true)
+  transactionHistory.set([])
+  userAddr = userAddress.get()
+  getDepositWithdrawHistory = (_type) ->
+    events = await betoken.contracts.betokenFund.getPastEvents(_type,
+      fromBlock: DEPLOYED_BLOCK
+      filter: {_sender: userAddr}
+    )
+    for event in events
+      data = event.returnValues
+      entry =
+        type: _type
+        timestamp: new Date(+data._timestamp * 1e3).toString()
+        token: await betoken.getTokenSymbol(data._tokenAddress)
+        amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
+      tmp = transactionHistory.get()
+      tmp.push(entry)
+      transactionHistory.set(tmp)
+
+  # Get token transfer history
+  getTransferHistory = (token, isIn) ->
+    tokenContract = switch token
+      when "KRO" then betoken.contracts.controlToken
+      when "BTKS" then betoken.contracts.shareToken
+      else null
+    events = await tokenContract.getPastEvents("Transfer", {
+      fromBlock: DEPLOYED_BLOCK
+      filter: if isIn then { to: userAddr } else { from: userAddr }
+    })
+    for _event in events
+      if not _event?
+        continue
+      data = _event.returnValues
+      if (isIn && data._to != userAddr) || (!isIn && data._from != userAddr)
+        continue
+
+      entry =
+        type: "Transfer " + if isIn then "In" else "Out"
+        token: token
+        amount: BigNumber(data._amount).div(1e18).toFormat(4)
+        timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
+      tmp = transactionHistory.get()
+      tmp.push(entry)
+      transactionHistory.set(tmp)
+
+  await Promise.all([
+    getDepositWithdrawHistory("Deposit"),
+    getDepositWithdrawHistory("Withdraw"),
+    getTransferHistory("KRO", true),
+    getTransferHistory("KRO", false),
+    getTransferHistory("BTKS", true),
+    getTransferHistory("BTKS", false)
+  ])
+  isLoadingRecords.set(false)
 
 
 loadTokenPrices = () ->
@@ -491,22 +444,72 @@ loadStats = () ->
   _fundValue = _fundValue.add(fundDAIBalance.div(1e18))
   fundValue.set(_fundValue)
 
+  # Get statistics
+  prevROI.set(BigNumber(0))
+  avgROI.set(BigNumber(0))
+  historicalTotalCommission.set(BigNumber(0))
+  await Promise.all([
+    cycleTotalCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get()))),
+    prevCommission.set(BigNumber(await betoken.getMappingOrArrayItem("totalCommissionOfCycle", cycleNumber.get() - 1)))
+  ])
+
+  # Get commission and draw ROI chart
+  chart.data.datasets[0].data = []
+  chart.update()
+
+  await Promise.all([
+    betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
+      fromBlock: DEPLOYED_BLOCK
+    ).then(
+      (events) ->
+        for _event in events
+          commission = BigNumber(_event.returnValues._totalCommissionInDAI)
+          # Update total commission
+          historicalTotalCommission.set(historicalTotalCommission.get().add(commission))
+    ),
+    betoken.contracts.betokenFund.getPastEvents("ROI",
+      fromBlock: DEPLOYED_BLOCK
+    ).then(
+      (events) ->
+        for _event in events
+          data = _event.returnValues
+          ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
+
+          # Update chart data
+          chart.data.datasets[0].data.push(
+            x: data._cycleNumber
+            y: ROI.toString()
+          )
+          chart.update()
+
+          # Update previous cycle ROI
+          if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
+            prevROI.set(ROI)
+
+          # Update average ROI
+          receivedROICount += 1
+          avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
+    )
+  ])
+
 
 loadAllData = () ->
   await loadFundMetadata()
-  await loadFundData()
-  await loadTokenPrices()
-  await loadUserData()
-  await loadRanking()
-  await loadStats()
+  await loadDynamicData()
 
 
 loadDynamicData = () ->
   await loadFundData()
-  await loadTokenPrices()
-  await loadUserData()
-  await loadRanking()
-  await loadStats()
+  await Promise.all([
+    loadUserData().then(loadTxHistory),
+    loadTokenPrices().then(
+      () ->
+        Promise.all([
+          loadRanking(),
+          loadStats()
+        ])
+    )
+  ])
 
 
 $("document").ready(() ->
