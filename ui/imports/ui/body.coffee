@@ -250,9 +250,7 @@ loadFundMetadata = () ->
   ])
 
 
-loadFundData = () ->
-  receivedROICount = 0
-    
+loadFundData = () ->    
   ###
   # Get fund data
   ###
@@ -401,12 +399,13 @@ loadRanking = () ->
       return betoken.getInvestments(_addr).then(
         (investments) ->
           addStake = (i) ->
-            if !i.isSold
+            if !i.isSold && +i.cycleNumber == cycleNumber.get()
               currentStakeValue = assetSymbolToPrice(assetAddressToSymbol(i.tokenAddress)).mul(1e18).sub(i.buyPrice).div(i.buyPrice).mul(i.stake).add(i.stake)
               stake = stake.add(currentStakeValue)
           return Promise.all(addStake(i) for i in investments)
       ).then(
         () ->
+          # format rank object
           return {
             rank: 0
             address: _addr
@@ -457,6 +456,9 @@ loadStats = () ->
   chart.data.datasets[0].data = []
   chart.update()
 
+  totalInputFunds = BigNumber(0)
+  totalOutputFunds = BigNumber(0)
+
   await Promise.all([
     betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
       fromBlock: DEPLOYED_BLOCK
@@ -473,7 +475,7 @@ loadStats = () ->
       (events) ->
         for _event in events
           data = _event.returnValues
-          ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100)
+          ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._beforeTotalFunds).mul(100)
 
           # Update chart data
           chart.data.datasets[0].data.push(
@@ -483,12 +485,20 @@ loadStats = () ->
           chart.update()
 
           # Update previous cycle ROI
-          if +data._cycleNumber == cycleNumber.get() || +data._cycleNumber == cycleNumber.get() - 1
+          if +data._cycleNumber == cycleNumber.get() - 1
             prevROI.set(ROI)
 
           # Update average ROI
-          receivedROICount += 1
-          avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount)))
+          totalInputFunds = totalInputFunds.add(data._beforeTotalFunds)
+          totalOutputFunds = totalOutputFunds.add(data._afterTotalFunds)
+    ).then(
+      () ->
+        # Take current cycle's ROI into consideration
+        if cyclePhase.get() != 2
+          totalInputFunds = totalInputFunds.add(totalFunds.get())
+          totalOutputFunds = totalOutputFunds.add(fundValue.get().mul(1e18))
+
+        avgROI.set(totalOutputFunds.sub(totalInputFunds).div(totalInputFunds).mul(100))
     )
   ])
 
@@ -641,7 +651,11 @@ Template.sidebar.helpers(
         return kairoBalance.get().div(kairoTotalSupply.get()).mul(cycleTotalCommission.get()).div(1e18).toFormat(18)
       # Expected commission based on previous average ROI
       roi = if avgROI.get().gt(0) then avgROI.get() else BigNumber(0)
-      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(roi.div(100).mul(commissionRate.get()).add(assetFeeRate.get().div(1e18))).toFormat(18)
+      kro = kairoBalance.get()
+      for entry in kairoRanking.get()
+        if entry.address == userAddress.get()
+          kro = BigNumber(entry.kairoBalance).mul(1e18)
+      return kro.div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(roi.div(100).mul(commissionRate.get()).add(assetFeeRate.get().div(1e18))).toFormat(18)
     return BigNumber(0).toFormat(18)
 )
 

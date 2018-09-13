@@ -315,8 +315,6 @@ loadFundMetadata = async function() {
 };
 
 loadFundData = async function() {
-  var receivedROICount;
-  receivedROICount = 0;
   /*
    * Get fund data
    */
@@ -484,7 +482,7 @@ loadRanking = async function() {
       var addStake, i;
       addStake = function(i) {
         var currentStakeValue;
-        if (!i.isSold) {
+        if (!i.isSold && +i.cycleNumber === cycleNumber.get()) {
           currentStakeValue = assetSymbolToPrice(assetAddressToSymbol(i.tokenAddress)).mul(1e18).sub(i.buyPrice).div(i.buyPrice).mul(i.stake).add(i.stake);
           return stake = stake.add(currentStakeValue);
         }
@@ -500,6 +498,7 @@ loadRanking = async function() {
       })());
     }).then(async function() {
       return {
+        // format rank object
         rank: 0,
         address: _addr,
         kairoBalance: BigNumber((await betoken.getKairoBalance(_addr))).add(stake).div(1e18).toFixed(18)
@@ -522,7 +521,7 @@ loadRanking = async function() {
 };
 
 loadStats = async function() {
-  var _fundValue, fundDAIBalance, getTokenValue, t;
+  var _fundValue, fundDAIBalance, getTokenValue, t, totalInputFunds, totalOutputFunds;
   _fundValue = BigNumber(0);
   getTokenValue = async function(_token) {
     var balance, value;
@@ -550,6 +549,8 @@ loadStats = async function() {
   // Get commission and draw ROI chart
   chart.data.datasets[0].data = [];
   chart.update();
+  totalInputFunds = BigNumber(0);
+  totalOutputFunds = BigNumber(0);
   return (await Promise.all([
     betoken.contracts.betokenFund.getPastEvents("TotalCommissionPaid",
     {
@@ -583,7 +584,7 @@ loadStats = async function() {
       for (j = 0, len = events.length; j < len; j++) {
         _event = events[j];
         data = _event.returnValues;
-        ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._afterTotalFunds).mul(100);
+        ROI = BigNumber(data._afterTotalFunds).minus(data._beforeTotalFunds).div(data._beforeTotalFunds).mul(100);
         // Update chart data
         chart.data.datasets[0].data.push({
           x: data._cycleNumber,
@@ -591,14 +592,21 @@ loadStats = async function() {
         });
         chart.update();
         // Update previous cycle ROI
-        if (+data._cycleNumber === cycleNumber.get() || +data._cycleNumber === cycleNumber.get() - 1) {
+        if (+data._cycleNumber === cycleNumber.get() - 1) {
           prevROI.set(ROI);
         }
         // Update average ROI
-        receivedROICount += 1;
-        results.push(avgROI.set(avgROI.get().add(ROI.minus(avgROI.get()).div(receivedROICount))));
+        totalInputFunds = totalInputFunds.add(data._beforeTotalFunds);
+        results.push(totalOutputFunds = totalOutputFunds.add(data._afterTotalFunds));
       }
       return results;
+    }).then(function() {
+      // Take current cycle's ROI into consideration
+      if (cyclePhase.get() !== 2) {
+        totalInputFunds = totalInputFunds.add(totalFunds.get());
+        totalOutputFunds = totalOutputFunds.add(fundValue.get().mul(1e18));
+      }
+      return avgROI.set(totalOutputFunds.sub(totalInputFunds).div(totalInputFunds).mul(100));
     })
   ]));
 };
@@ -808,7 +816,7 @@ Template.sidebar.helpers({
     return cyclePhase.get() === 2 && lastCommissionRedemption.get() < cycleNumber.get();
   },
   expected_commission: function() {
-    var roi;
+    var entry, j, kro, len, ref, roi;
     if (kairoTotalSupply.get().greaterThan(0)) {
       if (cyclePhase.get() === 2) {
         // Actual commission that will be redeemed
@@ -816,7 +824,15 @@ Template.sidebar.helpers({
       }
       // Expected commission based on previous average ROI
       roi = avgROI.get().gt(0) ? avgROI.get() : BigNumber(0);
-      return kairoBalance.get().div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(roi.div(100).mul(commissionRate.get()).add(assetFeeRate.get().div(1e18))).toFormat(18);
+      kro = kairoBalance.get();
+      ref = kairoRanking.get();
+      for (j = 0, len = ref.length; j < len; j++) {
+        entry = ref[j];
+        if (entry.address === userAddress.get()) {
+          kro = BigNumber(entry.kairoBalance).mul(1e18);
+        }
+      }
+      return kro.div(kairoTotalSupply.get()).mul(totalFunds.get().div(1e18)).mul(roi.div(100).mul(commissionRate.get()).add(assetFeeRate.get().div(1e18))).toFormat(18);
     }
     return BigNumber(0).toFormat(18);
   }
