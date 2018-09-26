@@ -77,6 +77,7 @@ prevROI = new ReactiveVar(BigNumber(0))
 avgROI = new ReactiveVar(BigNumber(0))
 prevCommission = new ReactiveVar(BigNumber(0))
 historicalTotalCommission = new ReactiveVar(BigNumber(0))
+managerROI = new ReactiveVar(BigNumber(0))
 
 transactionHistory = new ReactiveVar([])
 
@@ -307,6 +308,7 @@ loadTxHistory = () ->
         timestamp: new Date(+data._timestamp * 1e3).toString()
         token: await betoken.getTokenSymbol(data._tokenAddress)
         amount: BigNumber(data._tokenAmount).div(10**(+await betoken.getTokenDecimals(data._tokenAddress))).toFormat(4)
+        txHash: event.transactionHash
       tmp = transactionHistory.get()
       tmp.push(entry)
       transactionHistory.set(tmp)
@@ -333,6 +335,7 @@ loadTxHistory = () ->
         token: token
         amount: BigNumber(data._amount).div(1e18).toFormat(4)
         timestamp: new Date((await web3.eth.getBlock(_event.blockNumber)).timestamp * 1e3).toString()
+        txHash: _event.transactionHash
       tmp = transactionHistory.get()
       tmp.push(entry)
       transactionHistory.set(tmp)
@@ -376,6 +379,10 @@ loadDecisions = () ->
     handleAllProposals = (handleProposal(i) for i in [0..investments.length-1])
     await Promise.all(handleAllProposals)
     investmentList.set(investments)
+
+    totalKROChange = investments.map((x) -> BigNumber(x.kroChange)).reduce((x, y) -> x.add(y))
+    totalStake = investments.map((x) -> BigNumber(x.stake)).reduce((x, y) -> x.add(y))
+    managerROI.set(totalKROChange.div(totalStake).mul(100))
   isLoadingInvestments.set(false)
 
 
@@ -721,12 +728,10 @@ Template.transact_box.helpers({
       "error"
 
   transaction_history: () -> transactionHistory.get()
-
   tokens: () -> TOKENS
-
   need_web3: () -> if (userAddress.get() != "0x0" && hasWeb3 && !wrongNetwork.get()) then "" else "disabled"
-
   is_loading: () -> isLoadingRecords.get()
+  network_prefix: () -> networkPrefix.get()
 })
 
 
@@ -817,6 +822,7 @@ Template.decisions_tab.helpers({
   is_loading: () -> isLoadingInvestments.get()
   selected_token: () -> newInvestmentSelectedToken.get()
   selected_token_price: () -> assetSymbolToPrice(newInvestmentSelectedToken.get())
+  manager_ROI: () -> managerROI.get().toFormat(4)
 })
 
 

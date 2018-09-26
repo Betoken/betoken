@@ -352,6 +352,7 @@
         <th>Token</th>
         <th>Amount</th>
         <th>Timestamp</th>
+        <th>Details</th>
       </tr>
       </thead>
 
@@ -363,6 +364,7 @@
             <td>{{token}}</td>
             <td>{{amount}}</td>
             <td>{{timestamp}}</td>
+            <td style="text-align: center;"><a target="_blank" href="https://{{network_prefix}}etherscan.io/tx/{{txHash}}"><i class="external alternate icon"></i></a></td>
           </tr>
         {{/each}}
       </tbody>
@@ -447,6 +449,10 @@
       <div class="ui positive button new_investment {{new_investment_is_disabled}} {{need_web3}}" style="background-color: #1fdaa6">
         New Investment
       </div>
+    </div>
+
+    <div class="item">
+      <h4>Current ROI: {{manager_ROI}}%</h4>
     </div>
 
     <a class="item refresh">
