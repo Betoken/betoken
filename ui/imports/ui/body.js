@@ -536,13 +536,13 @@ loadRanking = async function() {
 };
 
 loadStats = async function() {
-  var _fundValue, fundDAIBalance, getTokenValue, t, totalInputFunds, totalOutputFunds;
+  var _fundValue, getTokenValue, t, totalInputFunds, totalOutputFunds;
   _fundValue = BigNumber(0);
   getTokenValue = async function(_token) {
     var balance, value;
     balance = BigNumber((await betoken.getTokenBalance(assetSymbolToAddress(_token), betoken.addrs.betokenFund))).div(BigNumber(10).toPower((await betoken.getTokenDecimals(assetSymbolToAddress(_token)))));
     value = balance.mul(assetSymbolToPrice(_token));
-    return _fundValue = _fundValue.add(value);
+    return _fundValue = _fundValue.add(value.mul(1e18));
   };
   await Promise.all((function() {
     var j, len, results;
@@ -553,8 +553,7 @@ loadStats = async function() {
     }
     return results;
   })());
-  fundDAIBalance = BigNumber((await betoken.getTokenBalance(daiAddr.get(), betoken.addrs.betokenFund)));
-  _fundValue = _fundValue.add(fundDAIBalance.div(1e18));
+  _fundValue = _fundValue.add(totalFunds.get());
   fundValue.set(_fundValue);
   // Get statistics
   prevROI.set(BigNumber(0));
@@ -619,7 +618,7 @@ loadStats = async function() {
       // Take current cycle's ROI into consideration
       if (cyclePhase.get() !== 2) {
         totalInputFunds = totalInputFunds.add(totalFunds.get());
-        totalOutputFunds = totalOutputFunds.add(fundValue.get().mul(1e18));
+        totalOutputFunds = totalOutputFunds.add(fundValue.get());
       }
       return avgROI.set(totalOutputFunds.sub(totalInputFunds).div(totalInputFunds).mul(100));
     })
@@ -1033,10 +1032,10 @@ Template.stats_tab.helpers({
     return historicalTotalCommission.get().div(1e18).toFormat(2);
   },
   fund_value: function() {
-    return fundValue.get().toFormat(2);
+    return fundValue.get().div(1e18).toFormat(2);
   },
   cycle_roi: function() {
-    return fundValue.get().sub(totalFunds.get().div(1e18)).div(totalFunds.get().div(1e18)).mul(100).toFormat(4);
+    return fundValue.get().sub(totalFunds.get()).div(totalFunds.get()).mul(100).toFormat(4);
   }
 });
 

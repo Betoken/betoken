@@ -444,10 +444,9 @@ loadStats = () ->
       balance = BigNumber(await betoken.getTokenBalance(assetSymbolToAddress(_token), betoken.addrs.betokenFund))
           .div(BigNumber(10).toPower(await betoken.getTokenDecimals(assetSymbolToAddress(_token))))
       value = balance.mul(assetSymbolToPrice(_token))
-      _fundValue = _fundValue.add(value)
+      _fundValue = _fundValue.add(value.mul(1e18))
   await Promise.all((getTokenValue(t) for t in TOKENS))
-  fundDAIBalance = BigNumber(await betoken.getTokenBalance(daiAddr.get(), betoken.addrs.betokenFund))
-  _fundValue = _fundValue.add(fundDAIBalance.div(1e18))
+  _fundValue = _fundValue.add(totalFunds.get())
   fundValue.set(_fundValue)
 
   # Get statistics
@@ -503,7 +502,7 @@ loadStats = () ->
         # Take current cycle's ROI into consideration
         if cyclePhase.get() != 2
           totalInputFunds = totalInputFunds.add(totalFunds.get())
-          totalOutputFunds = totalOutputFunds.add(fundValue.get().mul(1e18))
+          totalOutputFunds = totalOutputFunds.add(fundValue.get())
 
         avgROI.set(totalOutputFunds.sub(totalInputFunds).div(totalInputFunds).mul(100))
     )
@@ -807,8 +806,8 @@ Template.stats_tab.helpers({
   avg_roi: () -> avgROI.get().toFormat(2)
   prev_commission: () -> prevCommission.get().div(1e18).toFormat(2)
   historical_commission: () -> historicalTotalCommission.get().div(1e18).toFormat(2)
-  fund_value: () -> fundValue.get().toFormat(2)
-  cycle_roi: () -> fundValue.get().sub(totalFunds.get().div(1e18)).div(totalFunds.get().div(1e18)).mul(100).toFormat(4)
+  fund_value: () -> fundValue.get().div(1e18).toFormat(2)
+  cycle_roi: () -> fundValue.get().sub(totalFunds.get()).div(totalFunds.get()).mul(100).toFormat(4)
 })
 
 
