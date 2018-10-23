@@ -377,7 +377,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       // Burn any Kairo left in BetokenFund's account
       require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
 
-      __distributeFundsAfterCycleEnd();
+      __handleFees();
 
       commissionPhaseStartBlock[cycleNumber] = block.number;
     }
@@ -751,9 +751,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Update fund statistics, and pay developer fees.
+   * @notice Update fund statistics, and pay developer fees & commissions.
    */
-  function __distributeFundsAfterCycleEnd() internal {
+  function __handleFees() internal {
     uint256 profit = 0;
     if (getBalance(dai, this) > totalFundsInDAI) {
       profit = getBalance(dai, this).sub(totalFundsInDAI);
