@@ -8,39 +8,9 @@ tokenFactory = TestTokenFactory.at(TOKEN_FACTORY_ADDR)
 betoken = BetokenFund.at(BETOKEN_ADDR)
 
 TOKENS = [
+    "ZRX",
     "ETH",
-    "ABT",
-    "AE",
-    "APPC",
-    "BAT",
-    "BBO",
-    "BLZ",
-    "ELEC",
-    "ELF",
-    "ENJ",
-    "IOST",
-    "KNC",
-    "LBA",
-    "LINK",
-    "MANA",
-    "MOT",
-    "OMG",
-    "PAL",
-    "POLY",
-    "RCN",
-    "RDN",
-    "REQ",
-    "SNT",
-    "STORM",
-    "ZIL",
-    "COFI",
-    "WINGS",
-    "WABI",
-    "MDS",
-    "LEND",
-    "PAY",
-    "BNT",
-    "TOMO"
+    "LINK"
 ]
 
 module.exports = (callback) ->

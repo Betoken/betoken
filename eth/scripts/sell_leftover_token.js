@@ -14,7 +14,7 @@
 
   betoken = BetokenFund.at(BETOKEN_ADDR);
 
-  TOKENS = ["ETH", "ABT", "AE", "APPC", "BAT", "BBO", "BLZ", "ELEC", "ELF", "ENJ", "IOST", "KNC", "LBA", "LINK", "MANA", "MOT", "OMG", "PAL", "POLY", "RCN", "RDN", "REQ", "SNT", "STORM", "ZIL", "COFI", "WINGS", "WABI", "MDS", "LEND", "PAY", "BNT", "TOMO"];
+  TOKENS = ["ZRX", "ETH", "LINK"];
 
   module.exports = function(callback) {
     var i, len, results, token;

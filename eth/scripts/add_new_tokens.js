@@ -12,7 +12,7 @@
 
   tokenFactory = TestTokenFactory.at(TOKEN_FACTORY_ADDR);
 
-  NEW_TOKENS = ["ETH"];
+  NEW_TOKENS = ["DAT", "QKC", "REN", "ZRX", "REP", "BNB", "MOT"];
 
   module.exports = async function(callback) {
     var i, len, results, token, tokenAddr, tokenSymbol;
