@@ -14,7 +14,7 @@ import "./BetokenProxy.sol";
 contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   using SafeMath for uint256;
 
-  enum CyclePhase { DepositWithdraw, MakeDecisions, RedeemCommission }
+  enum CyclePhase { Intermission, Manage }
 
   struct Investment {
     address tokenAddress;
@@ -108,7 +108,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public totalCommissionLeft;
 
   // Stores the lengths of each cycle phase in seconds.
-  uint256[3] phaseLengths;
+  uint256[2] phaseLengths;
 
   // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
@@ -157,7 +157,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address _daiAddr,
     address _proxyAddr,
     address _developerFeeAccount,
-    uint256[3] _phaseLengths,
+    uint256[2] _phaseLengths,
     uint256 _commissionRate,
     uint256 _assetFeeRate,
     uint256 _developerFeeRate,
@@ -185,7 +185,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     assetFeeRate = _assetFeeRate;
     developerFeeRate = _developerFeeRate;
     exitFeeRate = _exitFeeRate;
-    cyclePhase = CyclePhase.RedeemCommission;
+    cyclePhase = CyclePhase.Intermission;
+    cycleNumber = 1;
+    startTimeOfCyclePhase = now;
     functionCallReward = _functionCallReward;
 
     previousVersion = _previousVersion;
@@ -226,7 +228,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Returns the phaseLengths array.
    * @return the phaseLengths array
    */
-  function getPhaseLengths() public view returns(uint256[3] _phaseLengths) {
+  function getPhaseLengths() public view returns(uint256[2] _phaseLengths) {
     return phaseLengths;
   }
 
@@ -272,10 +274,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
-    if (cyclePhase == CyclePhase.RedeemCommission) {
+    if (cyclePhase == CyclePhase.Manage) {
       // Start new cycle
       cycleNumber = cycleNumber.add(1);
-    } else if (cyclePhase == CyclePhase.MakeDecisions) {
+
       // Burn any Kairo left in BetokenFund's account
       require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
 
@@ -284,7 +286,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       commissionPhaseStartBlock[cycleNumber] = block.number;
     }
 
-    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 3));
+    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
     startTimeOfCyclePhase = now;
 
     // Reward caller
@@ -303,7 +305,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   function depositEther()
     public
     payable
-    during(CyclePhase.DepositWithdraw)
+    during(CyclePhase.Intermission)
     nonReentrant
   {
     // Buy DAI with ETH
@@ -338,7 +340,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
-    during(CyclePhase.DepositWithdraw)
+    during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
     nonReentrant
   {
@@ -384,7 +386,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function withdrawEther(uint256 _amountInDAI)
     public
-    during(CyclePhase.DepositWithdraw)
+    during(CyclePhase.Intermission)
     nonReentrant
   {
     // Buy ETH
@@ -419,7 +421,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
     public
-    during(CyclePhase.DepositWithdraw)
+    during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
     nonReentrant
   {
@@ -470,7 +472,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 _stake
   )
     public
-    during(CyclePhase.MakeDecisions)
+    during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
     nonReentrant
   {
@@ -511,7 +513,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function sellInvestmentAsset(uint256 _investmentId, uint256 _tokenAmount)
     public
-    during(CyclePhase.MakeDecisions)
+    during(CyclePhase.Manage)
     nonReentrant
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
@@ -539,12 +541,13 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     investment.isSold = true;
 
     // Sell asset
+    ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
     uint256 beforeDAIBalance = getBalance(dai, this);
     uint256 beforeTokenBalance = getBalance(token, this);
     __handleInvestment(_investmentId, false);
     if (isPartialSell) {
       // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
-      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)] = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].add(_tokenAmount.sub(beforeTokenBalance.sub(getBalance(token, this))));
+      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(beforeTokenBalance.sub(getBalance(token, this))));
     }
 
     // Return Kairo
@@ -577,7 +580,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function redeemCommission()
     public
-    during(CyclePhase.RedeemCommission)
+    during(CyclePhase.Intermission)
     nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
@@ -601,7 +604,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function redeemCommissionInShares()
     public
-    during(CyclePhase.RedeemCommission)
+    during(CyclePhase.Intermission)
     nonReentrant
   {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
@@ -625,19 +628,19 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone.
+   * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone. Money goes to developer.
    * @param _tokenAddr address of the token to be sold
    */
   function sellLeftoverToken(address _tokenAddr)
     public
-    during(CyclePhase.RedeemCommission)
+    during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
     nonReentrant
   {
     uint256 beforeBalance = getBalance(dai, this);
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
     __kyberTrade(token, getBalance(token, this), dai);
-    totalFundsInDAI = totalFundsInDAI.add(getBalance(dai, this).sub(beforeBalance));
+    dai.transfer(developerFeeAccount, getBalance(dai, this).sub(beforeBalance));
   }
 
   /**
