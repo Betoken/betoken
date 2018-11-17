@@ -1,15 +1,15 @@
 pragma solidity ^0.4.24;
 
-import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 
 /**
  * @title An ERC20 token used for testing.
  * @author Zefram Lou (Zebang Liu)
  */
-contract TestToken is MintableToken, DetailedERC20 {
+contract TestToken is ERC20Mintable, ERC20Detailed {
   constructor(string name, string symbol, uint8 decimals)
     public
-    DetailedERC20(name, symbol, decimals)
+    ERC20Detailed(name, symbol, decimals)
   {}
 }

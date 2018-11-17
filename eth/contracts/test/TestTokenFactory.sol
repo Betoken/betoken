@@ -12,7 +12,8 @@ contract TestTokenFactory {
     require(createdTokens[symbolHash] == address(0));
     
     TestToken token = new TestToken(name, symbol, decimals);
-    token.transferOwnership(msg.sender);
+    token.addMinter(msg.sender);
+    token.renounceMinter();
     createdTokens[symbolHash] = address(token);
     emit CreatedToken(symbol, address(token));
     return address(token);

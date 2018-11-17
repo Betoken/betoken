@@ -147,7 +147,7 @@ contract MiniMeToken is Ownable {
         //  this is important to recognize! Confirm that you trust the
         //  owner of this contract, which in most situations should be
         //  another open source smart contract or 0x0
-        if (msg.sender != owner) {
+        if (msg.sender != owner()) {
             require(transfersEnabled);
 
             // The standard ERC 20 transferFrom functionality
@@ -166,41 +166,39 @@ contract MiniMeToken is Ownable {
     /// @return True if the transfer was successful
     function doTransfer(address _from, address _to, uint _amount
     ) internal {
+        if (_amount == 0) {
+            emit Transfer(_from, _to, _amount);    // Follow the spec to louch the event when transfer 0
+            return;
+        }
 
-           if (_amount == 0) {
-               emit Transfer(_from, _to, _amount);    // Follow the spec to louch the event when transfer 0
-               return;
-           }
+        require(parentSnapShotBlock < block.number);
 
-           require(parentSnapShotBlock < block.number);
+        // Do not allow transfer to 0x0 or the token contract itself
+        require((_to != 0) && (_to != address(this)));
 
-           // Do not allow transfer to 0x0 or the token contract itself
-           require((_to != 0) && (_to != address(this)));
+        // If the amount being transfered is more than the balance of the
+        //  account the transfer throws
+        uint previousBalanceFrom = balanceOfAt(_from, block.number);
 
-           // If the amount being transfered is more than the balance of the
-           //  account the transfer throws
-           uint previousBalanceFrom = balanceOfAt(_from, block.number);
+        require(previousBalanceFrom >= _amount);
 
-           require(previousBalanceFrom >= _amount);
+        // Alerts the token owner of the transfer
+        if (isContract(owner())) {
+            require(TokenController(owner()).onTransfer(_from, _to, _amount));
+        }
 
-           // Alerts the token owner of the transfer
-           if (isContract(owner)) {
-               require(TokenController(owner).onTransfer(_from, _to, _amount));
-           }
+        // First update the balance array with the new value for the address
+        //  sending the tokens
+        updateValueAtNow(balances[_from], previousBalanceFrom - _amount);
 
-           // First update the balance array with the new value for the address
-           //  sending the tokens
-           updateValueAtNow(balances[_from], previousBalanceFrom - _amount);
+        // Then update the balance array with the new value for the address
+        //  receiving the tokens
+        uint previousBalanceTo = balanceOfAt(_to, block.number);
+        require(previousBalanceTo + _amount >= previousBalanceTo); // Check for overflow
+        updateValueAtNow(balances[_to], previousBalanceTo + _amount);
 
-           // Then update the balance array with the new value for the address
-           //  receiving the tokens
-           uint previousBalanceTo = balanceOfAt(_to, block.number);
-           require(previousBalanceTo + _amount >= previousBalanceTo); // Check for overflow
-           updateValueAtNow(balances[_to], previousBalanceTo + _amount);
-
-           // An event to make the transfer easy to find on the blockchain
-           emit Transfer(_from, _to, _amount);
-
+        // An event to make the transfer easy to find on the blockchain
+        emit Transfer(_from, _to, _amount);
     }
 
     /// @param _owner The address that's balance is being requested
@@ -225,8 +223,8 @@ contract MiniMeToken is Ownable {
         require((_amount == 0) || (allowed[msg.sender][_spender] == 0));
 
         // Alerts the token owner of the approve function call
-        if (isContract(owner)) {
-            require(TokenController(owner).onApprove(msg.sender, _spender, _amount));
+        if (isContract(owner())) {
+            require(TokenController(owner()).onApprove(msg.sender, _spender, _amount));
         }
 
         allowed[msg.sender][_spender] = _amount;
@@ -482,8 +480,8 @@ contract MiniMeToken is Ownable {
     ///  set to 0, then the `proxyPayment` method is called which relays the
     ///  ether and creates tokens as described in the token owner contract
     function () public payable {
-        require(isContract(owner));
-        require(TokenController(owner).proxyPayment.value(msg.value)(msg.sender));
+        require(isContract(owner()));
+        require(TokenController(owner()).proxyPayment.value(msg.value)(msg.sender));
     }
 
 //////////
@@ -496,14 +494,14 @@ contract MiniMeToken is Ownable {
     ///  set to 0 in case you want to extract ether.
     function claimTokens(address _token) public onlyOwner {
         if (_token == 0x0) {
-            owner.transfer(address(this).balance);
+            owner().transfer(address(this).balance);
             return;
         }
 
         MiniMeToken token = MiniMeToken(_token);
         uint balance = token.balanceOf(this);
-        token.transfer(owner, balance);
-        emit ClaimedTokens(_token, owner, balance);
+        token.transfer(owner(), balance);
+        emit ClaimedTokens(_token, owner(), balance);
     }
 
 ////////////////

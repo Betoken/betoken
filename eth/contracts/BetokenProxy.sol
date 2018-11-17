@@ -17,6 +17,6 @@ contract BetokenProxy is Ownable {
         require(nextVersion != address(0));
         betokenFundAddress = nextVersion;
         betokenFund = BetokenFund(nextVersion);
-        owner = nextVersion;
+        transferOwnership(nextVersion);
     }
 }

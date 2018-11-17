@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import "openzeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
@@ -10,21 +10,21 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract Utils {
   using SafeMath for uint256;
 
-  DetailedERC20 constant internal ETH_TOKEN_ADDRESS = DetailedERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+  ERC20Detailed constant internal ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   uint  constant internal PRECISION = (10**18);
   uint  constant internal MAX_QTY   = (10**28); // 10B tokens
   uint  constant internal ETH_DECIMALS = 18;
   uint  constant internal MAX_DECIMALS = 18;
   uint  constant internal MIN_DECIMALS = 11;
 
-  function getDecimals(DetailedERC20 _token) internal view returns(uint256) {
+  function getDecimals(ERC20Detailed _token) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
       return uint256(ETH_DECIMALS);
     }
     return uint256(_token.decimals());
   }
 
-  function getBalance(ERC20 _token, address _addr) internal view returns(uint256) {
+  function getBalance(ERC20Detailed _token, address _addr) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
       return _addr.balance;
     }
