@@ -685,8 +685,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function __handleFees() internal {
     uint256 profit = 0;
-    if (getBalance(dai, this) > totalFundsInDAI) {
-      profit = getBalance(dai, this).sub(totalFundsInDAI);
+    if (getBalance(dai, this) > totalFundsInDAI.add(totalCommissionLeft)) {
+      profit = getBalance(dai, this).sub(totalFundsInDAI).sub(totalCommissionLeft);
     }
     totalCommissionOfCycle[cycleNumber] = commissionRate.mul(profit).add(assetFeeRate.mul(getBalance(dai, this))).div(PRECISION);
     totalCommissionLeft = totalCommissionLeft.add(totalCommissionOfCycle[cycleNumber]);
