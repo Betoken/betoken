@@ -519,8 +519,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(_tokenAmount > 0 && _tokenAmount <= investment.tokenAmount);
 
     // Create new investment for leftover tokens
+    bool isPartialSell = false;
     uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
     if (_tokenAmount != investment.tokenAmount) {
+      isPartialSell = true;
       userInvestments[msg.sender].push(Investment({
         tokenAddress: investment.tokenAddress,
         cycleNumber: cycleNumber,
@@ -538,8 +540,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Sell asset
     uint256 beforeDAIBalance = getBalance(dai, this);
+    uint256 beforeTokenBalance = getBalance(token, this);
     __handleInvestment(_investmentId, false);
-    investment.tokenAmount = getBalance(token, this).sub(beforeTokenAmount);
+    if (isPartialSell) {
+      // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
+      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)] = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].add(_tokenAmount.sub(beforeTokenBalance.sub(getBalance(token, this))));
+    }
 
     // Return Kairo
     uint256 multiplier = investment.sellPrice.mul(PRECISION).div(investment.buyPrice);
@@ -553,7 +559,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
     
     // Emit event
-    if (_tokenAmount != investment.tokenAmount) {
+    if (isPartialSell) {
       Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
       emit CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
         newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
