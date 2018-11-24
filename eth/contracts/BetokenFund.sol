@@ -232,6 +232,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return phaseLengths;
   }
 
+  function kairoPrice() public view returns (uint256 _kairoPrice) {
+    if (cToken.totalSupply() == 0) { return 0; }
+    uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
+    if (controlPerKairo < PRECISION.mul(25).div(10)) {
+      // keep price above 2.5 DAI/KRO
+      return PRECISION.mul(25).div(10);
+    }
+    return controlPerKairo;
+  }
+
   /**
    * Parameter setters
    */
@@ -265,6 +275,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     exitFeeRate = _newProp;
   }
 
+  
 
   /**
    * @notice Moves the fund to the next phase in the investment cycle.
