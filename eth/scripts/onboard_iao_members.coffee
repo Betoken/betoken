@@ -6,7 +6,7 @@ Betoken = BetokenFund.at(BETOKEN_ADDR)
 module.exports = (callback) ->
     i = 1
     for manager in managers_to_onboard
-        console.log(manager.address + " onboarding... #{i}/#{inactive_managers.length}")
+        console.log(manager.address + " onboarding... #{i}/#{managers_to_onboard.length}")
         i += 1
         await Betoken.airdropKairo([manager.address], manager.kro)
     return
