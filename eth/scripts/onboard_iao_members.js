@@ -15,7 +15,7 @@
     i = 1;
     for (j = 0, len = managers_to_onboard.length; j < len; j++) {
       manager = managers_to_onboard[j];
-      console.log(manager.address + ` onboarding... ${i}/${inactive_managers.length}`);
+      console.log(manager.address + ` onboarding... ${i}/${managers_to_onboard.length}`);
       i += 1;
       await Betoken.airdropKairo([manager.address], manager.kro);
     }
