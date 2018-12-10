@@ -56,23 +56,21 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     _;
   }
 
-  // Address of the control token contract.
-  address public controlTokenAddr;
+  uint256 constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
+  uint256 constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
+  uint256 constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
+  address constant DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
+  address constant KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
+  address constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
 
   // Address of the share token contract.
   address public shareTokenAddr;
-
-  // Address of the KyberNetwork contract
-  address public kyberAddr;
 
   // Address of the BetokenProxy contract
   address public proxyAddr;
 
   // Address to which the developer fees will be paid.
   address public developerFeeAccount;
-
-  // Address of the DAI stable-coin contract.
-  address public daiAddr;
 
   // Address of the previous version of BetokenFund.
   address public previousVersion;
@@ -144,17 +142,14 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
-  event NewUser(address _user);
+  event Register(address indexed _manager, uint256 indexed _block, uint256 _donationInDAI);
 
   /**
    * Meta functions
    */
 
   constructor(
-    address _cTokenAddr,
     address _sTokenAddr,
-    address _kyberAddr,
-    address _daiAddr,
     address _proxyAddr,
     address _developerFeeAccount,
     uint256[2] _phaseLengths,
@@ -169,15 +164,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(_commissionRate.add(_developerFeeRate) < 10**18);
 
-    controlTokenAddr = _cTokenAddr;
     shareTokenAddr = _sTokenAddr;
-    kyberAddr = _kyberAddr;
-    daiAddr = _daiAddr;
     proxyAddr = _proxyAddr;
-    cToken = MiniMeToken(_cTokenAddr);
+    cToken = MiniMeToken(KRO_ADDR);
     sToken = MiniMeToken(_sTokenAddr);
-    kyber = KyberNetwork(_kyberAddr);
-    dai = ERC20Detailed(_daiAddr);
+    kyber = KyberNetwork(KYBER_ADDR);
+    dai = ERC20Detailed(DAI_ADDR);
 
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
@@ -230,16 +222,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function getPhaseLengths() public view returns(uint256[2] _phaseLengths) {
     return phaseLengths;
-  }
-
-  function kairoPrice() public view returns (uint256 _kairoPrice) {
-    if (cToken.totalSupply() == 0) { return 0; }
-    uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
-    if (controlPerKairo < PRECISION.mul(25).div(10)) {
-      // keep price above 2.5 DAI/KRO
-      return PRECISION.mul(25).div(10);
-    }
-    return controlPerKairo;
   }
 
   /**
@@ -306,6 +288,60 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now);
   }
 
+  function kairoPrice() public view returns (uint256 _kairoPrice) {
+    if (cToken.totalSupply() == 0) {return 0;}
+    uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
+    if (controlPerKairo < MIN_KRO_PRICE) {
+      // keep price above minimum price
+      return MIN_KRO_PRICE;
+    }
+    return controlPerKairo;
+  }
+
+  function registerWithDAI(uint256 _donationInDAI, address _referrer) public nonReentrant {
+    require(dai.transferFrom(msg.sender, this, _donationInDAI), "Failed DAI transfer to IAO");
+    __register(_donationInDAI, _referrer);
+  }
+
+
+  function registerWithETH(address _referrer) public payable nonReentrant {
+    uint256 receivedDAI;
+    uint256 _;
+
+    // trade ETH for DAI
+    (,receivedDAI,_) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+    
+    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
+    if (receivedDAI > MAX_DONATION) {
+      require(dai.transfer(msg.sender, receivedDAI.sub(MAX_DONATION)), "Excess DAI transfer failed");
+      receivedDAI = MAX_DONATION;
+    }
+
+    // register new manager
+    __register(receivedDAI, _referrer);
+  }
+
+  // _donationInTokens should use the token's precision
+  function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public nonReentrant {
+    require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR, "Invalid token");
+    ERC20Detailed token = ERC20Detailed(_token);
+    require(token.totalSupply() > 0, "Zero token supply");
+
+    uint256 receivedDAI;
+    uint256 _;
+
+    (,receivedDAI,_) = __kyberTrade(token, _donationInTokens, dai);
+
+    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
+    if (receivedDAI > MAX_DONATION) {
+      require(dai.transfer(msg.sender, receivedDAI.sub(MAX_DONATION)), "Excess DAI transfer failed");
+      receivedDAI = MAX_DONATION;
+    }
+
+    // register new manager
+    __register(receivedDAI, _referrer);
+  }
+
 
   /**
    * Intermission phase functions
@@ -323,26 +359,33 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Buy DAI with ETH
     uint256 actualDAIDeposited;
     uint256 actualETHDeposited;
-    uint256 beforeETHBalance = getBalance(ETH_TOKEN_ADDRESS, this);
-    uint256 beforeDAIBalance = getBalance(dai, this);
-    __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
-    actualETHDeposited = beforeETHBalance.sub(getBalance(ETH_TOKEN_ADDRESS, this));
+    (, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+
+    // Send back leftover ETH
     uint256 leftOverETH = msg.value.sub(actualETHDeposited);
     if (leftOverETH > 0) {
       msg.sender.transfer(leftOverETH);
     }
-    actualDAIDeposited = getBalance(dai, this).sub(beforeDAIBalance);
 
     // Register investment
-    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      sToken.generateTokens(msg.sender, actualDAIDeposited);
-    } else {
-      sToken.generateTokens(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    }
-    totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
+    __deposit(actualDAIDeposited);
 
     // Emit event
     emit Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
+  }
+
+  function depositDAI(uint256 _daiAmount)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    require(dai.transferFrom(msg.sender, this, _daiAmount));
+
+    // Register investment
+    __deposit(_daiAmount);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, _daiAmount, _daiAmount, now);
   }
 
   /**
@@ -356,6 +399,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     isValidToken(_tokenAddr)
     nonReentrant
   {
+    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
+
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
 
     require(token.transferFrom(msg.sender, this, _tokenAmount));
@@ -363,34 +408,21 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Convert token into DAI
     uint256 actualDAIDeposited;
     uint256 actualTokenDeposited;
-    if (_tokenAddr == daiAddr) {
-      actualDAIDeposited = _tokenAmount;
-      actualTokenDeposited = _tokenAmount;
-    } else {
-      // Buy DAI with tokens
-      uint256 beforeTokenBalance = getBalance(token, this);
-      uint256 beforeDAIBalance = getBalance(dai, this);
-      __kyberTrade(token, _tokenAmount, dai);
-      actualTokenDeposited = beforeTokenBalance.sub(getBalance(token, this));
-      uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
-      if (leftOverTokens > 0) {
-        require(token.transfer(msg.sender, leftOverTokens));
-      }
-      actualDAIDeposited = getBalance(dai, this).sub(beforeDAIBalance);
-      require(actualDAIDeposited > 0);
+    (, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
+
+    // Give back leftover tokens
+    uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
+    if (leftOverTokens > 0) {
+      require(token.transfer(msg.sender, leftOverTokens));
     }
 
     // Register investment
-    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      sToken.generateTokens(msg.sender, actualDAIDeposited);
-    } else {
-      sToken.generateTokens(msg.sender, actualDAIDeposited.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    }
-    totalFundsInDAI = totalFundsInDAI.add(actualDAIDeposited);
+    __deposit(actualDAIDeposited);
 
     // Emit event
     emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
   }
+
 
   /**
    * @notice Withdraws Ether by burning Shares.
@@ -404,16 +436,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Buy ETH
     uint256 actualETHWithdrawn;
     uint256 actualDAIWithdrawn;
-    uint256 beforeETHBalance = getBalance(ETH_TOKEN_ADDRESS, this);
-    uint256 beforeDaiBalance = getBalance(dai, this);
-    __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
-    actualETHWithdrawn = getBalance(ETH_TOKEN_ADDRESS, this).sub(beforeETHBalance);
-    actualDAIWithdrawn = beforeDaiBalance.sub(getBalance(dai, this));
-    require(actualDAIWithdrawn > 0);
+    (, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
 
-    // Burn shares
-    sToken.destroyTokens(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
+    __withdraw(actualDAIWithdrawn);
 
     // Transfer Ether to user
     uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
@@ -437,27 +462,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     isValidToken(_tokenAddr)
     nonReentrant
   {
+    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
+
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
 
     // Convert DAI into desired tokens
     uint256 actualTokenWithdrawn;
     uint256 actualDAIWithdrawn;
-    if (_tokenAddr == daiAddr) {
-      actualDAIWithdrawn = _amountInDAI;
-      actualTokenWithdrawn = _amountInDAI;
-    } else {
-      // Buy desired tokens
-      uint256 beforeTokenBalance = getBalance(token, this);
-      uint256 beforeDaiBalance = getBalance(dai, this);
-      __kyberTrade(dai, _amountInDAI, token);
-      actualTokenWithdrawn = getBalance(token, this).sub(beforeTokenBalance);
-      actualDAIWithdrawn = beforeDaiBalance.sub(getBalance(dai, this));
-      require(actualDAIWithdrawn > 0);
-    }
+    (, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
 
-    // Burn Shares
-    sToken.destroyTokens(msg.sender, actualDAIWithdrawn.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    totalFundsInDAI = totalFundsInDAI.sub(actualDAIWithdrawn);
+    __withdraw(actualDAIWithdrawn);
 
     // Transfer tokens to user
     uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
@@ -470,6 +484,23 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
   }
 
+  function withdrawDAI(uint256 _amountInDAI)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    __withdraw(_amountInDAI);
+
+    // Transfer DAI to user
+    uint256 exitFee = _amountInDAI.mul(exitFeeRate).div(PRECISION);
+    dai.transfer(developerFeeAccount, exitFee);
+    uint256 actualDAIWithdrawn = _amountInDAI.sub(exitFee);
+    dai.transfer(msg.sender, actualDAIWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, actualDAIWithdrawn, actualDAIWithdrawn, now);
+  }
+
   /**
    * @notice Redeems commission.
    */
@@ -478,20 +509,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Intermission)
     nonReentrant
   {
-    require(lastCommissionRedemption[msg.sender] < cycleNumber);
-    uint256 commission = 0;
-    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
-      commission = commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
-          .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
-    }
+    uint256 commission = __redeemCommission();
 
-    lastCommissionRedemption[msg.sender] = cycleNumber;
-    totalCommissionLeft = totalCommissionLeft.sub(commission);
-    delete userInvestments[msg.sender];
-
+    // Transfer the commission in DAI
     dai.transfer(msg.sender, commission);
-
-    emit CommissionPaid(cycleNumber, msg.sender, commission);
   }
 
   /**
@@ -502,24 +523,27 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Intermission)
     nonReentrant
   {
+    uint256 commission = __redeemCommission();    
+
+    // Deposit commission into fund
+    __deposit(commission);
+
+    // Emit deposit event
+    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+  }
+
+  function __redeemCommission() internal returns (uint256 _commission) {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
-    uint256 commission = 0;
     for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
-      commission = commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
-          .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
+      _commission = _commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
+      .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
     }
 
     lastCommissionRedemption[msg.sender] = cycleNumber;
-    totalCommissionLeft = totalCommissionLeft.sub(commission);
-
-    sToken.generateTokens(msg.sender, commission.mul(sToken.totalSupply()).div(totalFundsInDAI));
-    totalFundsInDAI = totalFundsInDAI.add(commission);
-
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
     delete userInvestments[msg.sender];
 
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, daiAddr, commission, commission, now);
-    emit CommissionPaid(cycleNumber, msg.sender, commission);
+    emit CommissionPaid(cycleNumber, msg.sender, _commission);
   }
 
   /**
@@ -657,7 +681,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Emit event
     if (isPartialSell) {
       Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
-      emit CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
+      emit CreatedInvestment(
+        cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
         newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
         newInvestment.buyPrice.mul(newInvestment.tokenAmount).div(10 ** getDecimals(ERC20Detailed(newInvestment.tokenAddress))));
     }
@@ -702,6 +727,77 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return true;
   }
 
+  function __register(uint256 _donationInDAI, address _referrer) internal {
+    require(_donationInDAI > 0 && _donationInDAI <= MAX_DONATION, "Donation out of range");
+    require(_referrer != msg.sender, "Can't refer self");
+
+    MiniMeToken kro = MiniMeToken(KRO_ADDR);
+    require(kro.balanceOf(msg.sender) == 0, "Already joined"); // each address can only join the IAO once
+
+    // mint KRO for msg.sender
+    uint256 kroPrice = kairoPrice();
+    uint256 kroAmount = _donationInDAI.mul(kroPrice).div(PRECISION);
+    require(kro.generateTokens(msg.sender, kroAmount), "Failed minting");
+
+    // mint KRO for referral program
+    if (_referrer != address(0) && kro.balanceOf(_referrer) > 0) {
+      uint256 bonusAmount = kroAmount.mul(REFERRAL_BONUS).div(PRECISION);
+      require(kro.generateTokens(msg.sender, bonusAmount), "Failed minting sender bonus");
+      require(kro.generateTokens(_referrer, bonusAmount), "Failed minting referrer bonus");
+    }
+
+    // transfer DAI to developerFeeAccount
+    require(dai.transfer(developerFeeAccount, _donationInDAI), "Failed DAI transfer to developerFeeAccount");
+    
+    // emit events
+    emit Register(msg.sender, block.number, _donationInDAI);
+  }
+
+  function __deposit(uint256 _depositDAIAmount) internal {
+    // Register investment and give shares
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
+      sToken.generateTokens(msg.sender, _depositDAIAmount);
+    } else {
+      sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
+  }
+
+  function __withdraw(uint256 _withdrawDAIAmount) internal {
+    // Burn Shares
+    sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
+  }
+
+  /**
+   * @notice Handles and investment by doing the necessary trades using __kyberTrade()
+   * @param _investmentId the ID of the investment to be handled
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   * @param _buy whether to buy or sell the given investment
+   */
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy) internal {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    uint256 srcAmount;
+    uint256 dInS;
+    uint256 sInD;
+    if (_buy) {
+      srcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
+    } else {
+      srcAmount = investment.tokenAmount;
+    }
+    ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
+    if (_buy) {
+      (dInS, sInD,) = __kyberTrade(dai, srcAmount, token);
+      require(_minPrice <= dInS && dInS <= _maxPrice);
+      investment.buyPrice = dInS;
+    } else {
+      (dInS, sInD,) = __kyberTrade(token, srcAmount, dai);
+      require(_minPrice <= sInD && dInS <= sInD);
+      investment.sellPrice = sInD;
+    }
+  }
+
   /**
    * @notice Update fund statistics, and pay developer fees & commissions.
    */
@@ -727,44 +823,22 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Handles and investment by doing the necessary trades using __kyberTrade()
-   * @param _investmentId the ID of the investment to be handled
-   * @param _minPrice the minimum price for the trade
-   * @param _maxPrice the maximum price for the trade
-   * @param _buy whether to buy or sell the given investment
-   */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy) internal {
-    Investment storage investment = userInvestments[msg.sender][_investmentId];
-    uint256 srcAmount;
-    uint256 dInS;
-    uint256 sInD;
-    if (_buy) {
-      srcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
-    } else {
-      srcAmount = investment.tokenAmount;
-    }
-    ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
-    if (_buy) {
-      (dInS, sInD) = __kyberTrade(dai, srcAmount, token);
-      require(_minPrice <= dInS && dInS <= _maxPrice);
-      investment.buyPrice = dInS;
-    } else {
-      (dInS, sInD) = __kyberTrade(token, srcAmount, dai);
-      require(_minPrice <= sInD && dInS <= sInD);
-      investment.sellPrice = sInD;
-    }
-  }
-
-  /**
    * @notice Wrapper function for doing token conversion on Kyber Network
    * @param _srcToken the token to convert from
    * @param _srcAmount the amount of tokens to be converted
    * @param _destToken the destination token
    * @return _destPriceInSrc the price of the destination token, in terms of source tokens
    */
-  function __kyberTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken) internal returns(uint256 _destPriceInSrc, uint256 _srcPriceInDest) {
+  function __kyberTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken)
+    internal 
+    returns(
+      uint256 _destPriceInSrc,
+      uint256 _srcPriceInDest,
+      uint256 _actualDestAmount,
+      uint256 _actualSrcAmount
+    )
+  {
     require(_srcToken != _destToken);
-    uint256 actualDestAmount;
     uint256 beforeSrcBalance = getBalance(_srcToken, this);
     uint256 msgValue;
     uint256 rate;
@@ -772,13 +846,13 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       msgValue = 0;
-      _srcToken.approve(kyberAddr, 0);
-      _srcToken.approve(kyberAddr, _srcAmount);
+      _srcToken.approve(KYBER_ADDR, 0);
+      _srcToken.approve(KYBER_ADDR, _srcAmount);
     } else {
       msgValue = _srcAmount;
     }
     (,rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
-    actualDestAmount = kyber.tradeWithHint.value(msgValue)(
+    _actualDestAmount = kyber.tradeWithHint.value(msgValue)(
       _srcToken,
       _srcAmount,
       _destToken,
@@ -788,18 +862,18 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       0,
       hint
     );
-    require(actualDestAmount > 0);
+    require(_actualDestAmount > 0);
     if (_srcToken != ETH_TOKEN_ADDRESS) {
-      _srcToken.approve(kyberAddr, 0);
+      _srcToken.approve(KYBER_ADDR, 0);
     }
 
-    uint256 actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, this));
-    _destPriceInSrc = calcRateFromQty(actualDestAmount, actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
-    _srcPriceInDest = calcRateFromQty(actualSrcAmount, actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
+    _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, this));
+    _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
+    _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
   }
 
   function() public payable {
-    if (msg.sender != kyberAddr || msg.sender != previousVersion) {
+    if (msg.sender != KYBER_ADDR || msg.sender != previousVersion) {
       revert();
     }
   }

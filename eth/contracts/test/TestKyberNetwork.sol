@@ -23,16 +23,17 @@ contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
     }
   }
 
-  function trade(
-    DetailedERC20 src,
+  function tradeWithHint(
+    ERC20Detailed src,
     uint srcAmount,
-    DetailedERC20 dest,
+    ERC20Detailed dest,
     address destAddress,
     uint maxDestAmount,
     uint minConversionRate,
-    address walletId
+    address walletId,
+    bytes hint
   )
-    public
+    external
     payable
     returns(uint)
   {

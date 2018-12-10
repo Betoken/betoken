@@ -7,15 +7,16 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
  * @author Zefram Lou (Zebang Liu)
  */
 interface KyberNetwork {
-  function maxGasPrice() public view returns(uint);
-  function getUserCapInWei(address user) public view returns(uint);
-  function getUserCapInTokenWei(address user, ERC20Detailed token) public view returns(uint);
-  function enabled() public view returns(bool);
-  function info(bytes32 id) public view returns(uint);
+  function maxGasPrice() external view returns(uint);
+  function getUserCapInWei(address user) external view returns(uint);
+  function getUserCapInTokenWei(address user, ERC20Detailed token) external view returns(uint);
+  function enabled() external view returns(bool);
+  function info(bytes32 id) external view returns(uint);
 
-  function getExpectedRate(ERC20Detailed src, ERC20Detailed dest, uint srcQty) public view
+  function getExpectedRate(ERC20Detailed src, ERC20Detailed dest, uint srcQty) external view
       returns (uint expectedRate, uint slippageRate);
 
-  function tradeWithHint(ERC20Detailed src, uint srcAmount, ERC20Detailed dest, address destAddress, uint maxDestAmount,
-      uint minConversionRate, address walletId, bytes hint) public payable returns(uint);
+  function tradeWithHint(
+    ERC20Detailed src, uint srcAmount, ERC20Detailed dest, address destAddress, uint maxDestAmount,
+    uint minConversionRate, address walletId, bytes hint) external payable returns(uint);
 }
