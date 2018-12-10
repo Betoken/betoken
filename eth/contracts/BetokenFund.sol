@@ -233,7 +233,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _newAddr the new developer fee address
    */
   function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
-    require(_newAddr != address(0));
+    require(_newAddr != address(0) && _newAddr != address(this));
     developerFeeAccount = _newAddr;
   }
 
