@@ -15,6 +15,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   using SafeMath for uint256;
 
   enum CyclePhase { Intermission, Manage }
+  enum VoteDirection { Empty, For, Against }
+  enum Subchunk { Propose, Vote }
 
   struct Investment {
     address tokenAddress;
@@ -52,7 +54,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Checks if the fund is ready for upgrading to the next version
    */
   modifier readyForUpgrade {
-    
+    require(nextVersion != address(0));
     _;
   }
 
@@ -65,6 +67,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Upgrade constants
   uint constant CHUNK_SIZE = 3 days;
   uint constant PROPOSE_SUBCHUNK_SIZE = 1 days;
+  uint constant CYCLES_TILL_MATURITY = 3;
+  uint constant QUORUM = 10 * (10 ** 16); // 10% quorum
 
   // Address of the share token contract.
   address public shareTokenAddr;
@@ -117,8 +121,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Total commission to be paid in a certain cycle
   mapping(uint256 => uint256) public totalCommissionOfCycle;
 
-  // The block number at which the RedeemCommission phase started for the given cycle
-  mapping(uint256 => uint256) public commissionPhaseStartBlock;
+  // The block number at which the Manage phase ended for a given cycle
+  mapping(uint256 => uint256) public managePhaseEndBlock;
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -130,8 +134,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address[5] candidates; // Candidates for a chunk
   uint256[5] forVotes; // For votes for a chunk
   uint256[5] againstVotes; // Against votes for a chunk
-  mapping(address => bool[5]) hasVoted; // Check if a manager has voted in a chunk
-  uint256 upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process
+  mapping(uint256 => mapping(address => VoteDirection[5])) managerVotes; // Records each manager's vote
+  mapping(uint256 => uint256) upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
+  mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
 
   // Contract instances
   MiniMeToken internal cToken;
@@ -153,6 +158,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
   event Register(address indexed _manager, uint256 indexed _block, uint256 _donationInDAI);
+  
+  event SignaledUpgrade(uint256 indexed _cycleNumber, address indexed _sender, bool indexed _inSupport);
+  event InitiatedUpgrade(uint256 indexed _cycleNumber);
+  event ProposedCandidate(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, address _candidate);
+  event Voted(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, bool _inSupport, uint256 _weight);
 
   /**
    * Meta functions
@@ -185,9 +195,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     assetFeeRate = _assetFeeRate;
     developerFeeRate = _developerFeeRate;
     exitFeeRate = _exitFeeRate;
-    cyclePhase = CyclePhase.Intermission;
-    cycleNumber = 1;
-    startTimeOfCyclePhase = now;
+    cyclePhase = CyclePhase.Manage;
+    cycleNumber = 0;
+    startTimeOfCyclePhase = 0;
     functionCallReward = _functionCallReward;
 
     previousVersion = _previousVersion;
@@ -211,14 +221,157 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * @notice There are two subchunks in each chunk: propose (1 day) and vote (2 days).
    *         Determines which subchunk the fund is in right now.
-   * @return True if currently in the propose subchunk, false if currently in the vote subchunk or not in Manage phase.
+   * @return The Subchunk the fund is in right now
    */
-  function currentSubchunk() public view returns (bool _isProposing) {
+  function currentSubchunk() public view returns (Subchunk _subchunk) {
     if (cyclePhase != CyclePhase.Manage) {
-      return false;
+      return Subchunk.Vote;
     }
     uint timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
-    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE;
+    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
+  }
+
+  function getVotingWeight(address _of) public view returns (uint256 _weight) {
+    if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
+      return 0;
+    }
+    return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+  }
+
+  function getTotalVotingWeight() public view returns (uint256 _weight) {
+    if (cycleNumber <= CYCLES_TILL_MATURITY) {
+      return 0;
+    }
+    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+  }
+
+  function isValidChunk(uint _chunkNumber) internal returns (bool) {
+    return _chunkNumber >= 1 && _chunkNumber <= 5;
+  }
+
+  function voteSuccessful(uint _chunkNumber) internal returns (bool _success) {
+    if (!isValidChunk(_chunkNumber)) {
+      return false;
+    }
+    uint voteID = _chunkNumber.sub(1);
+    return forVotes[voteID] > againstVotes[voteID]
+      && forVotes[voteID].add(againstVotes[voteID]) >= getTotalVotingWeight().mul(QUORUM).div(PRECISION);
+  }
+
+  function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) returns (bool _success) {
+    if (upgradeSignal[cycleNumber][msg.sender] == false) {
+      if (_inSupport == true) {
+        upgradeSignal[cycleNumber][msg.sender] = true;
+        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].add(getVotingWeight(msg.sender));
+      } else {
+        return false;
+      }
+    } else {
+      if (_inSupport == false) {
+        upgradeSignal[cycleNumber][msg.sender] = false;
+        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].sub(getVotingWeight(msg.sender));
+      } else {
+        return false;
+      }
+    }
+    emit SignaledUpgrade(cycleNumber, msg.sender, _inSupport);
+    return true;
+  }
+
+  function proposeCandidate(uint _chunkNumber, address _candidate) public during(CyclePhase.Manage) returns (bool _success) {
+    // Input & state check
+    if (!isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
+      upgradeVotingActive == false || _candidate == address(0)) {
+      return false;
+    }
+
+    // Ensure msg.sender has not been a proposer before
+    uint256 voteID = _chunkNumber.sub(1);
+    uint256 i;
+    for (i = 0; i < voteID; i = i.add(1)) {
+      if (proposer[i] == msg.sender) {
+        return false;
+      }
+    }
+
+    // Ensure msg.sender has more voting weight than current proposer
+    if (getVotingWeight(msg.sender) > getVotingWeight(proposers[voteID])) {
+      proposers[voteID] = msg.sender;
+      candidates[voteID] = _candidate;
+      emit ProposedCandidate(cycleNumber, _chunkNumber, msg.sender, _candidate);
+      return true;
+    }
+    return false;
+  }
+
+  function voteOnCandidate(uint _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) returns (bool _success) {
+    // Input & state check
+    if (!isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
+      return false;
+    }
+
+    // Ensure msg.sender has not been a proposer before
+    uint256 voteID = _chunkNumber.sub(1);
+    uint256 i;
+    for (i = 0; i < voteID; i = i.add(1)) {
+      if (proposer[i] == msg.sender) {
+        return false;
+      }
+    }
+
+    // Register vote
+    VoteDirection currVote = managerVotes[cycleNumber][voteID];
+    uint256 votingWeight = getVotingWeight(msg.sender);
+    if (currVote == VoteDirection.Empty) {
+      if (_inSupport == true) {
+        managerVotes[cycleNumber][voteID] = VoteDirection.For;
+        forVotes[voteID] = forVotes[voteID].add(votingWeight);
+      } else {
+        managerVotes[cycleNumber][voteID] = VoteDirection.Against;
+        againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
+      }
+    } else if (currVote == VoteDirection.For) {
+      if (_inSupport == true) {
+        return false;
+      } else {
+        managerVotes[cycleNumber][voteID] = VoteDirection.Against;
+        againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
+      }
+    } else if (currVote == VoteDirection.Against) {
+      if (_inSupport == true) {
+        managerVotes[cycleNumber][voteID] = VoteDirection.For;
+        forVotes[voteID] = forVotes[voteID].add(votingWeight);
+      } else {
+        return false;
+      }
+    }
+    emit Voted(cycleNumber, _chunkNumber, msg.sender, _inSupport, votingWeight);
+    return true;
+  }
+
+  function tallySuccessfulVote(uint _chunkNumber) public during(CyclePhase.Manage) returns (bool _success) {
+    // Input & state check
+    if (!isValidChunk(_chunkNumber)) {
+      return false;
+    }
+
+    // Ensure the given vote was successful
+    if (voteSuccessful(_chunkNumber) == false) {
+      return false;
+    }
+
+    // Ensure no previous vote was successful
+    uint256 voteID = _chunkNumber.sub(1);
+    uint256 i;
+    for (i = 0; i < voteID; i = i.add(1)) {
+      if (voteSuccessful(i)) {
+        return false;
+      }
+    }
+
+    // End voting process
+    upgradeVotingActive = false;
+    nextVersion = candidates[voteID];
   }
 
   function migrateOwnedContractsToNextVersion() public readyForUpgrade {
@@ -299,7 +452,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
-    if (cyclePhase == CyclePhase.Manage) {
+    if (cycleNumber == 0) {
+      require(msg.sender == developerFeeAccount);
+    }
+
+    if (cyclePhase == CyclePhase.Intermission) {
+      // Check if there is enough signal supporting upgrade
+      if (upgradeSignalStrength[cycleNumber] >= getTotalVotingWeight().mul(QUORUM).div(PRECISION)) {
+        upgradeVotingActive = true;
+        emit InitiatedUpgrade(cycleNumber);
+      }
+    } else if (cyclePhase == CyclePhase.Manage) {
       // Start new cycle
       cycleNumber = cycleNumber.add(1);
 
@@ -308,7 +471,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
       __handleFees();
 
-      commissionPhaseStartBlock[cycleNumber] = block.number;
+      managePhaseEndBlock[cycleNumber] = block.number;
 
       // Clear upgrade related data
       if (nextVersion == address(0)) {
@@ -317,7 +480,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
         delete forVotes;
         delete againstVotes;
         delete upgradeVotingActive;
-        delete upgradeSignalStrength;
       }
     }
 
@@ -590,8 +752,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   function __redeemCommission() internal returns (uint256 _commission) {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
     for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
-      _commission = _commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, commissionPhaseStartBlock[cycle]))
-      .div(cToken.totalSupplyAt(commissionPhaseStartBlock[cycle])));
+      _commission = _commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, managePhaseEndBlock[cycle]))
+      .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle])));
     }
 
     lastCommissionRedemption[msg.sender] = cycleNumber;
