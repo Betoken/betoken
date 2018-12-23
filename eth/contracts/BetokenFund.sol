@@ -62,6 +62,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address constant DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
   address constant KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
   address constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
+  // Upgrade constants
+  uint constant CHUNK_SIZE = 3 days;
+  uint constant PROPOSE_SUBCHUNK_SIZE = 1 days;
 
   // Address of the share token contract.
   address public shareTokenAddr;
@@ -74,9 +77,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // Address of the previous version of BetokenFund.
   address public previousVersion;
-
-  // Address of the next version of BetokenFund.
-  address public nextVersion;
 
   // The number of the current investment cycle.
   uint256 public cycleNumber;
@@ -123,6 +123,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The current cycle phase.
   CyclePhase public cyclePhase;
 
+  // Upgrade governance related variables
+  bool upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
+  address public nextVersion; // Address of the next version of BetokenFund.
+  address[5] proposers; // Manager who proposed the upgrade candidate in a chunk
+  address[5] candidates; // Candidates for a chunk
+  uint256[5] forVotes; // For votes for a chunk
+  uint256[5] againstVotes; // Against votes for a chunk
+  mapping(address => bool[5]) hasVoted; // Check if a manager has voted in a chunk
+  uint256 upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process
+
   // Contract instances
   MiniMeToken internal cToken;
   MiniMeToken internal sToken;
@@ -162,8 +172,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   )
     public
   {
-    require(_commissionRate.add(_developerFeeRate) < 10**18);
-
     shareTokenAddr = _sTokenAddr;
     proxyAddr = _proxyAddr;
     cToken = MiniMeToken(KRO_ADDR);
@@ -188,6 +196,30 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * Upgrading functions
    */
+
+  /**
+   * @notice The manage phase is divided into 9 3-day chunks. Determins which chunk the fund's in right now.
+   * @return The index of the current chunk (starts from 0). Returns 0 if not in Manage phase.
+   */
+  function currentChunk() public view returns (uint) {
+    if (cyclePhase != CyclePhase.Manage) {
+      return 0;
+    }
+    return (now - startTimeOfCyclePhase) / CHUNK_SIZE;
+  }
+
+  /**
+   * @notice There are two subchunks in each chunk: propose (1 day) and vote (2 days).
+   *         Determines which subchunk the fund is in right now.
+   * @return True if currently in the propose subchunk, false if currently in the vote subchunk or not in Manage phase.
+   */
+  function currentSubchunk() public view returns (bool _isProposing) {
+    if (cyclePhase != CyclePhase.Manage) {
+      return false;
+    }
+    uint timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
+    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE;
+  }
 
   function migrateOwnedContractsToNextVersion() public readyForUpgrade {
     cToken.transferOwnership(nextVersion);
@@ -277,6 +309,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       __handleFees();
 
       commissionPhaseStartBlock[cycleNumber] = block.number;
+
+      // Clear upgrade related data
+      if (nextVersion == address(0)) {
+        delete proposers;
+        delete candidates;
+        delete forVotes;
+        delete againstVotes;
+        delete upgradeVotingActive;
+        delete upgradeSignalStrength;
+      }
     }
 
     cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
@@ -287,6 +329,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now);
   }
+
+
+  /**
+   * Manager registration
+   */
 
   function kairoPrice() public view returns (uint256 _kairoPrice) {
     if (cToken.totalSupply() == 0) {return 0;}
@@ -374,6 +421,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit Deposit(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHDeposited, actualDAIDeposited, now);
   }
 
+  /**
+   * @notice Deposit DAI Stablecoin into the fund.
+   * @param _daiAmount The amount of DAI to be deposited. May be different from actual deposited amount.
+   */
   function depositDAI(uint256 _daiAmount)
     public
     during(CyclePhase.Intermission)
@@ -452,6 +503,27 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
+   * @notice Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawDAI(uint256 _amountInDAI)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    __withdraw(_amountInDAI);
+
+    // Transfer DAI to user
+    uint256 exitFee = _amountInDAI.mul(exitFeeRate).div(PRECISION);
+    dai.transfer(developerFeeAccount, exitFee);
+    uint256 actualDAIWithdrawn = _amountInDAI.sub(exitFee);
+    dai.transfer(msg.sender, actualDAIWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, actualDAIWithdrawn, actualDAIWithdrawn, now);
+  }
+
+  /**
    * @notice Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
    * @param _tokenAddr the address of the token to be withdrawn into the caller's account
    * @param _amountInDAI The amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
@@ -482,23 +554,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Emit event
     emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
-  }
-
-  function withdrawDAI(uint256 _amountInDAI)
-    public
-    during(CyclePhase.Intermission)
-    nonReentrant
-  {
-    __withdraw(_amountInDAI);
-
-    // Transfer DAI to user
-    uint256 exitFee = _amountInDAI.mul(exitFeeRate).div(PRECISION);
-    dai.transfer(developerFeeAccount, exitFee);
-    uint256 actualDAIWithdrawn = _amountInDAI.sub(exitFee);
-    dai.transfer(msg.sender, actualDAIWithdrawn);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, actualDAIWithdrawn, actualDAIWithdrawn, now);
   }
 
   /**
@@ -668,7 +723,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(beforeTokenBalance.sub(getBalance(ERC20Detailed(investment.tokenAddress), this))));
     }
 
-    // Return Kairo
+    // Return staked Kairo
     uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice.div(investment.buyPrice));
     if (receiveKairoAmount > stakeOfSoldTokens) {
       cToken.transfer(msg.sender, stakeOfSoldTokens);
