@@ -245,11 +245,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
   }
 
-  function isValidChunk(uint _chunkNumber) internal returns (bool) {
+  function isValidChunk(uint _chunkNumber) internal pure returns (bool) {
     return _chunkNumber >= 1 && _chunkNumber <= 5;
   }
 
-  function voteSuccessful(uint _chunkNumber) internal returns (bool _success) {
+  function voteSuccessful(uint _chunkNumber) internal view returns (bool _success) {
     if (!isValidChunk(_chunkNumber)) {
       return false;
     }
@@ -289,7 +289,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 voteID = _chunkNumber.sub(1);
     uint256 i;
     for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposer[i] == msg.sender) {
+      if (proposers[i] == msg.sender) {
         return false;
       }
     }
@@ -314,32 +314,32 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 voteID = _chunkNumber.sub(1);
     uint256 i;
     for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposer[i] == msg.sender) {
+      if (proposers[i] == msg.sender) {
         return false;
       }
     }
 
     // Register vote
-    VoteDirection currVote = managerVotes[cycleNumber][voteID];
+    VoteDirection currVote = managerVotes[cycleNumber][msg.sender][voteID];
     uint256 votingWeight = getVotingWeight(msg.sender);
     if (currVote == VoteDirection.Empty) {
       if (_inSupport == true) {
-        managerVotes[cycleNumber][voteID] = VoteDirection.For;
+        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.For;
         forVotes[voteID] = forVotes[voteID].add(votingWeight);
       } else {
-        managerVotes[cycleNumber][voteID] = VoteDirection.Against;
+        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.Against;
         againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
       }
     } else if (currVote == VoteDirection.For) {
       if (_inSupport == true) {
         return false;
       } else {
-        managerVotes[cycleNumber][voteID] = VoteDirection.Against;
+        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.Against;
         againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
       }
     } else if (currVote == VoteDirection.Against) {
       if (_inSupport == true) {
-        managerVotes[cycleNumber][voteID] = VoteDirection.For;
+        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.For;
         forVotes[voteID] = forVotes[voteID].add(votingWeight);
       } else {
         return false;
@@ -515,10 +515,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   function registerWithETH(address _referrer) public payable nonReentrant {
     uint256 receivedDAI;
-    uint256 _;
 
     // trade ETH for DAI
-    (,receivedDAI,_) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+    (,,receivedDAI,) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
     
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
     if (receivedDAI > MAX_DONATION) {
@@ -537,9 +536,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(token.totalSupply() > 0, "Zero token supply");
 
     uint256 receivedDAI;
-    uint256 _;
 
-    (,receivedDAI,_) = __kyberTrade(token, _donationInTokens, dai);
+    (,,receivedDAI,) = __kyberTrade(token, _donationInTokens, dai);
 
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
     if (receivedDAI > MAX_DONATION) {
@@ -568,7 +566,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Buy DAI with ETH
     uint256 actualDAIDeposited;
     uint256 actualETHDeposited;
-    (, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+    (,, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
 
     // Send back leftover ETH
     uint256 leftOverETH = msg.value.sub(actualETHDeposited);
@@ -621,7 +619,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Convert token into DAI
     uint256 actualDAIDeposited;
     uint256 actualTokenDeposited;
-    (, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
+    (,, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
 
     // Give back leftover tokens
     uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
@@ -649,7 +647,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Buy ETH
     uint256 actualETHWithdrawn;
     uint256 actualDAIWithdrawn;
-    (, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
+    (,, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
 
     __withdraw(actualDAIWithdrawn);
 
@@ -703,7 +701,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Convert DAI into desired tokens
     uint256 actualTokenWithdrawn;
     uint256 actualDAIWithdrawn;
-    (, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
+    (,, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
 
     __withdraw(actualDAIWithdrawn);
 
@@ -1005,11 +1003,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
     ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
     if (_buy) {
-      (dInS, sInD,) = __kyberTrade(dai, srcAmount, token);
+      (dInS, sInD,,) = __kyberTrade(dai, srcAmount, token);
       require(_minPrice <= dInS && dInS <= _maxPrice);
       investment.buyPrice = dInS;
     } else {
-      (dInS, sInD,) = __kyberTrade(token, srcAmount, dai);
+      (dInS, sInD,,) = __kyberTrade(token, srcAmount, dai);
       require(_minPrice <= sInD && dInS <= sInD);
       investment.sellPrice = sInD;
     }
