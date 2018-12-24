@@ -208,56 +208,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
 
   /**
-   * @notice The manage phase is divided into 9 3-day chunks. Determins which chunk the fund's in right now.
-   * @return The index of the current chunk (starts from 0). Returns 0 if not in Manage phase.
+   * @notice Allows a manager to signal their support of initiating an upgrade. They can change their signal before the end of the Intermission phase.
+   *          Managers who oppose initiating an upgrade don't need to call this function, unless they origianlly signalled in support.
+   *          Signals are reset every cycle.
+   * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
+   * @return True if successfully changed signal, false if no changes were made.
    */
-  function currentChunk() public view returns (uint) {
-    if (cyclePhase != CyclePhase.Manage) {
-      return 0;
-    }
-    return (now - startTimeOfCyclePhase) / CHUNK_SIZE;
-  }
-
-  /**
-   * @notice There are two subchunks in each chunk: propose (1 day) and vote (2 days).
-   *         Determines which subchunk the fund is in right now.
-   * @return The Subchunk the fund is in right now
-   */
-  function currentSubchunk() public view returns (Subchunk _subchunk) {
-    if (cyclePhase != CyclePhase.Manage) {
-      return Subchunk.Vote;
-    }
-    uint timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
-    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
-  }
-
-  function getVotingWeight(address _of) public view returns (uint256 _weight) {
-    if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
-      return 0;
-    }
-    return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
-  }
-
-  function getTotalVotingWeight() public view returns (uint256 _weight) {
-    if (cycleNumber <= CYCLES_TILL_MATURITY) {
-      return 0;
-    }
-    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
-  }
-
-  function isValidChunk(uint _chunkNumber) internal pure returns (bool) {
-    return _chunkNumber >= 1 && _chunkNumber <= 5;
-  }
-
-  function voteSuccessful(uint _chunkNumber) internal view returns (bool _success) {
-    if (!isValidChunk(_chunkNumber)) {
-      return false;
-    }
-    uint voteID = _chunkNumber.sub(1);
-    return forVotes[voteID] > againstVotes[voteID]
-      && forVotes[voteID].add(againstVotes[voteID]) >= getTotalVotingWeight().mul(QUORUM).div(PRECISION);
-  }
-
   function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) returns (bool _success) {
     if (upgradeSignal[cycleNumber][msg.sender] == false) {
       if (_inSupport == true) {
@@ -278,10 +234,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return true;
   }
 
+  /**
+   * @notice Allows manager to propose a candidate smart contract for the fund to upgrade to. Among the managers who have proposed a candidate,
+   *          the manager with the most voting weight's candidate will be used in the vote. Ties are broken in favor of the larger address.
+   *          The proposer may change the candidate they support during the Propose subchunk in their chunk.
+   * @param _chunkNumber the chunk for which the sender is proposing the candidate
+   * @return True if successfully proposed/changed candidate, false otherwise.
+   */
   function proposeCandidate(uint _chunkNumber, address _candidate) public during(CyclePhase.Manage) returns (bool _success) {
     // Input & state check
-    if (!isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
-      upgradeVotingActive == false || _candidate == address(0)) {
+    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
+      upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0)) {
       return false;
     }
 
@@ -295,7 +258,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
 
     // Ensure msg.sender has more voting weight than current proposer
-    if (getVotingWeight(msg.sender) > getVotingWeight(proposers[voteID])) {
+    uint256 senderWeight = getVotingWeight(msg.sender);
+    uint256 currProposerWeight = getVotingWeight(proposers[voteID]);
+    if (senderWeight > currProposerWeight || (senderWeight == currProposerWeight && msg.sender > proposers[voteID]) || msg.sender == proposers[voteID]) {
       proposers[voteID] = msg.sender;
       candidates[voteID] = _candidate;
       emit ProposedCandidate(cycleNumber, _chunkNumber, msg.sender, _candidate);
@@ -304,9 +269,15 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return false;
   }
 
+  /**
+   * @notice Allows a manager to vote for or against a candidate smart contract the fund will upgrade to. The manager may change their vote during
+   *          the Vote subchunk. A manager who has been a proposer may not vote.
+   * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
+   * @return True if successfully changed vote, false otherwise.
+   */
   function voteOnCandidate(uint _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) returns (bool _success) {
     // Input & state check
-    if (!isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
+    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
       return false;
     }
 
@@ -349,14 +320,19 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return true;
   }
 
-  function tallySuccessfulVote(uint _chunkNumber) public during(CyclePhase.Manage) returns (bool _success) {
+  /**
+   * @notice Performs the necessary state changes after a successful vote
+   * @param _chunkNumber the chunk number of the successful vote
+   * @return True if successful, false otherwise
+   */
+  function finalizeSuccessfulVote(uint _chunkNumber) public during(CyclePhase.Manage) returns (bool _success) {
     // Input & state check
-    if (!isValidChunk(_chunkNumber)) {
+    if (!__isValidChunk(_chunkNumber)) {
       return false;
     }
 
     // Ensure the given vote was successful
-    if (voteSuccessful(_chunkNumber) == false) {
+    if (__voteSuccessful(_chunkNumber) == false) {
       return false;
     }
 
@@ -364,7 +340,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 voteID = _chunkNumber.sub(1);
     uint256 i;
     for (i = 0; i < voteID; i = i.add(1)) {
-      if (voteSuccessful(i)) {
+      if (__voteSuccessful(i)) {
         return false;
       }
     }
@@ -407,6 +383,44 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function getPhaseLengths() public view returns(uint256[2] _phaseLengths) {
     return phaseLengths;
+  }
+
+  /**
+   * @notice The manage phase is divided into 9 3-day chunks. Determins which chunk the fund's in right now.
+   * @return The index of the current chunk (starts from 0). Returns 0 if not in Manage phase.
+   */
+  function currentChunk() public view returns (uint) {
+    if (cyclePhase != CyclePhase.Manage) {
+      return 0;
+    }
+    return (now - startTimeOfCyclePhase) / CHUNK_SIZE;
+  }
+
+  /**
+   * @notice There are two subchunks in each chunk: propose (1 day) and vote (2 days).
+   *         Determines which subchunk the fund is in right now.
+   * @return The Subchunk the fund is in right now
+   */
+  function currentSubchunk() public view returns (Subchunk _subchunk) {
+    if (cyclePhase != CyclePhase.Manage) {
+      return Subchunk.Vote;
+    }
+    uint timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
+    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
+  }
+
+  function getVotingWeight(address _of) public view returns (uint256 _weight) {
+    if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
+      return 0;
+    }
+    return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+  }
+
+  function getTotalVotingWeight() public view returns (uint256 _weight) {
+    if (cycleNumber <= CYCLES_TILL_MATURITY) {
+      return 0;
+    }
+    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
   }
 
   /**
@@ -1085,6 +1099,19 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, this));
     _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
     _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
+  }
+
+  function __isValidChunk(uint _chunkNumber) internal pure returns (bool) {
+    return _chunkNumber >= 1 && _chunkNumber <= 5;
+  }
+
+  function __voteSuccessful(uint _chunkNumber) internal view returns (bool _success) {
+    if (!__isValidChunk(_chunkNumber)) {
+      return false;
+    }
+    uint voteID = _chunkNumber.sub(1);
+    return forVotes[voteID] > againstVotes[voteID]
+      && forVotes[voteID].add(againstVotes[voteID]) >= getTotalVotingWeight().mul(QUORUM).div(PRECISION);
   }
 
   function() public payable {
