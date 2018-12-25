@@ -69,6 +69,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint constant PROPOSE_SUBCHUNK_SIZE = 1 days;
   uint constant CYCLES_TILL_MATURITY = 3;
   uint constant QUORUM = 10 * (10 ** 16); // 10% quorum
+  uint constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
 
   // Address of the share token contract.
   address public shareTokenAddr;
@@ -472,7 +473,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     if (cyclePhase == CyclePhase.Intermission) {
       // Check if there is enough signal supporting upgrade
-      if (upgradeSignalStrength[cycleNumber] >= getTotalVotingWeight().mul(QUORUM).div(PRECISION)) {
+      if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
         upgradeVotingActive = true;
         emit InitiatedUpgrade(cycleNumber);
       }
@@ -1110,8 +1111,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       return false;
     }
     uint voteID = _chunkNumber.sub(1);
-    return forVotes[voteID] > againstVotes[voteID]
-      && forVotes[voteID].add(againstVotes[voteID]) >= getTotalVotingWeight().mul(QUORUM).div(PRECISION);
+    return forVotes[voteID].mul(PRECISION).div(forVotes[voteID].add(againstVotes[voteID])) > VOTE_SUCCESS_THRESHOLD
+      && forVotes[voteID].add(againstVotes[voteID]) > getTotalVotingWeight().mul(QUORUM).div(PRECISION);
   }
 
   function() public payable {
