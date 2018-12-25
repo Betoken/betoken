@@ -53,8 +53,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * @notice Checks if the fund is ready for upgrading to the next version
    */
-  modifier readyForUpgrade {
-    require(nextVersion != address(0));
+  modifier readyForUpgradeMigration {
+    require(hasFinalizedNextVersion == true);
+    require(now > startTimeOfCyclePhase.add(phaseLengths[uint(CyclePhase.Intermission)]));
+    _;
+  }
+
+  /**
+   * @notice Checks if the fund is not ready for upgrading to the next version
+   */
+  modifier notReadyForUpgrade {
+    require(hasFinalizedNextVersion == false);
     _;
   }
 
@@ -129,6 +138,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   CyclePhase public cyclePhase;
 
   // Upgrade governance related variables
+  bool hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
   bool upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
   address public nextVersion; // Address of the next version of BetokenFund.
   address[5] proposers; // Manager who proposed the upgrade candidate in a chunk
@@ -161,6 +171,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event Register(address indexed _manager, uint256 indexed _block, uint256 _donationInDAI);
   
   event SignaledUpgrade(uint256 indexed _cycleNumber, address indexed _sender, bool indexed _inSupport);
+  event DeveloperInitiatedUpgrade(uint256 indexed _cycleNumber, address _candidate);
   event InitiatedUpgrade(uint256 indexed _cycleNumber);
   event ProposedCandidate(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, address _candidate);
   event Voted(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, bool _inSupport, uint256 _weight);
@@ -209,13 +220,29 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
 
   /**
+   * @notice Allows the developer to propose a candidate smart contract for the fund to upgrade to.
+   *          The developer may change the candidate during the Intermission phase.
+   * @param _candidate the address of the candidate smart contract
+   * @return True if successfully changed candidate, false otherwise.
+   */
+  function developerInitiateUpgrade(address _candidate) public during(CyclePhase.Intermission) onlyOwner notReadyForUpgrade returns (bool _success) {
+    if (_candidate == address(0) || _candidate == address(this)) {
+      return false;
+    }
+    nextVersion = _candidate;
+    upgradeVotingActive = true;
+    emit DeveloperInitiatedUpgrade(cycleNumber, _candidate);
+    return true;
+  }
+
+  /**
    * @notice Allows a manager to signal their support of initiating an upgrade. They can change their signal before the end of the Intermission phase.
    *          Managers who oppose initiating an upgrade don't need to call this function, unless they origianlly signalled in support.
    *          Signals are reset every cycle.
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed signal, false if no changes were made.
    */
-  function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) returns (bool _success) {
+  function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) notReadyForUpgrade returns (bool _success) {
     if (upgradeSignal[cycleNumber][msg.sender] == false) {
       if (_inSupport == true) {
         upgradeSignal[cycleNumber][msg.sender] = true;
@@ -240,9 +267,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    *          the manager with the most voting weight's candidate will be used in the vote. Ties are broken in favor of the larger address.
    *          The proposer may change the candidate they support during the Propose subchunk in their chunk.
    * @param _chunkNumber the chunk for which the sender is proposing the candidate
+   * @param _candidate the address of the candidate smart contract
    * @return True if successfully proposed/changed candidate, false otherwise.
    */
-  function proposeCandidate(uint _chunkNumber, address _candidate) public during(CyclePhase.Manage) returns (bool _success) {
+  function proposeCandidate(uint _chunkNumber, address _candidate) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
       upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0)) {
@@ -276,7 +304,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed vote, false otherwise.
    */
-  function voteOnCandidate(uint _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) returns (bool _success) {
+  function voteOnCandidate(uint _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
       return false;
@@ -326,7 +354,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _chunkNumber the chunk number of the successful vote
    * @return True if successful, false otherwise
    */
-  function finalizeSuccessfulVote(uint _chunkNumber) public during(CyclePhase.Manage) returns (bool _success) {
+  function finalizeSuccessfulVote(uint _chunkNumber) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber)) {
       return false;
@@ -349,15 +377,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // End voting process
     upgradeVotingActive = false;
     nextVersion = candidates[voteID];
+    hasFinalizedNextVersion = true;
   }
 
-  function migrateOwnedContractsToNextVersion() public readyForUpgrade {
+  function migrateOwnedContractsToNextVersion() public readyForUpgradeMigration {
     cToken.transferOwnership(nextVersion);
     sToken.transferOwnership(nextVersion);
     proxy.updateBetokenFundAddress();
   }
 
-  function transferAssetToNextVersion(address _assetAddress) public readyForUpgrade isValidToken(_assetAddress) {
+  function transferAssetToNextVersion(address _assetAddress) public readyForUpgradeMigration isValidToken(_assetAddress) {
     if (_assetAddress == address(ETH_TOKEN_ADDRESS)) {
       nextVersion.transfer(address(this).balance);
     } else {
@@ -468,10 +497,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
     if (cycleNumber == 0) {
-      require(msg.sender == developerFeeAccount);
+      require(msg.sender == owner());
     }
 
     if (cyclePhase == CyclePhase.Intermission) {
+      require(hasFinalizedNextVersion == false); // Shouldn't progress to next phase if upgrading
+
       // Check if there is enough signal supporting upgrade
       if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
         upgradeVotingActive = true;
@@ -488,13 +519,21 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
       managePhaseEndBlock[cycleNumber] = block.number;
 
-      // Clear upgrade related data
+      // Clear/update upgrade related data
+      if (nextVersion == address(this)) {
+        // The developer proposed a candidate, but the managers decide to not upgrade at all
+        // Reset upgrade process
+        delete nextVersion;
+        delete hasFinalizedNextVersion;
+      }
       if (nextVersion == address(0)) {
         delete proposers;
         delete candidates;
         delete forVotes;
         delete againstVotes;
         delete upgradeVotingActive;
+      } else {
+        hasFinalizedNextVersion = true;
       }
     }
 
@@ -577,6 +616,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     payable
     during(CyclePhase.Intermission)
     nonReentrant
+    notReadyForUpgrade
   {
     // Buy DAI with ETH
     uint256 actualDAIDeposited;
@@ -604,6 +644,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     public
     during(CyclePhase.Intermission)
     nonReentrant
+    notReadyForUpgrade
   {
     require(dai.transferFrom(msg.sender, this, _daiAmount));
 
@@ -624,6 +665,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
     nonReentrant
+    notReadyForUpgrade
   {
     require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
 
