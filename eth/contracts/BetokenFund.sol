@@ -67,18 +67,21 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     _;
   }
 
-  uint256 constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
-  uint256 constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
-  uint256 constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
-  address constant DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
-  address constant KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
-  address constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
+  uint256 public constant COMMISSION_RATE = 20 * (10 ** 16); // The proportion of profits that gets distributed to Kairo holders every cycle.
+  uint256 public constant ASSET_FEE_RATE = 1 * (10 ** 15); // The proportion of fund balance that gets distributed to Kairo holders every cycle.
+  uint256 public constant NEXT_PHASE_REWARD = 1 * (10 ** 18); // Amount of Kairo rewarded to the user who calls nextPhase().
+  uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
+  uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
+  uint256 public constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
+  address public constant DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
+  address public constant KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
+  address public constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
   // Upgrade constants
-  uint constant CHUNK_SIZE = 3 days;
-  uint constant PROPOSE_SUBCHUNK_SIZE = 1 days;
-  uint constant CYCLES_TILL_MATURITY = 3;
-  uint constant QUORUM = 10 * (10 ** 16); // 10% quorum
-  uint constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
+  uint256 public constant CHUNK_SIZE = 3 days;
+  uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
+  uint256 public constant CYCLES_TILL_MATURITY = 3;
+  uint256 public constant QUORUM = 10 * (10 ** 16); // 10% quorum
+  uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
 
   // Address of the share token contract.
   address public shareTokenAddr;
@@ -101,20 +104,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
 
-  // The proportion of the fund that gets distributed to Kairo holders every cycle. Fixed point decimal.
-  uint256 public commissionRate;
-
-  // The proportion of contract balance that gets distributed to Kairo holders every cycle. Fixed point decimal.
-  uint256 public assetFeeRate;
-
   // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
   uint256 public developerFeeRate;
 
   // The proportion of funds that goes the the devs during withdrawals. Fixed point decimal.
   uint256 public exitFeeRate;
-
-  // Amount of Kairo rewarded to the user who calls a phase transition/investment handling function
-  uint256 public functionCallReward;
 
   // Total amount of commission unclaimed by managers
   uint256 public totalCommissionLeft;
@@ -186,11 +180,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address _proxyAddr,
     address _developerFeeAccount,
     uint256[2] _phaseLengths,
-    uint256 _commissionRate,
-    uint256 _assetFeeRate,
     uint256 _developerFeeRate,
     uint256 _exitFeeRate,
-    uint256 _functionCallReward,
     address _previousVersion
   )
     public
@@ -204,14 +195,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
-    commissionRate = _commissionRate;
-    assetFeeRate = _assetFeeRate;
     developerFeeRate = _developerFeeRate;
     exitFeeRate = _exitFeeRate;
     cyclePhase = CyclePhase.Manage;
     cycleNumber = 0;
     startTimeOfCyclePhase = 0;
-    functionCallReward = _functionCallReward;
 
     previousVersion = _previousVersion;
   }
@@ -271,7 +259,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _candidate the address of the candidate smart contract
    * @return True if successfully proposed/changed candidate, false otherwise.
    */
-  function proposeCandidate(uint _chunkNumber, address _candidate) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
+  function proposeCandidate(uint256 _chunkNumber, address _candidate) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
       upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0)) {
@@ -305,7 +293,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed vote, false otherwise.
    */
-  function voteOnCandidate(uint _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
+  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
       return false;
@@ -355,7 +343,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _chunkNumber the chunk number of the successful vote
    * @return True if successful, false otherwise
    */
-  function finalizeSuccessfulVote(uint _chunkNumber) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
+  function finalizeSuccessfulVote(uint256 _chunkNumber) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber)) {
       return false;
@@ -381,7 +369,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     hasFinalizedNextVersion = true;
   }
 
-  function migrateOwnedContractsToNextVersion() public readyForUpgradeMigration {
+  function migrateOwnedContractsToNextVersion() public nonReentrant readyForUpgradeMigration {
     cToken.transferOwnership(nextVersion);
     sToken.transferOwnership(nextVersion);
     proxy.updateBetokenFundAddress();
@@ -436,7 +424,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     if (cyclePhase != CyclePhase.Manage) {
       return Subchunk.Vote;
     }
-    uint timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
+    uint256 timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
     return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
   }
 
@@ -543,7 +531,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     startTimeOfCyclePhase = now;
 
     // Reward caller
-    cToken.generateTokens(msg.sender, functionCallReward);
+    cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD);
 
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now);
   }
@@ -1082,7 +1070,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     if (getBalance(dai, this) > totalFundsInDAI.add(totalCommissionLeft)) {
       profit = getBalance(dai, this).sub(totalFundsInDAI).sub(totalCommissionLeft);
     }
-    totalCommissionOfCycle[cycleNumber] = commissionRate.mul(profit).add(assetFeeRate.mul(getBalance(dai, this))).div(PRECISION);
+    totalCommissionOfCycle[cycleNumber] = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, this))).div(PRECISION);
     totalCommissionLeft = totalCommissionLeft.add(totalCommissionOfCycle[cycleNumber]);
     uint256 devFee = developerFeeRate.mul(getBalance(dai, this)).div(PRECISION);
     uint256 newTotalFunds = getBalance(dai, this).sub(totalCommissionLeft).sub(devFee);
@@ -1148,15 +1136,15 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
   }
 
-  function __isValidChunk(uint _chunkNumber) internal pure returns (bool) {
+  function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {
     return _chunkNumber >= 1 && _chunkNumber <= 5;
   }
 
-  function __voteSuccessful(uint _chunkNumber) internal view returns (bool _success) {
+  function __voteSuccessful(uint256 _chunkNumber) internal view returns (bool _success) {
     if (!__isValidChunk(_chunkNumber)) {
       return false;
     }
-    uint voteID = _chunkNumber.sub(1);
+    uint256 voteID = _chunkNumber.sub(1);
     return forVotes[voteID].mul(PRECISION).div(forVotes[voteID].add(againstVotes[voteID])) > VOTE_SUCCESS_THRESHOLD
       && forVotes[voteID].add(againstVotes[voteID]) > getTotalVotingWeight().mul(QUORUM).div(PRECISION);
   }
