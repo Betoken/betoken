@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.4.25;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
@@ -51,7 +51,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Checks if the fund is ready for upgrading to the next version
+   * @notice Passes if the fund is ready for migrating to the next version
    */
   modifier readyForUpgradeMigration {
     require(hasFinalizedNextVersion == true);
@@ -60,7 +60,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Checks if the fund is not ready for upgrading to the next version
+   * @notice Passes if the fund has not finalized the next smart contract to upgrade to
    */
   modifier notReadyForUpgrade {
     require(hasFinalizedNextVersion == false);
@@ -175,6 +175,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event InitiatedUpgrade(uint256 indexed _cycleNumber);
   event ProposedCandidate(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, address _candidate);
   event Voted(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, bool _inSupport, uint256 _weight);
+  event FinalizedNextVersion(uint256 indexed _cycleNumber, address _nextVersion);
 
   /**
    * Meta functions
@@ -386,7 +387,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     proxy.updateBetokenFundAddress();
   }
 
-  function transferAssetToNextVersion(address _assetAddress) public readyForUpgradeMigration isValidToken(_assetAddress) {
+  function transferAssetToNextVersion(address _assetAddress) public nonReentrant readyForUpgradeMigration isValidToken(_assetAddress) {
     if (_assetAddress == address(ETH_TOKEN_ADDRESS)) {
       nextVersion.transfer(address(this).balance);
     } else {
@@ -534,6 +535,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
         delete upgradeVotingActive;
       } else {
         hasFinalizedNextVersion = true;
+        emit FinalizedNextVersion(cycleNumber, nextVersion);
       }
     }
 
@@ -662,9 +664,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
-    during(CyclePhase.Intermission)
-    isValidToken(_tokenAddr)
     nonReentrant
+    during(CyclePhase.Intermission)
+    isValidToken(_tokenAddr)  
     notReadyForUpgrade
   {
     require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
@@ -747,9 +749,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
     public
+    nonReentrant
     during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
-    nonReentrant
   {
     require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
 
@@ -824,9 +826,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function sellLeftoverToken(address _tokenAddr)
     public
+    nonReentrant
     during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
-    nonReentrant
   {
     uint256 beforeBalance = getBalance(dai, this);
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
@@ -853,9 +855,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 _maxPrice
   )
     public
+    nonReentrant
     during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
-    nonReentrant
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
@@ -988,12 +990,14 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return true;
   }
 
-  /// @notice Notifies the controller about an approval allowing the
-  ///  controller to react if desired
-  /// @param _owner The address that calls `approve()`
-  /// @param _spender The spender in the `approve()` call
-  /// @param _amount The amount in the `approve()` call
-  /// @return False if the controller does not authorize the approval
+  /**
+   * @notice Notifies the controller about an approval allowing the
+   *  controller to react if desired
+   * @param _owner The address that calls `approve()`
+   * @param _spender The spender in the `approve()` call
+   * @param _amount The amount in the `approve()` call
+   * @return False if the controller does not authorize the approval
+   */
   function onApprove(address _owner, address _spender, uint _amount) public
       returns(bool) {
     return true;
