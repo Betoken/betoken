@@ -1,9 +1,7 @@
 pragma solidity ^0.4.25;
 
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./tokens/minime/MiniMeToken.sol";
-import "./KyberNetwork.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
 
@@ -12,8 +10,6 @@ import "./BetokenProxy.sol";
  * @author Zefram Lou (Zebang Liu)
  */
 contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
-  using SafeMath for uint256;
-
   enum CyclePhase { Intermission, Manage }
   enum VoteDirection { Empty, For, Against }
   enum Subchunk { Propose, Vote }
@@ -34,19 +30,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   modifier during(CyclePhase phase) {
     require(cyclePhase == phase);
-    _;
-  }
-
-  /**
-   * @notice Checks if `token` is a valid token.
-   * @param token the token's address
-   */
-  modifier isValidToken(address token) {
-    if (token != address(ETH_TOKEN_ADDRESS)) {
-      ERC20Detailed _token = ERC20Detailed(token);
-      require(_token.totalSupply() > 0);
-      require(_token.decimals() >= MIN_DECIMALS);
-    }
     _;
   }
 
@@ -73,9 +56,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
-  address public constant DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
-  address public constant KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
-  address public constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
   // Upgrade constants
   uint256 public constant CHUNK_SIZE = 3 days;
   uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
@@ -146,7 +126,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Contract instances
   MiniMeToken internal cToken;
   MiniMeToken internal sToken;
-  KyberNetwork internal kyber;
   ERC20Detailed internal dai;
   BetokenProxy internal proxy;
 
@@ -190,7 +169,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     proxyAddr = _proxyAddr;
     cToken = MiniMeToken(KRO_ADDR);
     sToken = MiniMeToken(_sTokenAddr);
-    kyber = KyberNetwork(KYBER_ADDR);
     dai = ERC20Detailed(DAI_ADDR);
 
     developerFeeAccount = _developerFeeAccount;
@@ -552,7 +530,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   function registerWithDAI(uint256 _donationInDAI, address _referrer) public nonReentrant {
-    require(dai.transferFrom(msg.sender, this, _donationInDAI), "Failed DAI transfer to IAO");
+    require(dai.transferFrom(msg.sender, this, _donationInDAI), "Failed DAI transfer");
     __register(_donationInDAI, _referrer);
   }
 
@@ -578,6 +556,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR, "Invalid token");
     ERC20Detailed token = ERC20Detailed(_token);
     require(token.totalSupply() > 0, "Zero token supply");
+
+    require(token.transferFrom(msg.sender, this, _donationInTokens), "Failed token transfer");
 
     uint256 receivedDAI;
 
@@ -1084,56 +1064,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Emit event
     emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle[cycleNumber]);
-  }
-
-  /**
-   * @notice Wrapper function for doing token conversion on Kyber Network
-   * @param _srcToken the token to convert from
-   * @param _srcAmount the amount of tokens to be converted
-   * @param _destToken the destination token
-   * @return _destPriceInSrc the price of the destination token, in terms of source tokens
-   */
-  function __kyberTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken)
-    internal 
-    returns(
-      uint256 _destPriceInSrc,
-      uint256 _srcPriceInDest,
-      uint256 _actualDestAmount,
-      uint256 _actualSrcAmount
-    )
-  {
-    require(_srcToken != _destToken);
-    uint256 beforeSrcBalance = getBalance(_srcToken, this);
-    uint256 msgValue;
-    uint256 rate;
-    bytes memory hint;
-
-    if (_srcToken != ETH_TOKEN_ADDRESS) {
-      msgValue = 0;
-      _srcToken.approve(KYBER_ADDR, 0);
-      _srcToken.approve(KYBER_ADDR, _srcAmount);
-    } else {
-      msgValue = _srcAmount;
-    }
-    (,rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
-    _actualDestAmount = kyber.tradeWithHint.value(msgValue)(
-      _srcToken,
-      _srcAmount,
-      _destToken,
-      this,
-      MAX_QTY,
-      rate,
-      0,
-      hint
-    );
-    require(_actualDestAmount > 0);
-    if (_srcToken != ETH_TOKEN_ADDRESS) {
-      _srcToken.approve(KYBER_ADDR, 0);
-    }
-
-    _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, this));
-    _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
-    _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
   }
 
   function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {

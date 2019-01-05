@@ -1,9 +1,8 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.4.25;
 
 import "./BetokenFund.sol";
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
-contract BetokenProxy is Ownable {
+contract BetokenProxy {
   address public betokenFundAddress;
   BetokenFund internal betokenFund;
 
@@ -12,11 +11,11 @@ contract BetokenProxy is Ownable {
     betokenFund = BetokenFund(_fundAddr);
   }
 
-  function updateBetokenFundAddress() public onlyOwner {
+  function updateBetokenFundAddress() public {
+    require(msg.sender == betokenFundAddress, "Sender not BetokenFund");
     address nextVersion = betokenFund.nextVersion();
-    require(nextVersion != address(0));
+    require(nextVersion != address(0), "Next version can't be empty");
     betokenFundAddress = nextVersion;
     betokenFund = BetokenFund(nextVersion);
-    transferOwnership(nextVersion);
   }
 }
