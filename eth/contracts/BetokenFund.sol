@@ -345,6 +345,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     upgradeVotingActive = false;
     nextVersion = candidates[voteID];
     hasFinalizedNextVersion = true;
+    return true;
   }
 
   function migrateOwnedContractsToNextVersion() public nonReentrant readyForUpgradeMigration {

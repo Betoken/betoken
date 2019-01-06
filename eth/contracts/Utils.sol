@@ -1,8 +1,8 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.4.25;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "./KyberNetwork.sol";
+import "./interfaces/KyberNetwork.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.
@@ -12,14 +12,15 @@ contract Utils {
   using SafeMath for uint256;
 
   /**
-   * @notice Checks if `token` is a valid token.
+   * @notice Checks if `_token` is a valid token.
    * @param token the token's address
    */
-  modifier isValidToken(address token) {
-    if (token != address(ETH_TOKEN_ADDRESS)) {
-      ERC20Detailed _token = ERC20Detailed(token);
-      require(_token.totalSupply() > 0, "Token 0 supply");
-      require(_token.decimals() >= MIN_DECIMALS, "Token too few decimals");
+  modifier isValidToken(address _token) {
+    if (_token != address(ETH_TOKEN_ADDRESS)) {
+      require(_token != 0x0, "Token zero address");
+      ERC20Detailed token = ERC20Detailed(_token);
+      require(token.totalSupply() > 0, "Token 0 supply");
+      require(token.decimals() >= MIN_DECIMALS, "Token too few decimals");
     }
     _;
   }
@@ -28,6 +29,7 @@ contract Utils {
   address public constant KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
   address public constant COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
   address public constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
+  address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
   ERC20Detailed constant internal ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   uint  constant internal PRECISION = (10**18);

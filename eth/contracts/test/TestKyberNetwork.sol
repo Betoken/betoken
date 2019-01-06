@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import "../KyberNetwork.sol";
+import "../interfaces/KyberNetwork.sol";
 import "../Utils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
