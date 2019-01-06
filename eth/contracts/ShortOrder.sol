@@ -41,8 +41,8 @@ contract ShortOrder is Ownable, Utils {
     // Convert loaned tokens to DAI
     uint256 actualDAIAmount;
     uint256 actualTokenAmount;
-    // Handle WETH (not on Kyber)
     if (_shortingToken == WETH_ADDR) {
+      // Handle WETH (not on Kyber)
       // Unwrap WETH into ETH
       WETH weth = WETH(WETH_ADDR);
       weth.withdraw(loanAmountInToken);
@@ -62,12 +62,35 @@ contract ShortOrder is Ownable, Utils {
   }
 
   function sellOrder() public onlyOwner isValidToken(shortingToken) isInitialized {
-    
-    
+    // Convert (maybe part of) loaned DAI into borrowed tokens to repay debt
+    // Withdraw all available liquid DAI from Compound
+    // Use new DAI to repay rest of loan (if still owes Compound)
+    // Withdraw rest of liquid DAI
+    // Send DAI back to BetokenFund
   }
 
-  function repayLoan() public onlyOwner isValidToken(shortingToken) isInitialized {
+  // Allows manager to repay loan to avoid liquidation
+  function repayLoan(uint256 _repayAmountInDAI) public onlyOwner isValidToken(shortingToken) isInitialized {
+    // Convert DAI to shorting token
+    uint256 actualDAIAmount;
+    uint256 actualTokenAmount;
+    if (shortingToken == WETH_ADDR) {
+      // Handle WETH (not on Kyber)
+      (,, actualTokenAmount, actualDAIAmount) = __kyberTrade(dai, _repayAmountInDAI, ETH_TOKEN_ADDRESS); // Sell DAI for ETH on Kyber
+      // Wrap ETH into WETH
+      WETH weth = WETH(WETH_ADDR);
+      weth.deposit.value(actualTokenAmount)();
+    } else {
+      (,, actualTokenAmount, actualDAIAmount) = __kyberTrade(dai, _repayAmountInDAI, token); // Sell DAI for tokens on Kyber
+    }
 
+    // Repay loan to Compound
+    require(token.approve(COMPOUND_ADDR, 0));
+    require(token.approve(COMPOUND_ADDR, actualTokenAmount));
+    require(compound.repayBorrow(_shortingToken, actualTokenAmount));
+
+    // Update loan info
+    loanAmountInDAI = loanAmountInDAI.sub(actualDAIAmount);    
   }
 
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
