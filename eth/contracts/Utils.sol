@@ -13,7 +13,7 @@ contract Utils {
 
   /**
    * @notice Checks if `_token` is a valid token.
-   * @param token the token's address
+   * @param _token the token's address
    */
   modifier isValidToken(address _token) {
     if (_token != address(ETH_TOKEN_ADDRESS)) {

@@ -14,6 +14,10 @@ contract ShortOrder is Ownable, Utils {
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
   address public shortingToken;
+
+  ERC20Detailed internal constant dai = ERC20Detailed(DAI_ADDR);
+  Compound internal constant compound = Compound(COMPOUND_ADDR);
+  ERC20Detailed internal token;
   
   // Initialize details of short order and execute
   function executeOrder(uint256 _collateralAmountInDAI, uint256 _loanAmountInDAI, address _shortingToken) public onlyOwner isValidToken(_shortingToken) {
@@ -22,11 +26,9 @@ contract ShortOrder is Ownable, Utils {
     collateralAmountInDAI = _collateralAmountInDAI;
     loanAmountInDAI = _loanAmountInDAI;
     shortingToken = _shortingToken;
+    token = ERC20Detailed(_shortingToken);
 
     // Initialize needed variables
-    ERC20Detailed dai = ERC20Detailed(DAI_ADDR);
-    ERC20Detailed token = ERC20Detailed(_shortingToken);
-    Compound compound = Compound(COMPOUND_ADDR);
     uint256 loanAmountInToken = __daiToToken(_shortingToken, _loanAmountInDAI);
 
     // Get loan from Compound in shortingToken
@@ -57,7 +59,7 @@ contract ShortOrder is Ownable, Utils {
       uint256 repayAmount = loanAmountInToken.sub(actualTokenAmount);
       require(token.approve(COMPOUND_ADDR, 0));
       require(token.approve(COMPOUND_ADDR, repayAmount));
-      require(compound.repayBorrow(_shortingToken, repayAmount));
+      require(compound.repayBorrow(_shortingToken, repayAmount) == 0);
     }
   }
 
@@ -87,14 +89,13 @@ contract ShortOrder is Ownable, Utils {
     // Repay loan to Compound
     require(token.approve(COMPOUND_ADDR, 0));
     require(token.approve(COMPOUND_ADDR, actualTokenAmount));
-    require(compound.repayBorrow(_shortingToken, actualTokenAmount));
+    require(compound.repayBorrow(shortingToken, actualTokenAmount) == 0);
 
     // Update loan info
     loanAmountInDAI = loanAmountInDAI.sub(actualDAIAmount);    
   }
 
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    Compound compound = Compound(COMPOUND_ADDR);
     int256 liquidityInETH = compound.getAccountLiquidity(this);
     if (liquidityInETH >= 0) {
       return (false, __tokenToDAI(WETH_ADDR, uint256(liquidityInETH)));
@@ -105,7 +106,6 @@ contract ShortOrder is Ownable, Utils {
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    Compound compound = Compound(COMPOUND_ADDR);
     uint256 borrowBalance = __tokenToDAI(shortingToken, compound.getBorrowBalance(this, shortingToken));
     if (loanAmountInDAI >= borrowBalance) {
       return (false, loanAmountInDAI.sub(borrowBalance));
@@ -116,13 +116,11 @@ contract ShortOrder is Ownable, Utils {
 
   // Convert a DAI amount to the amount of a given token that's of equal value
   function __daiToToken(address _token, uint256 _daiAmount) internal view returns (uint256) {
-    Compound compound = Compound(COMPOUND_ADDR);
     return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).div(compound.assetPrices(_token));
   }
 
   // Convert a token amount to the amount of DAI that's of equal value
   function __tokenToDAI(address _token, uint256 _tokenAmount) internal view returns (uint256) {
-    Compound compound = Compound(COMPOUND_ADDR);
     return _tokenAmount.mul(compound.assetPrices(_token)).div(compound.assetPrices(DAI_ADDR));
   }
 }
