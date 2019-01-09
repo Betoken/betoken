@@ -778,20 +778,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
   }
 
-  function __redeemCommission() internal returns (uint256 _commission) {
-    require(lastCommissionRedemption[msg.sender] < cycleNumber);
-    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
-      _commission = _commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, managePhaseEndBlock[cycle]))
-      .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle])));
-    }
-
-    lastCommissionRedemption[msg.sender] = cycleNumber;
-    totalCommissionLeft = totalCommissionLeft.sub(_commission);
-    delete userInvestments[msg.sender];
-
-    emit CommissionPaid(cycleNumber, msg.sender, _commission);
-  }
-
   /**
    * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone. Money goes to developer.
    * @param _tokenAddr address of the token to be sold
@@ -802,12 +788,25 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
   {
-    uint256 beforeBalance = getBalance(dai, this);
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
-    __kyberTrade(token, getBalance(token, this), dai);
-    dai.transfer(developerFeeAccount, getBalance(dai, this).sub(beforeBalance));
+    (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, this), dai);
+    dai.transfer(developerFeeAccount, actualDAIReceived);
   }
 
+  function sellLeftoverShortOrder(address _orderAddress)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    // Load order info
+    require(_orderAddress != 0x0);
+    ShortOrder order = ShortOrder(_orderAddress);
+    require(order.isSold() == false && order.cycleNumber() < cycleNumber);
+
+    // Sell short order
+    (, uint256 outputAmount) = order.sellOrder(0, MAX_QTY);
+    dai.transfer(developerFeeAccount, outputAmount);
+  }
 
   /**
    * Manage phase functions
@@ -1094,6 +1093,21 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Burn Shares
     sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
+  }
+
+  function __redeemCommission() internal returns (uint256 _commission) {
+    require(lastCommissionRedemption[msg.sender] < cycleNumber);
+    for (uint256 cycle = lastCommissionRedemption[msg.sender].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
+      _commission = _commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(msg.sender, managePhaseEndBlock[cycle]))
+      .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle])));
+    }
+
+    lastCommissionRedemption[msg.sender] = cycleNumber;
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    delete userInvestments[msg.sender];
+    delete userShortOrders[msg.sender];
+
+    emit CommissionPaid(cycleNumber, msg.sender, _commission);
   }
 
   /**
