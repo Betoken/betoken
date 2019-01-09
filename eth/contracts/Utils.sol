@@ -3,6 +3,7 @@ pragma solidity ^0.4.25;
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./interfaces/KyberNetwork.sol";
+import "./interfaces/Compound.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.
@@ -31,7 +32,10 @@ contract Utils {
   address public constant KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
   address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-  ERC20Detailed constant internal ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+  ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+  ERC20Detailed internal constant dai = ERC20Detailed(DAI_ADDR);
+  Compound internal constant compound = Compound(COMPOUND_ADDR);
+
   uint  constant internal PRECISION = (10**18);
   uint  constant internal MAX_QTY   = (10**28); // 10B tokens
   uint  constant internal ETH_DECIMALS = 18;

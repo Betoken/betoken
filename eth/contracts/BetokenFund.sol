@@ -935,7 +935,84 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, getBalance(dai, this).sub(beforeDAIBalance));
   }
 
-  function createShortOrder()
+  function createShortOrder(
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+    nonReentrant
+    during(CyclePhase.Manage)
+    isValidToken(_tokenAddress)
+  {
+    require(_minPrice <= _maxPrice);
+    require(_stake > 0);
+    ERC20Detailed token = ERC20Detailed(_tokenAddress);
+
+    // Collect stake
+    require(cToken.generateTokens(address(this), _stake));
+    require(cToken.destroyTokens(msg.sender, _stake));
+
+    // Create short order and execute
+    uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
+    uint256 loanAmountInDAI = collateralAmountInDAI.mul(PRECISION).div(compound.collateralRatio());
+    ShortOrder order = new ShortOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
+    require(dai.approve(address(order), 0));
+    require(dai.approve(address(order), collateralAmountInDAI));
+    order.executeOrder(_minPrice, _maxPrice);
+
+    // Add order to list
+    userShortOrders[msg.sender].push(address(order));
+
+    // Emit event
+    // TODO
+  }
+
+  function sellShortOrder(
+    uint256 _orderId,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+    during(CyclePhase.Manage)
+    nonReentrant
+  {
+    // Load order info
+    require(userShortOrders[msg.sender][_orderId] != 0x0);
+    ShortOrder order = ShortOrder(userShortOrders[msg.sender][_orderId]);
+    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
+
+    // Sell order
+    (uint256 inputAmount, uint256 outputAmount) = order.sellOrder(_minPrice, _maxPrice);
+
+    // Return staked Kairo
+    uint256 stake = order.stake();
+    uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
+    if (receiveKairoAmount > stake) {
+      cToken.transfer(msg.sender, stake);
+      cToken.generateTokens(msg.sender, receiveKairoAmount.sub(stake));
+    } else {
+      cToken.transfer(msg.sender, receiveKairoAmount);
+      require(cToken.destroyTokens(address(this), stake.sub(receiveKairoAmount)));
+    }
+
+    // Emit event
+    // TODO
+  }
+
+  function repayShortOrderLoan(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
+    // Load order info
+    require(userShortOrders[msg.sender][_orderId] != 0x0);
+    ShortOrder order = ShortOrder(userShortOrders[msg.sender][_orderId]);
+    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
+
+    // Repay loan
+    order.repayLoan(_repayAmountInDAI);
+
+    // Emit event
+    // TODO
+  }
 
 
   /**

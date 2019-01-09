@@ -2,51 +2,69 @@ pragma solidity ^0.4.25;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./Utils.sol";
-import "./interfaces/Compound.sol";
 import "./interfaces/WETH.sol";
 
 contract ShortOrder is Ownable, Utils {
   modifier isInitialized {
-    require(collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
+    require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
     _;
   }
 
+  // Constants
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
 
+  // Instance variables
+  uint256 public stake;
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
+  uint256 public cycleNumber;
   address public shortingToken;
+  bool public isSold;
 
-  ERC20Detailed internal constant dai = ERC20Detailed(DAI_ADDR);
-  Compound internal constant compound = Compound(COMPOUND_ADDR);
+  // Contract instances
   ERC20Detailed internal token;
-  
-  // Initialize details of short order and execute
-  function executeOrder(uint256 _collateralAmountInDAI, uint256 _loanAmountInDAI, address _shortingToken) public onlyOwner isValidToken(_shortingToken) {
+
+  // Events
+  // TODO
+
+  constructor(
+    address _shortingToken,
+    uint256 _cycleNumber,
+    uint256 _stake,
+    uint256 _collateralAmountInDAI,
+    uint256 _loanAmountInDAI
+  ) public isValidToken(_shortingToken) {
     // Initialize details of short order
-    require(_collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
+    require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
+    stake = _stake;
     collateralAmountInDAI = _collateralAmountInDAI;
     loanAmountInDAI = _loanAmountInDAI;
+    cycleNumber = _cycleNumber;
     shortingToken = _shortingToken;
     token = ERC20Detailed(_shortingToken);
-
+  }
+  
+  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(shortingToken) {
     // Initialize needed variables
-    uint256 loanAmountInToken = __daiToToken(_shortingToken, _loanAmountInDAI);
+    uint256 loanAmountInToken = __daiToToken(shortingToken, loanAmountInDAI);
 
     // Get loan from Compound in shortingToken
-    require(compound.assetPrices(_shortingToken) > 0);
-    require(dai.transferFrom(owner(), this, _collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    uint256 tokenPrice = compound.assetPrices(shortingToken); // Get the shorting token's price in ETH
+    require(tokenPrice > 0); // Ensure asset exists on Compound
+    tokenPrice = __tokenToDAI(shortingToken, tokenPrice); // Convert token price to be in DAI
+    require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
+    require(dai.transferFrom(owner(), this, collateralAmountInDAI)); // Transfer DAI from BetokenFund
     require(dai.approve(COMPOUND_ADDR, 0)); // Clear DAI allowance of Compound
-    require(dai.approve(COMPOUND_ADDR, _collateralAmountInDAI)); // Approve DAI transfer to Compound
-    require(compound.supply(DAI_ADDR, _collateralAmountInDAI) == 0); // Transfer DAI into Compound as supply
-    require(compound.borrow(_shortingToken, loanAmountInToken) == 0);// Take out loan
+    require(dai.approve(COMPOUND_ADDR, collateralAmountInDAI)); // Approve DAI transfer to Compound
+    require(compound.supply(DAI_ADDR, collateralAmountInDAI) == 0); // Transfer DAI into Compound as supply
+    require(compound.borrow(shortingToken, loanAmountInToken) == 0);// Take out loan
     require(compound.getAccountLiquidity(this) > 0); // Ensure account liquidity is positive
 
     // Convert loaned tokens to DAI
     uint256 actualDAIAmount;
     uint256 actualTokenAmount;
-    if (_shortingToken == WETH_ADDR) {
+    if (shortingToken == WETH_ADDR) {
       // Handle WETH (not on Kyber)
       // Unwrap WETH into ETH
       WETH weth = WETH(WETH_ADDR);
@@ -62,11 +80,25 @@ contract ShortOrder is Ownable, Utils {
       uint256 repayAmount = loanAmountInToken.sub(actualTokenAmount);
       require(token.approve(COMPOUND_ADDR, 0));
       require(token.approve(COMPOUND_ADDR, repayAmount));
-      require(compound.repayBorrow(_shortingToken, repayAmount) == 0);
+      require(compound.repayBorrow(shortingToken, repayAmount) == 0);
     }
   }
 
-  function sellOrder() public onlyOwner isValidToken(shortingToken) isInitialized returns (uint256 _inputAmount, uint256 _outputAmount) {
+  function sellOrder(uint256 _minPrice, uint256 _maxPrice) 
+    public 
+    onlyOwner 
+    isValidToken(shortingToken) 
+    isInitialized 
+    returns (uint256 _inputAmount, uint256 _outputAmount) 
+  {
+    require(isSold == false);
+    isSold = true;
+
+    // Ensure price is within range provided by user
+    uint256 tokenPrice = compound.assetPrices(shortingToken); // Get the shorting token's price in ETH
+    tokenPrice = __tokenToDAI(shortingToken, tokenPrice); // Convert token price to be in DAI
+    require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
+
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
