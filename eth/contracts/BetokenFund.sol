@@ -4,6 +4,7 @@ import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./tokens/minime/MiniMeToken.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
+import "./ShortOrder.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
@@ -99,8 +100,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
 
-  // List of investments in the current cycle.
+  // List of investments of a manager in the current cycle.
   mapping(address => Investment[]) public userInvestments;
+
+  // List of short orders of a manager in the current cycle.
+  mapping(address => address[]) public userShortOrders;
 
   // Total commission to be paid in a certain cycle
   mapping(uint256 => uint256) public totalCommissionOfCycle;
@@ -124,9 +128,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
 
   // Contract instances
-  MiniMeToken internal cToken;
+  MiniMeToken internal constant cToken = MiniMeToken(KRO_ADDR);
   MiniMeToken internal sToken;
-  ERC20Detailed internal dai;
+  ERC20Detailed internal constant dai = ERC20Detailed(DAI_ADDR);
   BetokenProxy internal proxy;
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
@@ -167,9 +171,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     shareTokenAddr = _sTokenAddr;
     proxyAddr = _proxyAddr;
-    cToken = MiniMeToken(KRO_ADDR);
     sToken = MiniMeToken(_sTokenAddr);
-    dai = ERC20Detailed(DAI_ADDR);
+    proxy = BetokenProxy(_proxyAddr);
 
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
@@ -931,6 +934,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
     emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, getBalance(dai, this).sub(beforeDAIBalance));
   }
+
+  function createShortOrder()
 
 
   /**
