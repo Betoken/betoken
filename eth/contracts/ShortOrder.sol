@@ -11,6 +11,9 @@ contract ShortOrder is Ownable, Utils {
     _;
   }
 
+  uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
+  uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
+
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
   address public shortingToken;
@@ -63,12 +66,38 @@ contract ShortOrder is Ownable, Utils {
     }
   }
 
-  function sellOrder() public onlyOwner isValidToken(shortingToken) isInitialized {
-    // Convert (maybe part of) loaned DAI into borrowed tokens to repay debt
-    // Withdraw all available liquid DAI from Compound
-    // Use new DAI to repay rest of loan (if still owes Compound)
-    // Withdraw rest of liquid DAI
-    // Send DAI back to BetokenFund
+  function sellOrder() public onlyOwner isValidToken(shortingToken) isInitialized returns (uint256 _inputAmount, uint256 _outputAmount) {
+    // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
+    // Repeat to ensure debt is exhausted
+    for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
+      uint256 currentDebt = __tokenToDAI(shortingToken, compound.getBorrowBalance(this, shortingToken));
+      if (currentDebt <= NEGLIGIBLE_DEBT) {
+        // Current debt negligible, exit
+        break;
+      }
+
+      // Determine amount to be repayed this step
+      uint256 currentBalance = dai.balanceOf(this);
+      uint256 repayAmount = 0; // amount to be repaid in DAI
+      if (currentDebt <= currentBalance) {
+        // Has enough money, repay all debt
+        repayAmount = currentDebt;
+      } else {
+        // Doesn't have enough money, repay whatever we can repay
+        repayAmount = currentBalance;
+      }
+
+      // Repay debt
+      repayLoan(repayAmount);
+
+      // Withdraw all available liquidity
+      require(compound.withdraw(DAI_ADDR, uint256(-1)) == 0);
+    }
+
+    // Send DAI back to BetokenFund and return
+    _inputAmount = collateralAmountInDAI;
+    _outputAmount = dai.balanceOf(this);
+    require(dai.transfer(owner(), dai.balanceOf(this)));
   }
 
   // Allows manager to repay loan to avoid liquidation
