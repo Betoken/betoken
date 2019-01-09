@@ -25,9 +25,6 @@ contract ShortOrder is Ownable, Utils {
   // Contract instances
   ERC20Detailed internal token;
 
-  // Events
-  // TODO
-
   constructor(
     address _shortingToken,
     uint256 _cycleNumber,

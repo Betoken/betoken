@@ -139,7 +139,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 daiAmount, uint256 _timestamp);
 
   event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis, uint256 _buyPrice, uint256 _costDAIAmount);
-  event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairos, uint256 _sellPrice, uint256 _earnedDAIAmount);
+  event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairo, uint256 _sellPrice, uint256 _earnedDAIAmount);
+
+  event CreatedShortOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, address _tokenAddress, uint256 _stakeInWeis, uint256 _costDAIAmount);
+  event SoldShortOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
+  event RepaidShortOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
 
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
@@ -965,7 +969,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     userShortOrders[msg.sender].push(address(order));
 
     // Emit event
-    // TODO
+    emit CreatedShortOrder(cycleNumber, msg.sender, address(order), _tokenAddress, _stake, collateralAmountInDAI);
   }
 
   function sellShortOrder(
@@ -997,10 +1001,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
 
     // Emit event
-    // TODO
+    emit SoldShortOrder(cycleNumber, msg.sender, address(order), order.shortingToken(), receiveKairoAmount, outputAmount);
   }
 
-  function repayShortOrderLoan(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
+  function repayShortOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
     // Load order info
     require(userShortOrders[msg.sender][_orderId] != 0x0);
     ShortOrder order = ShortOrder(userShortOrders[msg.sender][_orderId]);
@@ -1010,7 +1014,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     order.repayLoan(_repayAmountInDAI);
 
     // Emit event
-    // TODO
+    emit RepaidShortOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
   }
 
 
