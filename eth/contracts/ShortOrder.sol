@@ -151,9 +151,6 @@ contract ShortOrder is Ownable, Utils {
     require(token.approve(COMPOUND_ADDR, 0));
     require(token.approve(COMPOUND_ADDR, actualTokenAmount));
     require(compound.repayBorrow(shortingToken, actualTokenAmount) == 0);
-
-    // Update loan info
-    loanAmountInDAI = loanAmountInDAI.sub(actualDAIAmount);    
   }
 
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
