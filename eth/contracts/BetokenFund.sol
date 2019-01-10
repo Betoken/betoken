@@ -57,6 +57,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
+  uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16) // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   // Upgrade constants
   uint256 public constant CHUNK_SIZE = 3 days;
   uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
@@ -959,7 +960,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Create short order and execute
     uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
-    uint256 loanAmountInDAI = collateralAmountInDAI.mul(PRECISION).div(compound.collateralRatio());
+    uint256 loanAmountInDAI = collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
     ShortOrder order = new ShortOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
     require(dai.approve(address(order), 0));
     require(dai.approve(address(order), collateralAmountInDAI));
