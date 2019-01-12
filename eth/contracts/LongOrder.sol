@@ -1,53 +1,21 @@
 pragma solidity ^0.4.25;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./Utils.sol";
-import "./interfaces/WETH.sol";
+import "./CompoundOrder.sol";
 
-contract LongOrder is Ownable, Utils {
-  modifier isInitialized {
-    require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
-    _;
-  }
-
-  // Constants
-  uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
-  uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
-
-  // Instance variables
-  uint256 public stake;
-  uint256 public collateralAmountInDAI;
-  uint256 public loanAmountInDAI;
-  uint256 public cycleNumber;
-  address public longingToken;
-  bool public isSold;
-
-  // Contract instances
-  ERC20Detailed internal token;
-
+contract LongOrder is CompoundOrder {
   constructor(
-    address _longingToken,
+    address _tokenAddr,
     uint256 _cycleNumber,
     uint256 _stake,
     uint256 _collateralAmountInDAI,
     uint256 _loanAmountInDAI
-  ) public isValidToken(_longingToken) {
-    // Initialize details of long order
-    require(_longingToken != DAI_ADDR);
-    require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
-    stake = _stake;
-    collateralAmountInDAI = _collateralAmountInDAI;
-    loanAmountInDAI = _loanAmountInDAI;
-    cycleNumber = _cycleNumber;
-    longingToken = _longingToken;
-    token = ERC20Detailed(_longingToken);
-  }
-  
-  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(longingToken) {
-    // Ensure longingToken's price is between _minPrice and _maxPrice
-    uint256 tokenPrice = compound.assetPrices(longingToken); // Get the longing token's price in ETH
+  ) public CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, false) {}
+
+  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(tokenAddr) {
+    // Ensure token's price is between _minPrice and _maxPrice
+    uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the longing token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound
-    tokenPrice = __tokenToDAI(longingToken, tokenPrice); // Convert token price to be in DAI
+    tokenPrice = __tokenToDAI(tokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
@@ -56,15 +24,15 @@ contract LongOrder is Ownable, Utils {
     require(dai.approve(COMPOUND_ADDR, collateralAmountInDAI)); // Approve DAI transfer to Compound
 
     // Convert received DAI to longing token
-    (uint256 actualDAIAmount, uint256 actualTokenAmount) = __sellDAIForLongingToken(collateralAmountInDAI);
+    (,uint256 actualTokenAmount) = __sellDAIForToken(collateralAmountInDAI);
 
     // Get loan from Compound in DAI
-    require(compound.supply(longingToken, actualTokenAmount) == 0); // Transfer DAI into Compound as supply
+    require(compound.supply(tokenAddr, actualTokenAmount) == 0); // Transfer DAI into Compound as supply
     require(compound.borrow(DAI_ADDR, loanAmountInDAI) == 0);// Take out loan
     require(compound.getAccountLiquidity(this) > 0); // Ensure account liquidity is positive
 
     // Convert borrowed DAI to longing token
-    __sellDAIForLongingToken(loanAmountInDAI);
+    __sellDAIForToken(loanAmountInDAI);
 
     // Repay leftover DAI to avoid complications
     if (dai.balanceOf(this) > 0) {
@@ -78,7 +46,7 @@ contract LongOrder is Ownable, Utils {
   function sellOrder(uint256 _minPrice, uint256 _maxPrice) 
     public 
     onlyOwner 
-    isValidToken(longingToken) 
+    isValidToken(tokenAddr) 
     isInitialized 
     returns (uint256 _inputAmount, uint256 _outputAmount) 
   {
@@ -86,8 +54,8 @@ contract LongOrder is Ownable, Utils {
     isSold = true;
 
     // Ensure price is within range provided by user
-    uint256 tokenPrice = compound.assetPrices(longingToken); // Get the longing token's price in ETH
-    tokenPrice = __tokenToDAI(longingToken, tokenPrice); // Convert token price to be in DAI
+    uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the longing token's price in ETH
+    tokenPrice = __tokenToDAI(tokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
     
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
@@ -100,7 +68,7 @@ contract LongOrder is Ownable, Utils {
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = __tokenToDAI(longingToken, token.balanceOf(this));
+      uint256 currentBalance = __tokenToDAI(tokenAddr, token.balanceOf(this));
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -114,11 +82,11 @@ contract LongOrder is Ownable, Utils {
       repayLoan(repayAmount);
 
       // Withdraw all available liquidity
-      require(compound.withdraw(longingToken, uint256(-1)) == 0);
+      require(compound.withdraw(tokenAddr, uint256(-1)) == 0);
     }
 
     // Sell all longing token to DAI
-    __sellLongingTokenForDAI(token.balanceOf(this));
+    __sellTokenForDAI(token.balanceOf(this));
 
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
@@ -128,25 +96,15 @@ contract LongOrder is Ownable, Utils {
   }
 
   // Allows manager to repay loan to avoid liquidation
-  function repayLoan(uint256 _repayAmountInDAI) public onlyOwner isValidToken(longingToken) isInitialized {
+  function repayLoan(uint256 _repayAmountInDAI) public onlyOwner isValidToken(tokenAddr) isInitialized {
     // Convert longing token to DAI
-    uint256 repayAmountInToken = __daiToToken(longingToken, _repayAmountInDAI);
-    (uint256 actualDAIAmount,) = __sellLongingTokenForDAI(repayAmountInToken);
+    uint256 repayAmountInToken = __daiToToken(tokenAddr, _repayAmountInDAI);
+    (uint256 actualDAIAmount,) = __sellTokenForDAI(repayAmountInToken);
 
     // Repay loan to Compound
     require(dai.approve(COMPOUND_ADDR, 0));
     require(dai.approve(COMPOUND_ADDR, actualDAIAmount));
     require(compound.repayBorrow(DAI_ADDR, actualDAIAmount) == 0);
-  }
-
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    int256 liquidityInETH = compound.getAccountLiquidity(this);
-    if (liquidityInETH >= 0) {
-      return (false, __tokenToDAI(WETH_ADDR, uint256(liquidityInETH)));
-    } else {
-      require(-liquidityInETH > 0); // Prevent overflow
-      return (true, __tokenToDAI(WETH_ADDR, uint256(-liquidityInETH)));
-    }
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
@@ -156,41 +114,5 @@ contract LongOrder is Ownable, Utils {
     } else {
       return (true, borrowBalance.sub(loanAmountInDAI));
     }
-  }
-
-  function __sellDAIForLongingToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
-    if (longingToken == WETH_ADDR) {
-      // Handle WETH (not on Kyber)
-      (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, ETH_TOKEN_ADDRESS); // Sell DAI for ETH on Kyber
-      // Wrap ETH into WETH
-      WETH weth = WETH(WETH_ADDR);
-      weth.deposit.value(_actualTokenAmount)();
-    } else {
-      (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, token); // Sell DAI for tokens on Kyber
-    }
-    require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
-  }
-
-  function __sellLongingTokenForDAI(uint256 _tokenAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
-    if (shortingToken == WETH_ADDR) {
-      // Handle WETH (not on Kyber)
-      // Unwrap WETH into ETH
-      WETH weth = WETH(WETH_ADDR);
-      weth.withdraw(loanAmountInToken);
-      (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(ETH_TOKEN_ADDRESS, _tokenAmount, dai); // Sell ETH for DAI on Kyber
-    } else {
-      (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(token, _tokenAmount, dai); // Sell tokens for DAI on Kyber
-    }
-    require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
-  }
-
-  // Convert a DAI amount to the amount of a given token that's of equal value
-  function __daiToToken(address _token, uint256 _daiAmount) internal view returns (uint256) {
-    return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).div(compound.assetPrices(_token));
-  }
-
-  // Convert a token amount to the amount of DAI that's of equal value
-  function __tokenToDAI(address _token, uint256 _tokenAmount) internal view returns (uint256) {
-    return _tokenAmount.mul(compound.assetPrices(_token)).div(compound.assetPrices(DAI_ADDR));
   }
 }

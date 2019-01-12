@@ -5,6 +5,7 @@ import "./tokens/minime/MiniMeToken.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
 import "./ShortOrder.sol";
+import "./LongOrder.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
@@ -104,8 +105,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // List of investments of a manager in the current cycle.
   mapping(address => Investment[]) public userInvestments;
 
-  // List of short orders of a manager in the current cycle.
-  mapping(address => address[]) public userShortOrders;
+  // List of short/long orders of a manager in the current cycle.
+  mapping(address => address[]) public userCompoundOrders;
 
   // Total commission to be paid in a certain cycle
   mapping(uint256 => uint256) public totalCommissionOfCycle;
@@ -142,9 +143,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis, uint256 _buyPrice, uint256 _costDAIAmount);
   event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairo, uint256 _sellPrice, uint256 _earnedDAIAmount);
 
-  event CreatedShortOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, address _tokenAddress, uint256 _stakeInWeis, uint256 _costDAIAmount);
-  event SoldShortOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
-  event RepaidShortOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
+  event CreatedCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, bool _orderType, address _tokenAddress, uint256 _stakeInWeis, uint256 _costDAIAmount);
+  event SoldCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order,  bool _orderType, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
+  event RepaidCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
 
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
@@ -939,7 +940,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, getBalance(dai, this).sub(beforeDAIBalance));
   }
 
-  function createShortOrder(
+  function createCompoundOrder(
+    bool _orderType, // True for shorting, false for longing
     address _tokenAddress,
     uint256 _stake,
     uint256 _minPrice,
@@ -952,28 +954,34 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
-    ERC20Detailed token = ERC20Detailed(_tokenAddress);
 
     // Collect stake
     require(cToken.generateTokens(address(this), _stake));
     require(cToken.destroyTokens(msg.sender, _stake));
 
-    // Create short order and execute
+    // Create compound order and execute
     uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
     uint256 loanAmountInDAI = collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
-    ShortOrder order = new ShortOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
+    CompoundOrder order;
+    if (_orderType == true) {
+      // Shorting
+      order = new ShortOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
+    } else {
+      // Leveraged longing
+      order = new LongOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
+    }
     require(dai.approve(address(order), 0));
     require(dai.approve(address(order), collateralAmountInDAI));
     order.executeOrder(_minPrice, _maxPrice);
 
     // Add order to list
-    userShortOrders[msg.sender].push(address(order));
+    userCompoundOrders[msg.sender].push(address(order));
 
     // Emit event
-    emit CreatedShortOrder(cycleNumber, msg.sender, address(order), _tokenAddress, _stake, collateralAmountInDAI);
+    emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
   }
 
-  function sellShortOrder(
+  function sellCompoundOrder(
     uint256 _orderId,
     uint256 _minPrice,
     uint256 _maxPrice
@@ -983,8 +991,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     nonReentrant
   {
     // Load order info
-    require(userShortOrders[msg.sender][_orderId] != 0x0);
-    ShortOrder order = ShortOrder(userShortOrders[msg.sender][_orderId]);
+    require(userCompoundOrders[msg.sender][_orderId] != 0x0);
+    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
     require(order.isSold() == false && order.cycleNumber() == cycleNumber);
 
     // Sell order
@@ -1002,20 +1010,20 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
 
     // Emit event
-    emit SoldShortOrder(cycleNumber, msg.sender, address(order), order.shortingToken(), receiveKairoAmount, outputAmount);
+    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.tokenAddr(), receiveKairoAmount, outputAmount);
   }
 
   function repayShortOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
     // Load order info
-    require(userShortOrders[msg.sender][_orderId] != 0x0);
-    ShortOrder order = ShortOrder(userShortOrders[msg.sender][_orderId]);
+    require(userCompoundOrders[msg.sender][_orderId] != 0x0);
+    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
     require(order.isSold() == false && order.cycleNumber() == cycleNumber);
 
     // Repay loan
     order.repayLoan(_repayAmountInDAI);
 
     // Emit event
-    emit RepaidShortOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
+    emit RepaidCompoundOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
   }
 
 
@@ -1110,7 +1118,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     lastCommissionRedemption[msg.sender] = cycleNumber;
     totalCommissionLeft = totalCommissionLeft.sub(_commission);
     delete userInvestments[msg.sender];
-    delete userShortOrders[msg.sender];
+    delete userCompoundOrders[msg.sender];
 
     emit CommissionPaid(cycleNumber, msg.sender, _commission);
   }
