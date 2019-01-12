@@ -33,6 +33,7 @@ contract LongOrder is Ownable, Utils {
     uint256 _loanAmountInDAI
   ) public isValidToken(_longingToken) {
     // Initialize details of long order
+    require(_longingToken != DAI_ADDR);
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
     stake = _stake;
     collateralAmountInDAI = _collateralAmountInDAI;
@@ -123,6 +124,7 @@ contract LongOrder is Ownable, Utils {
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(this);
     require(dai.transfer(owner(), dai.balanceOf(this)));
+    require(token.transfer(owner(), token.balanceOf(this))); // Send back potential leftover tokens
   }
 
   // Allows manager to repay loan to avoid liquidation
