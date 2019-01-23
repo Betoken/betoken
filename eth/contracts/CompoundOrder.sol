@@ -19,6 +19,7 @@ contract CompoundOrder is Ownable, Utils {
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
   uint256 public cycleNumber;
+  uint256 public buyTime; // Timestamp for order execution
   address public tokenAddr;
   bool public isSold;
   bool public orderType; // True for shorting, false for longing
@@ -46,7 +47,9 @@ contract CompoundOrder is Ownable, Utils {
     token = ERC20Detailed(_tokenAddr);
   }
   
-  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public;
+  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {
+    buyTime = now;
+  }
 
   function sellOrder(uint256 _minPrice, uint256 _maxPrice) public returns (uint256 _inputAmount, uint256 _outputAmount);
 

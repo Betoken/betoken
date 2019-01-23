@@ -12,6 +12,8 @@ contract ShortOrder is CompoundOrder {
   ) public CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, true) {}
 
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(tokenAddr) {
+    super.executeOrder(_minPrice, _maxPrice);
+    
     // Ensure token's price is between _minPrice and _maxPrice
     uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the shorting token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound

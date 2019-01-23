@@ -12,6 +12,8 @@ contract LongOrder is CompoundOrder {
   ) public CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, false) {}
 
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(tokenAddr) {
+    super.executeOrder(_minPrice, _maxPrice);
+    
     // Ensure token's price is between _minPrice and _maxPrice
     uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the longing token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound
