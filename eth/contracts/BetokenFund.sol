@@ -116,7 +116,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // List of short/long orders of a manager in the current cycle.
   mapping(address => address[]) public userCompoundOrders;
 
-  // Total commission to be paid in a certain cycle
+  // Total commission to be paid for work done in a certain cycle (will be redeemed in the next cycle's Intermission)
   mapping(uint256 => uint256) public totalCommissionOfCycle;
 
   // The block number at which the Manage phase ended for a given cycle
@@ -404,9 +404,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Returns the commission balance of `_manager`
    * @return the commission balance, denoted in DAI
    */
-  function commissionBalanceOf(address _manager) public view returns (uint256 _commission) {
+  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
     if (lastCommissionRedemption[_manager] >= cycleNumber) { return 0; }
-    for (uint256 cycle = lastCommissionRedemption[_manager].add(1); cycle <= cycleNumber; cycle = cycle.add(1)) {
+    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
+    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
       // take risk into account
       uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle.sub(1)]);
       uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
@@ -414,8 +415,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       uint256 riskTakenProportion = riskTakenInCycle[_manager][cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
       riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
 
-      _commission = _commission.add(totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle])).mul(riskTakenProportion)
-        .div(PRECISION.mul(cToken.totalSupplyAt(managePhaseEndBlock[cycle]))));
+      uint256 fullCommission = totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle]))
+        .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle]));
+      uint256 commissionAfterPenalty = fullCommission.mul(riskTakenProportion).div(PRECISION);
+      _commission = _commission.add(commissionAfterPenalty);
+      _penalty = _penalty.add(fullCommission.sub(commissionAfterPenalty));
     }
   }
 
@@ -513,9 +517,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
         emit InitiatedUpgrade(cycleNumber);
       }
     } else if (cyclePhase == CyclePhase.Manage) {
-      // Start new cycle
-      cycleNumber = cycleNumber.add(1);
-
       // Burn any Kairo left in BetokenFund's account
       require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
 
@@ -540,6 +541,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
         hasFinalizedNextVersion = true;
         emit FinalizedNextVersion(cycleNumber, nextVersion);
       }
+
+      // Start new cycle
+      cycleNumber = cycleNumber.add(1);
     }
 
     cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
@@ -1108,7 +1112,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(_referrer != msg.sender, "Can't refer self");
 
     MiniMeToken kro = MiniMeToken(KRO_ADDR);
-    require(kro.balanceOf(msg.sender) == 0, "Already joined"); // each address can only join once
+    require(kro.balanceOf(msg.sender) == 0 && userInvestments[msg.sender].length == 0 && userCompoundOrders[msg.sender].length == 0, "Already joined"); // each address can only join once
 
     // mint KRO for msg.sender
     uint256 kroPrice = kairoPrice();
@@ -1150,13 +1154,19 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   function __redeemCommission() internal returns (uint256 _commission) {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
-    _commission = commissionBalanceOf(msg.sender);
 
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionBalanceOf(msg.sender);
+
+    // record the latest commission redemption to prevent double-redemption
     lastCommissionRedemption[msg.sender] = cycleNumber;
+    // record the decrease in commission pool
     totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(penalty);
+    // clear investment arrays to save space
     delete userInvestments[msg.sender];
     delete userCompoundOrders[msg.sender];
-    delete baseRiskStakeFallback[msg.sender];
 
     emit CommissionPaid(cycleNumber, msg.sender, _commission);
   }
@@ -1198,8 +1208,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     if (getBalance(dai, this) > totalFundsInDAI.add(totalCommissionLeft)) {
       profit = getBalance(dai, this).sub(totalFundsInDAI).sub(totalCommissionLeft);
     }
-    totalCommissionOfCycle[cycleNumber] = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, this))).div(PRECISION);
-    totalCommissionLeft = totalCommissionLeft.add(totalCommissionOfCycle[cycleNumber]);
+    uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, this))).div(PRECISION);
+    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(commissionThisCycle); // account for penalties
+    totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
     uint256 devFee = developerFeeRate.mul(getBalance(dai, this)).div(PRECISION);
     uint256 newTotalFunds = getBalance(dai, this).sub(totalCommissionLeft).sub(devFee);
 
