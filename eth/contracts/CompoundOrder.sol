@@ -65,6 +65,8 @@ contract CompoundOrder is Ownable, Utils {
     }
   }
 
+  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount);
+
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount);
 
   function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {

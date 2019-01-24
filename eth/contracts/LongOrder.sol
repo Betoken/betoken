@@ -117,4 +117,10 @@ contract LongOrder is CompoundOrder {
       return (true, borrowBalance.sub(loanAmountInDAI));
     }
   }
+
+  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
+    uint256 supply = __tokenToDAI(tokenAddr, compound.getSupplyBalance(this, tokenAddr));
+    uint256 borrow = compound.getBorrowBalance(this, DAI_ADDR);
+    return supply.mul(PRECISION).div(borrow);
+  }
 }

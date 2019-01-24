@@ -111,4 +111,10 @@ contract ShortOrder is CompoundOrder {
       return (true, borrowBalance.sub(loanAmountInDAI));
     }
   }
+
+  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
+    uint256 supply = compound.getSupplyBalance(this, DAI_ADDR);
+    uint256 borrow = __tokenToDAI(compound.getBorrowBalance(this, tokenAddr));
+    return supply.mul(PRECISION).div(borrow);
+  }
 }
