@@ -405,7 +405,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return the commission balance, denoted in DAI
    */
   function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
-    if (lastCommissionRedemption[_manager] >= cycleNumber) { return 0; }
+    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
     uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
     for (; cycle < cycleNumber; cycle = cycle.add(1)) {
       // take risk into account
