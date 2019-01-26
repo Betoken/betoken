@@ -3,6 +3,7 @@ MiniMeToken = artifacts.require "MiniMeToken"
 TestKyberNetwork = artifacts.require "TestKyberNetwork"
 TestToken = artifacts.require "TestToken"
 TestTokenFactory = artifacts.require "TestTokenFactory"
+TestCompound = artifacts.require "TestCompound"
 
 epsilon = 1e-6
 
@@ -44,25 +45,6 @@ KRO = (fund) ->
 
 epsilon_equal = (curr, prev) ->
   curr.sub(prev).div(prev).abs().lt(epsilon)
-
-contract("omen_airdrop", (accounts) ->
-  owner = accounts[0]
-  receipients = accounts.slice(3)
-  amount = 1e2 * PRECISION
-  
-  it("do_airdrop", () ->
-    this.fund = await FUND(1, -1, owner)
-    kro = await KRO(this.fund)
-
-    # do airdrop
-    await this.fund.airdropKairo(receipients, amount, {from: owner})
-
-    # check balances
-    for r in receipients
-      received = (await kro.balanceOf.call(r)).toNumber()
-      assert.equal(received, amount, "received airdrop amount incorrect")
-  )
-)
 
 contract("first_cycle", (accounts) ->
   owner = accounts[0]
@@ -366,100 +348,11 @@ contract("price_changes", (accounts) ->
   )
 )
 
-contract("emergency_functions", (accounts) ->
-  owner = accounts[0]
-  account = accounts[1]
-
-  depositAmount = 10 * PRECISION
-  omgStake = 0.01 * depositAmount
-
-  it("prep_work", () ->
-    this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
-    this.dai = await DAI(this.fund)
-    this.omg = await TK("OMG")
-
-    # Deposit tokens
-    await this.dai.mint(account, depositAmount, {from: owner}) # Mint DAI
-    await this.dai.approve(this.fund.address, depositAmount, {from: account}) # Approve transfer
-    await this.fund.depositToken(this.dai.address, depositAmount, {from: account}) # Deposit for account
-
-    await this.fund.nextPhase({from: owner}) # Go to Decision Making phase
-
-    # Make investments
-    await this.fund.createInvestment(this.omg.address, omgStake, {from: account})
-
-    await this.fund.pause({from: owner}) # Pause the fund contract
-  )
-
-  it("dump_tokens", () ->
-    await this.fund.emergencyDumpToken(this.omg.address, {from: owner})
-    assert(epsilon_equal(await this.dai.balanceOf.call(this.fund.address), depositAmount), "fund balance changed after dumping tokens")
-
-    await this.fund.emergencyUpdateBalance({from: owner})
-    assert(epsilon_equal(await this.fund.totalFundsInDAI.call(), depositAmount), "fund balance update failed")
-  )
-
-  it("redeem_stake", () ->
-    kro = await KRO(this.fund)
-    try
-      await this.fund.emergencyRedeemStake(0, {from: account})
-      assert.fail("redeemed stake when withdraw not allowed")
-
-    await this.fund.setAllowEmergencyWithdraw(true, {from: owner}) # Allow emergency withdraw
-
-    # Redeem KRO
-    kroBlnce = await kro.balanceOf.call(account)
-    await this.fund.emergencyRedeemStake(0, {from: account})
-    assert(epsilon_equal((await kro.balanceOf.call(account)).sub(kroBlnce), omgStake), "KRO balance changed after redemption")
-
-    # Reset emergency withdraw status
-    await this.fund.setAllowEmergencyWithdraw(false, {from: owner})
-  )
-  
-  it("withdraw", () ->
-    try
-      await this.fund.emergencyWithdraw({from: account})
-      assert.fail("withdrew funds when withdraw not allowed")
-
-    await this.fund.setAllowEmergencyWithdraw(true, {from: owner}) # Allow emergency withdraw
-
-    # Withdraw
-    await this.fund.emergencyWithdraw({from: account})
-    assert(epsilon_equal(await this.dai.balanceOf.call(account), depositAmount), "withdraw amount not equal to original value")
-
-    # Reset emergency withdraw status
-    await this.fund.setAllowEmergencyWithdraw(false, {from: owner})
-  )
-)
-
 contract("param_setters", (accounts) ->
   owner = accounts[0]
 
   it("prep_work", () ->
     this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
-  )
-
-  it("proportion_setters", () ->
-    newVal = 0.3 * PRECISION
-    invalidVal = 2 * PRECISION
-
-    # changeCommissionRate()
-    # valid
-    await this.fund.changeCommissionRate(newVal, {from: owner})
-    assert.equal((await this.fund.commissionRate.call()).toNumber(), newVal, "changeCommissionRate() faulty")
-    # invalid
-    try
-      await this.fund.changeCommissionRate(invalidVal, {from: owner})
-      assert.fail("changeCommissionRate() accepted >=1 rate")
-
-    # changeAssetFeeRate()
-    # valid
-    await this.fund.changeAssetFeeRate(newVal, {from: owner})
-    assert.equal((await this.fund.assetFeeRate.call()).toNumber(), newVal, "changeAssetFeeRate() faulty")
-    # invalid
-    try
-      await this.fund.changeAssetFeeRate(invalidVal, {from: owner})
-      assert.fail("changeAssetFeeRate() accepted >=1 rate")
   )
 
   it("decrease_only_proportion_setters", () ->
@@ -496,16 +389,6 @@ contract("param_setters", (accounts) ->
     newAddr = "0xdd974d5c2e2928dea5f71b9825b8b646686bd200"
     zeroAddr = "0x0"
     kro = await KRO(this.fund)
-    await this.fund.pause({from: owner})
-
-    # changeKyberNetworkAddress()
-    # valid address
-    await this.fund.changeKyberNetworkAddress(newAddr, {from: owner})
-    assert.equal(await this.fund.kyberAddr.call(), newAddr, "changeKyberNetworkAddress() faulty")
-    # invalid address
-    try
-      await this.fund.changeKyberNetworkAddress(zeroAddr, {from: owner})
-      assert.fail("changeKyberNetworkAddress() accepted zero address")
 
     # changeDeveloperFeeAccount()
     # valid address
@@ -515,39 +398,5 @@ contract("param_setters", (accounts) ->
     try
       await this.fund.changeDeveloperFeeAccount(zeroAddr, {from: owner})
       assert.fail("changeDeveloperFeeAccount() accepted zero address")
-
-    # changeDAIAddress()
-    # valid address
-    await this.fund.changeDAIAddress(newAddr, {from: owner})
-    assert.equal(await this.fund.daiAddr.call(), newAddr, "changeDAIAddress() faulty")
-    # invalid address
-    try
-      await this.fund.changeDAIAddress(zeroAddr, {from: owner})
-      assert.fail("changeDAIAddress() accepted zero address")
-
-    # changeControlTokenOwner()
-    # valid address
-    await this.fund.changeControlTokenOwner(newAddr, {from: owner})
-    assert.equal(await kro.owner.call(), newAddr, "changeControlTokenOwner() faulty")
-    # invalid address
-    try
-      await this.fund.changeControlTokenOwner(zeroAddr, {from: owner})
-      assert.fail("changeControlTokenOwner() accepted zero address")
-
-    await this.fund.unpause({from: owner})
-  )
-
-  it("other_setters", () ->
-    # changePhaseLengths()
-    newLengths = [1, 2, 3]
-    await this.fund.changePhaseLengths(newLengths, {from: owner})
-    result = (await this.fund.getPhaseLengths.call()).map((x) -> x.toNumber())
-    for i in [0..2]
-      assert.equal(result[i], newLengths[i], "changePhaseLengths() faulty")
-
-    # changeCallReward()
-    newReward = 2 * PRECISION
-    await this.fund.changeCallReward(newReward, {from: owner})
-    assert.equal((await this.fund.functionCallReward.call()).toNumber(), newReward, "changeCallReward() faulty")
   )
 )

@@ -2,7 +2,6 @@ pragma solidity ^0.4.25;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./Utils.sol";
-import "./interfaces/WETH.sol";
 
 contract CompoundOrder is Ownable, Utils {
   modifier isInitialized {
@@ -70,28 +69,12 @@ contract CompoundOrder is Ownable, Utils {
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount);
 
   function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
-    if (tokenAddr == WETH_ADDR) {
-      // Handle WETH (not on Kyber)
-      (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, ETH_TOKEN_ADDRESS); // Sell DAI for ETH on Kyber
-      // Wrap ETH into WETH
-      WETH weth = WETH(WETH_ADDR);
-      weth.deposit.value(_actualTokenAmount)();
-    } else {
-      (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, token); // Sell DAI for tokens on Kyber
-    }
+    (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, token); // Sell DAI for tokens on Kyber
     require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
   }
 
   function __sellTokenForDAI(uint256 _tokenAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
-    if (tokenAddr == WETH_ADDR) {
-      // Handle WETH (not on Kyber)
-      // Unwrap WETH into ETH
-      WETH weth = WETH(WETH_ADDR);
-      weth.withdraw(_tokenAmount);
-      (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(ETH_TOKEN_ADDRESS, _tokenAmount, dai); // Sell ETH for DAI on Kyber
-    } else {
-      (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(token, _tokenAmount, dai); // Sell tokens for DAI on Kyber
-    }
+    (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(token, _tokenAmount, dai); // Sell tokens for DAI on Kyber
     require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
   }
 
