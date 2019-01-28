@@ -1,13 +1,13 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
 import "../interfaces/KyberNetwork.sol";
 import "../Utils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
-contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
+contract TestKyberNetwork is KyberNetwork, Utils(0,0,0), Ownable {
   mapping(address => uint256) public priceInDAI;
 
-  constructor(address[] _tokens, uint256[] _pricesInDAI) public {
+  constructor(address[] memory _tokens, uint256[] memory _pricesInDAI) public {
     for (uint256 i = 0; i < _tokens.length; i = i.add(1)) {
       priceInDAI[_tokens[i]] = _pricesInDAI[i];
     }
@@ -17,10 +17,16 @@ contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
     priceInDAI[_token] = _priceInDAI;
   }
 
-  function setAllTokenPrices(address[] _tokens, uint256[] _pricesInDAI) public onlyOwner {
+  function setAllTokenPrices(address[] memory _tokens, uint256[] memory _pricesInDAI) public onlyOwner {
     for (uint256 i = 0; i < _tokens.length; i = i.add(1)) {
       priceInDAI[_tokens[i]] = _pricesInDAI[i];
     }
+  }
+
+  function getExpectedRate(ERC20Detailed src, ERC20Detailed dest, uint srcQty) external view returns (uint expectedRate, uint slippageRate) 
+  {
+    uint256 result = priceInDAI[address(src)].mul(10**getDecimals(dest)).mul(PRECISION).div(priceInDAI[address(dest)].mul(10**getDecimals(src)));
+    return (result, result);
   }
 
   function tradeWithHint(
@@ -31,14 +37,13 @@ contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
     uint maxDestAmount,
     uint minConversionRate,
     address walletId,
-    bytes hint
+    bytes calldata hint
   )
     external
     payable
     returns(uint)
   {
-    uint256 destAmount = srcAmount.mul(priceInDAI[address(src)]).mul(10**getDecimals(dest)).div(priceInDAI[address(dest)].mul(10**getDecimals(src)));
-    require(destAmount <= maxDestAmount);
+    require(calcDestAmount(src, srcAmount, dest) <= maxDestAmount);
 
     if (address(src) == address(ETH_TOKEN_ADDRESS)) {
       require(srcAmount == msg.value);
@@ -47,10 +52,18 @@ contract TestKyberNetwork is KyberNetwork, Utils, Ownable {
     }
 
     if (address(dest) == address(ETH_TOKEN_ADDRESS)) {
-      destAddress.transfer(destAmount);
+      destAddress.transfer(calcDestAmount(src, srcAmount, dest));
     } else {
-      require(dest.transfer(destAddress, destAmount));
+      require(dest.transfer(destAddress, calcDestAmount(src, srcAmount, dest)));
     }
-    return destAmount;
+    return calcDestAmount(src, srcAmount, dest);
+  }
+
+  function calcDestAmount(
+    ERC20Detailed src,
+    uint srcAmount,
+    ERC20Detailed dest
+  ) internal returns (uint destAmount) {
+    return srcAmount.mul(priceInDAI[address(src)]).mul(10**getDecimals(dest)).div(priceInDAI[address(dest)].mul(10**getDecimals(src)));
   }
 }

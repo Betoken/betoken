@@ -1,9 +1,9 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./Utils.sol";
 
-contract CompoundOrder is Ownable, Utils {
+contract CompoundOrder is Ownable, Utils(0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9, 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359, 0x818E6FECD516Ecc3849DAf6845e3EC868087B755) {
   modifier isInitialized {
     require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
     _;
@@ -55,7 +55,7 @@ contract CompoundOrder is Ownable, Utils {
   function repayLoan(uint256 _repayAmountInDAI) public;
 
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    int256 liquidityInETH = compound.getAccountLiquidity(this);
+    int256 liquidityInETH = compound.getAccountLiquidity(address(this));
     if (liquidityInETH >= 0) {
       return (false, __tokenToDAI(WETH_ADDR, uint256(liquidityInETH)));
     } else {

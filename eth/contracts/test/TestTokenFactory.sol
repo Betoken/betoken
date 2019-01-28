@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity 0.5.0;
 
 import "./TestToken.sol";
 
@@ -7,7 +7,7 @@ contract TestTokenFactory {
 
   event CreatedToken(string symbol, address addr);
 
-  function newToken(string name, string symbol, uint8 decimals) public returns(address) {
+  function newToken(string memory name, string memory symbol, uint8 decimals) public returns(address) {
     bytes32 symbolHash = keccak256(abi.encodePacked(symbol));
     require(createdTokens[symbolHash] == address(0));
     
@@ -19,7 +19,7 @@ contract TestTokenFactory {
     return address(token);
   }
 
-  function getToken(string symbol) public view returns(address) {
+  function getToken(string memory symbol) public view returns(address) {
     return createdTokens[keccak256(abi.encodePacked(symbol))];
   }
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
 import "./CompoundOrder.sol";
 
@@ -21,7 +21,7 @@ contract LongOrder is CompoundOrder {
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
-    require(dai.transferFrom(owner(), this, collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
     require(dai.approve(COMPOUND_ADDR, 0)); // Clear DAI allowance of Compound
     require(dai.approve(COMPOUND_ADDR, collateralAmountInDAI)); // Approve DAI transfer to Compound
 
@@ -31,14 +31,14 @@ contract LongOrder is CompoundOrder {
     // Get loan from Compound in DAI
     require(compound.supply(tokenAddr, actualTokenAmount) == 0); // Transfer DAI into Compound as supply
     require(compound.borrow(DAI_ADDR, loanAmountInDAI) == 0);// Take out loan
-    require(compound.getAccountLiquidity(this) > 0); // Ensure account liquidity is positive
+    require(compound.getAccountLiquidity(address(this)) > 0); // Ensure account liquidity is positive
 
     // Convert borrowed DAI to longing token
     __sellDAIForToken(loanAmountInDAI);
 
     // Repay leftover DAI to avoid complications
-    if (dai.balanceOf(this) > 0) {
-      uint256 repayAmount = dai.balanceOf(this);
+    if (dai.balanceOf(address(this)) > 0) {
+      uint256 repayAmount = dai.balanceOf(address(this));
       require(dai.approve(COMPOUND_ADDR, 0));
       require(dai.approve(COMPOUND_ADDR, repayAmount));
       require(compound.repayBorrow(DAI_ADDR, repayAmount) == 0);
@@ -63,14 +63,14 @@ contract LongOrder is CompoundOrder {
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = compound.getBorrowBalance(this, dai);
+      uint256 currentDebt = compound.getBorrowBalance(address(this), address(dai));
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = __tokenToDAI(tokenAddr, token.balanceOf(this));
+      uint256 currentBalance = __tokenToDAI(tokenAddr, token.balanceOf(address(this)));
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -88,13 +88,13 @@ contract LongOrder is CompoundOrder {
     }
 
     // Sell all longing token to DAI
-    __sellTokenForDAI(token.balanceOf(this));
+    __sellTokenForDAI(token.balanceOf(address(this)));
 
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
-    _outputAmount = dai.balanceOf(this);
-    require(dai.transfer(owner(), dai.balanceOf(this)));
-    require(token.transfer(owner(), token.balanceOf(this))); // Send back potential leftover tokens
+    _outputAmount = dai.balanceOf(address(this));
+    require(dai.transfer(owner(), dai.balanceOf(address(this))));
+    require(token.transfer(owner(), token.balanceOf(address(this)))); // Send back potential leftover tokens
   }
 
   // Allows manager to repay loan to avoid liquidation
@@ -110,7 +110,7 @@ contract LongOrder is CompoundOrder {
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    uint256 borrowBalance = compound.getBorrowBalance(this, DAI_ADDR);
+    uint256 borrowBalance = compound.getBorrowBalance(address(this), DAI_ADDR);
     if (loanAmountInDAI >= borrowBalance) {
       return (false, loanAmountInDAI.sub(borrowBalance));
     } else {
@@ -119,8 +119,8 @@ contract LongOrder is CompoundOrder {
   }
 
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    uint256 supply = __tokenToDAI(tokenAddr, compound.getSupplyBalance(this, tokenAddr));
-    uint256 borrow = compound.getBorrowBalance(this, DAI_ADDR);
+    uint256 supply = __tokenToDAI(tokenAddr, compound.getSupplyBalance(address(this), tokenAddr));
+    uint256 borrow = compound.getBorrowBalance(address(this), DAI_ADDR);
     return supply.mul(PRECISION).div(borrow);
   }
 }

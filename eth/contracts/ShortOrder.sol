@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
 import "./CompoundOrder.sol";
 
@@ -21,7 +21,7 @@ contract ShortOrder is CompoundOrder {
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
-    require(dai.transferFrom(owner(), this, collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
     require(dai.approve(COMPOUND_ADDR, 0)); // Clear DAI allowance of Compound
     require(dai.approve(COMPOUND_ADDR, collateralAmountInDAI)); // Approve DAI transfer to Compound
 
@@ -29,15 +29,15 @@ contract ShortOrder is CompoundOrder {
     uint256 loanAmountInToken = __daiToToken(tokenAddr, loanAmountInDAI);
     require(compound.supply(DAI_ADDR, collateralAmountInDAI) == 0); // Transfer DAI into Compound as supply
     require(compound.borrow(tokenAddr, loanAmountInToken) == 0);// Take out loan
-    require(compound.getAccountLiquidity(this) > 0); // Ensure account liquidity is positive
+    require(compound.getAccountLiquidity(address(this)) > 0); // Ensure account liquidity is positive
 
     // Convert loaned tokens to DAI
     (uint256 actualDAIAmount,) = __sellTokenForDAI(loanAmountInToken);
     loanAmountInDAI = actualDAIAmount; // Change loan amount to actual DAI received
 
     // Repay leftover tokens to avoid complications
-    if (token.balanceOf(this) > 0) {
-      uint256 repayAmount = token.balanceOf(this);
+    if (token.balanceOf(address(this)) > 0) {
+      uint256 repayAmount = token.balanceOf(address(this));
       require(token.approve(COMPOUND_ADDR, 0));
       require(token.approve(COMPOUND_ADDR, repayAmount));
       require(compound.repayBorrow(tokenAddr, repayAmount) == 0);
@@ -62,14 +62,14 @@ contract ShortOrder is CompoundOrder {
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = __tokenToDAI(tokenAddr, compound.getBorrowBalance(this, tokenAddr));
+      uint256 currentDebt = __tokenToDAI(tokenAddr, compound.getBorrowBalance(address(this), tokenAddr));
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = dai.balanceOf(this);
+      uint256 currentBalance = dai.balanceOf(address(this));
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -88,8 +88,8 @@ contract ShortOrder is CompoundOrder {
 
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
-    _outputAmount = dai.balanceOf(this);
-    require(dai.transfer(owner(), dai.balanceOf(this)));
+    _outputAmount = dai.balanceOf(address(this));
+    require(dai.transfer(owner(), dai.balanceOf(address(this))));
   }
 
   // Allows manager to repay loan to avoid liquidation
@@ -104,7 +104,7 @@ contract ShortOrder is CompoundOrder {
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    uint256 borrowBalance = __tokenToDAI(tokenAddr, compound.getBorrowBalance(this, tokenAddr));
+    uint256 borrowBalance = __tokenToDAI(tokenAddr, compound.getBorrowBalance(address(this), tokenAddr));
     if (loanAmountInDAI >= borrowBalance) {
       return (false, loanAmountInDAI.sub(borrowBalance));
     } else {
@@ -113,8 +113,8 @@ contract ShortOrder is CompoundOrder {
   }
 
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    uint256 supply = compound.getSupplyBalance(this, DAI_ADDR);
-    uint256 borrow = __tokenToDAI(tokenAddr, compound.getBorrowBalance(this, tokenAddr));
+    uint256 supply = compound.getSupplyBalance(address(this), DAI_ADDR);
+    uint256 borrow = __tokenToDAI(tokenAddr, compound.getBorrowBalance(address(this), tokenAddr));
     return supply.mul(PRECISION).div(borrow);
   }
 }
