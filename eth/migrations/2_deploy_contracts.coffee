@@ -6,7 +6,7 @@ MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
 module.exports = (deployer, network, accounts) ->
   deployer.then () ->
     switch network
-      when "rinkeby"
+      when "development"
         # Local testnet migration
         config = require "../deployment_configs/testnet.json"
 

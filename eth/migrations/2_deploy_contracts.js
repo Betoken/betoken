@@ -14,7 +14,7 @@
     return deployer.then(async function() {
       var ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, PRECISION, ShareToken, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, betokenProxy, config, controlTokenAddr, fund, i, j, k, len, len1, minimeFactory, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenPrices, tokensInfo;
       switch (network) {
-        case "rinkeby":
+        case "development":
           // Local testnet migration
           config = require("../deployment_configs/testnet.json");
           TestKyberNetwork = artifacts.require("TestKyberNetwork");

@@ -118,7 +118,7 @@ contract Utils {
       _srcToken,
       _srcAmount,
       _destToken,
-      address(this),
+      address(uint160(address(this))),
       MAX_QTY,
       rate,
       address(0),

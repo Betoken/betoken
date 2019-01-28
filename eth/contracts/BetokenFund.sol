@@ -177,7 +177,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256[2] memory _phaseLengths,
     uint256 _developerFeeRate,
     uint256 _exitFeeRate,
-    address _previousVersion,
+    address payable _previousVersion,
     address payable kro_addr,
     address dai_addr,
     address payable kyber_addr
@@ -478,7 +478,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Changes the address to which the developer fees will be sent. Only callable by owner.
    * @param _newAddr the new developer fee address
    */
-  function changeDeveloperFeeAccount(address _newAddr) public onlyOwner {
+  function changeDeveloperFeeAccount(address payable _newAddr) public onlyOwner {
     require(_newAddr != address(0) && _newAddr != address(this));
     developerFeeAccount = _newAddr;
   }
@@ -736,7 +736,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     msg.sender.transfer(actualETHWithdrawn);
 
     // Emit event
-    emit Withdraw(cycleNumber, msg.sender, ETH_TOKEN_ADDRESS, actualETHWithdrawn, actualDAIWithdrawn, now);
+    emit Withdraw(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHWithdrawn, actualDAIWithdrawn, now);
   }
 
   /**

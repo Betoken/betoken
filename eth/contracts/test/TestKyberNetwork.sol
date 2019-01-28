@@ -4,7 +4,7 @@ import "../interfaces/KyberNetwork.sol";
 import "../Utils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
-contract TestKyberNetwork is KyberNetwork, Utils(0,0,0), Ownable {
+contract TestKyberNetwork is KyberNetwork, Utils(address(0),address(0),address(0)), Ownable {
   mapping(address => uint256) public priceInDAI;
 
   constructor(address[] memory _tokens, uint256[] memory _pricesInDAI) public {
@@ -33,7 +33,7 @@ contract TestKyberNetwork is KyberNetwork, Utils(0,0,0), Ownable {
     ERC20Detailed src,
     uint srcAmount,
     ERC20Detailed dest,
-    address destAddress,
+    address payable destAddress,
     uint maxDestAmount,
     uint minConversionRate,
     address walletId,
@@ -48,7 +48,7 @@ contract TestKyberNetwork is KyberNetwork, Utils(0,0,0), Ownable {
     if (address(src) == address(ETH_TOKEN_ADDRESS)) {
       require(srcAmount == msg.value);
     } else {
-      require(src.transferFrom(msg.sender, this, srcAmount));
+      require(src.transferFrom(msg.sender, address(this), srcAmount));
     }
 
     if (address(dest) == address(ETH_TOKEN_ADDRESS)) {
