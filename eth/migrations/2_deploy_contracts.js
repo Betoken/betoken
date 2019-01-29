@@ -81,7 +81,7 @@
           await deployer.deploy(BetokenFund, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, ControlToken.address, TestDAI.address, TestKyberNetwork.address);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
-          await deployer.deploy(BetokenProxy, Betoken.address);
+          await deployer.deploy(BetokenProxy, betokenFund.address);
           betokenProxy = (await BetokenProxy.deployed());
           // set proxy address in BetokenFund
           await betokenFund.setProxy(betokenProxy.address);

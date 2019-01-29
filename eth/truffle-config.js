@@ -28,15 +28,21 @@ module.exports = {
       },
       host: "localhost",
       port: 8545,
-      gas: 6000000,
-      gasPrice: 8 * Math.pow(10, 9),
+      gas: 7000000,
+      gasPrice: 40 * Math.pow(10, 9),
       network_id: 4
     }
   },
-  solc: {
-      optimizer: {
+  compilers: {
+    solc: {
+      version: "0.5.0", // A version or constraint - Ex. "^0.5.0"
+                         // Can also be set to "native" to use a native solc
+      settings: {
+        optimizer: {
           enabled: true,
-          runs: 200
+          runs: 200   // Optimize for how many times you intend to run the code
+        }
       }
+    }
   }
 };

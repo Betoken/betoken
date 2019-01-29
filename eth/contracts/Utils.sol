@@ -17,10 +17,9 @@ contract Utils {
    * @param _token the token's address
    */
   modifier isValidToken(address _token) {
+    require(_token != address(0), "Token zero address");
     if (_token != address(ETH_TOKEN_ADDRESS)) {
-      require(_token != address(0), "Token zero address");
       ERC20Detailed token = ERC20Detailed(_token);
-      require(token.totalSupply() > 0, "Token 0 supply");
       require(token.decimals() >= MIN_DECIMALS, "Token too few decimals");
     }
     _;
@@ -28,7 +27,7 @@ contract Utils {
 
   address payable public KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
   address public DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
-  address public KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
+  address payable public KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
 
   address public constant COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
   address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -37,11 +36,11 @@ contract Utils {
   ERC20Detailed internal dai;
   Compound internal compound;
 
-  uint  constant internal PRECISION = (10**18);
-  uint  constant internal MAX_QTY   = (10**28); // 10B tokens
-  uint  constant internal ETH_DECIMALS = 18;
-  uint  constant internal MAX_DECIMALS = 18;
-  uint  constant internal MIN_DECIMALS = 11;
+  uint constant internal PRECISION = (10**18);
+  uint constant internal MAX_QTY   = (10**28); // 10B tokens
+  uint constant internal ETH_DECIMALS = 18;
+  uint constant internal MAX_DECIMALS = 18;
+  uint constant internal MIN_DECIMALS = 11;
 
   constructor(
     address payable kro_addr,
@@ -51,7 +50,7 @@ contract Utils {
     KRO_ADDR = kro_addr;
     DAI_ADDR = dai_addr;
     KYBER_ADDR = kyber_addr;
-    dai = ERC20Detailed(DAI_ADDR);
+    dai = ERC20Detailed(dai_addr);
     compound = Compound(COMPOUND_ADDR);
   }
 
@@ -64,7 +63,7 @@ contract Utils {
 
   function getBalance(ERC20Detailed _token, address _addr) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
-      return _addr.balance;
+      return uint256(_addr.balance);
     }
     return uint256(_token.balanceOf(_addr));
   }

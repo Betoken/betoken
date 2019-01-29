@@ -78,7 +78,7 @@ module.exports = (deployer, network, accounts) ->
         # deploy BetokenProxy contract
         await deployer.deploy(
           BetokenProxy,
-          Betoken.address
+          betokenFund.address
         )
         betokenProxy = await BetokenProxy.deployed()
 

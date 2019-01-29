@@ -839,20 +839,20 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     dai.transfer(developerFeeAccount, actualDAIReceived);
   }
 
-  function sellLeftoverShortOrder(address _orderAddress)
+  function sellLeftoverCompoundOrder(address _orderAddress)
     public
     nonReentrant
     during(CyclePhase.Intermission)
   {
     // Load order info
     require(_orderAddress != address(0));
-    ShortOrder order = ShortOrder(_orderAddress);
+    CompoundOrder order = CompoundOrder(_orderAddress);
     require(order.isSold() == false && order.cycleNumber() < cycleNumber);
 
     // Sell short order
     (, uint256 outputAmount) = order.sellOrder(0, MAX_QTY);
     dai.transfer(developerFeeAccount, outputAmount);
-  }
+}
 
   /**
    * Manage phase functions
@@ -873,8 +873,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   )
     public
     nonReentrant
-    during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
+    during(CyclePhase.Manage)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
@@ -897,14 +897,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }));
 
     // Invest
-    uint256 beforeTokenAmount = getBalance(token, address(this));
-    uint256 beforeDAIBalance = getBalance(dai, address(this));
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    __handleInvestment(investmentId, _minPrice, _maxPrice, true);
-    userInvestments[msg.sender][investmentId].tokenAmount = getBalance(token, address(this)).sub(beforeTokenAmount);
+    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
 
     // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1), _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, beforeDAIBalance.sub(getBalance(dai, address(this))));
+    emit CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1), _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
   }
 
   /**
@@ -954,12 +951,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     investment.isSold = true;
 
     // Sell asset
-    uint256 beforeDAIBalance = getBalance(dai, address(this));
-    uint256 beforeTokenBalance = getBalance(ERC20Detailed(investment.tokenAddress), address(this));
-    __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
+    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
     if (isPartialSell) {
       // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
-      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(beforeTokenBalance.sub(getBalance(ERC20Detailed(investment.tokenAddress), address(this)))));
+      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(actualSrcAmount));
     }
 
     // Return staked Kairo
@@ -983,7 +978,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
         newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
         newInvestment.buyPrice.mul(newInvestment.tokenAmount).div(10 ** getDecimals(ERC20Detailed(newInvestment.tokenAddress))));
     }
-    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, getBalance(dai, address(this)).sub(beforeDAIBalance));
+    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
   }
 
   function createCompoundOrder(
@@ -1075,7 +1070,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Emit event
     emit RepaidCompoundOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
   }
-
 
   /**
    * Internal use functions
@@ -1187,7 +1181,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _maxPrice the maximum price for the trade
    * @param _buy whether to buy or sell the given investment
    */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy) internal {
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy) 
+    internal 
+    returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
+  {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
     uint256 srcAmount;
     uint256 dInS;
@@ -1199,11 +1196,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
     ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
     if (_buy) {
-      (dInS, sInD,,) = __kyberTrade(dai, srcAmount, token);
+      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, srcAmount, token);
       require(_minPrice <= dInS && dInS <= _maxPrice);
       investment.buyPrice = dInS;
+      investment.tokenAmount = _actualDestAmount;
     } else {
-      (dInS, sInD,,) = __kyberTrade(token, srcAmount, dai);
+      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(token, srcAmount, dai);
       require(_minPrice <= sInD && dInS <= sInD);
       investment.sellPrice = sInD;
     }
