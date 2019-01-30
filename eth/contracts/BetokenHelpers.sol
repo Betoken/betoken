@@ -6,7 +6,7 @@ import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./interfaces/IMiniMeToken.sol";
 
-contract BetokenHelpers is Ownable, Utils, ReentrancyGuard, TokenController {
+contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), ReentrancyGuard {
   enum CyclePhase { Intermission, Manage }
   enum VoteDirection { Empty, For, Against }
   enum Subchunk { Propose, Vote }
@@ -30,74 +30,32 @@ contract BetokenHelpers is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
-  // Upgrade constants
   uint256 public constant CHUNK_SIZE = 3 days;
   uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
   uint256 public constant CYCLES_TILL_MATURITY = 3;
   uint256 public constant QUORUM = 10 * (10 ** 16); // 10% quorum
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
-
-  // Address of the share token contract.
   address public shareTokenAddr;
-
-  // Address of the BetokenProxy contract
   address public proxyAddr;
-
   address public compoundFactoryAddr;
   address public helpers;
-
-  // Address to which the developer fees will be paid.
   address payable public developerFeeAccount;
-
-  // Address of the previous version of BetokenFund.
   address payable public previousVersion;
-
-  // The number of the current investment cycle.
   uint256 public cycleNumber;
-
-  // The amount of funds held by the fund.
   uint256 public totalFundsInDAI;
-
-  // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
-
-  // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
   uint256 public developerFeeRate;
-
-  // The proportion of funds that goes the the devs during withdrawals. Fixed point decimal.
   uint256 public exitFeeRate;
-
-  // Total amount of commission unclaimed by managers
   uint256 public totalCommissionLeft;
-
-  // Stores the lengths of each cycle phase in seconds.
   uint256[2] phaseLengths;
-
-  // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
-
-  // The stake-time measured risk that a manager has taken in a cycle
   mapping(address => mapping(uint256 => uint256)) public riskTakenInCycle;
-
-  // In case a manager joined the fund during the current, set the fallback base stake for risk threshold calculation
   mapping(address => uint256) public baseRiskStakeFallback;
-
-  // List of investments of a manager in the current cycle.
   mapping(address => Investment[]) public userInvestments;
-
-  // List of short/long orders of a manager in the current cycle.
   mapping(address => address[]) public userCompoundOrders;
-
-  // Total commission to be paid for work done in a certain cycle (will be redeemed in the next cycle's Intermission)
   mapping(uint256 => uint256) public totalCommissionOfCycle;
-
-  // The block number at which the Manage phase ended for a given cycle
   mapping(uint256 => uint256) public managePhaseEndBlock;
-
-  // The current cycle phase.
   CyclePhase public cyclePhase;
-
-  // Upgrade governance related variables
   bool hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
   bool upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
   address payable public nextVersion; // Address of the next version of BetokenFund.
@@ -108,29 +66,19 @@ contract BetokenHelpers is Ownable, Utils, ReentrancyGuard, TokenController {
   mapping(uint256 => mapping(address => VoteDirection[5])) managerVotes; // Records each manager's vote
   mapping(uint256 => uint256) upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
   mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
-
-  // Contract instances
   IMiniMeToken internal cToken;
-  IMiniMeToken internal sToken;
-
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
-
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 daiAmount, uint256 _timestamp);
-
   event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis, uint256 _buyPrice, uint256 _costDAIAmount);
   event SoldInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _investmentId, uint256 _receivedKairo, uint256 _sellPrice, uint256 _earnedDAIAmount);
-
   event CreatedCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, bool _orderType, address _tokenAddress, uint256 _stakeInWeis, uint256 _costDAIAmount);
   event SoldCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order,  bool _orderType, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
   event RepaidCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
-
   event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
-
   event Register(address indexed _manager, uint256 indexed _block, uint256 _donationInDAI);
-  
   event SignaledUpgrade(uint256 indexed _cycleNumber, address indexed _sender, bool indexed _inSupport);
   event DeveloperInitiatedUpgrade(uint256 indexed _cycleNumber, address _candidate);
   event InitiatedUpgrade(uint256 indexed _cycleNumber);
@@ -138,8 +86,9 @@ contract BetokenHelpers is Ownable, Utils, ReentrancyGuard, TokenController {
   event Voted(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, bool _inSupport, uint256 _weight);
   event FinalizedNextVersion(uint256 indexed _cycleNumber, address _nextVersion);
 
+
   /**
-    Upgrading functions
+   * Upgrading functions
    */
 
   /**
@@ -347,30 +296,7 @@ contract BetokenHelpers is Ownable, Utils, ReentrancyGuard, TokenController {
 
 
   /**
-   * @notice Returns the commission balance of `_manager`
-   * @return the commission balance, denoted in DAI
-   */
-  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
-    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
-    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
-    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
-      // take risk into account
-      uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle.sub(1)]);
-      uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
-      if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { continue; }
-      uint256 riskTakenProportion = riskTakenInCycle[_manager][cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
-      riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
-
-      uint256 fullCommission = totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle]))
-        .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle]));
-      uint256 commissionAfterPenalty = fullCommission.mul(riskTakenProportion).div(PRECISION);
-      _commission = _commission.add(commissionAfterPenalty);
-      _penalty = _penalty.add(fullCommission.sub(commissionAfterPenalty));
-    }
-  }
-
-
-  /**
+   * Next phase transition handler
    * @notice Moves the fund to the next phase in the investment cycle.
    */
   function nextPhase()

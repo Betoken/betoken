@@ -2,6 +2,8 @@ BetokenFund = artifacts.require "BetokenFund"
 BetokenProxy = artifacts.require "BetokenProxy"
 MiniMeToken = artifacts.require "MiniMeToken"
 MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
+CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
+BetokenHelpers = artifacts.require "BetokenHelpers"
 BigNumber = require "bignumber.js"
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
@@ -61,8 +63,12 @@ module.exports = (deployer, network, accounts) ->
         #await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION)
 
         # deploy CompoundOrderFactory
+        await deployer.deploy(CompoundOrderFactory)
+        compoundOrderFactory = await CompoundOrderFactory.deployed()
 
         # deploy BetokenHelpers
+        await deployer.deploy(BetokenHelpers)
+        betokenHelpers = await BetokenHelpers.deployed()
 
         # deploy BetokenFund contract
         await deployer.deploy(
@@ -75,7 +81,9 @@ module.exports = (deployer, network, accounts) ->
           ZERO_ADDR,
           ControlToken.address,
           TestDAI.address,
-          TestKyberNetwork.address
+          TestKyberNetwork.address,
+          compoundOrderFactory.address,
+          betokenHelpers.address
         )
         betokenFund = await BetokenFund.deployed()
 
