@@ -4,9 +4,7 @@ import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./tokens/minime/MiniMeToken.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
-import "./ShortOrder.sol";
-import "./LongOrder.sol";
-
+import "./CompoundOrderFactory.sol";
 /**
  * @title The main smart contract of the Betoken hedge fund.
  * @author Zefram Lou (Zebang Liu)
@@ -73,6 +71,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // Address of the BetokenProxy contract
   address public proxyAddr;
+
+  address public compoundFactoryAddr;
 
   // Address to which the developer fees will be paid.
   address payable public developerFeeAccount;
@@ -141,6 +141,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   MiniMeToken internal cToken;
   MiniMeToken internal sToken;
   BetokenProxy internal proxy;
+  CompoundOrderFactory internal compoundFactory;
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
 
@@ -180,7 +181,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address payable _previousVersion,
     address payable kro_addr,
     address dai_addr,
-    address payable kyber_addr
+    address payable kyber_addr,
+    address _compoundFactoryAddr
   )
     public
     Utils(kro_addr, dai_addr, kyber_addr)
@@ -195,8 +197,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     cyclePhase = CyclePhase.Manage;
     cycleNumber = 0;
     startTimeOfCyclePhase = 0;
+    compoundFactoryAddr = _compoundFactoryAddr;
     
     cToken = MiniMeToken(KRO_ADDR);
+    compoundFactory = CompoundOrderFactory(_compoundFactoryAddr);
 
     previousVersion = _previousVersion;
   }
@@ -1002,15 +1006,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Create compound order and execute
     uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
-    uint256 loanAmountInDAI = collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
-    CompoundOrder order;
-    if (_orderType == true) {
-      // Shorting
-      order = new ShortOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
-    } else {
-      // Leveraged longing
-      order = new LongOrder(_tokenAddress, cycleNumber, _stake, collateralAmountInDAI, loanAmountInDAI);
-    }
+    CompoundOrder order = __createCompoundOrder(_orderType, _tokenAddress, _stake, collateralAmountInDAI);
     require(dai.approve(address(order), 0));
     require(dai.approve(address(order), collateralAmountInDAI));
     order.executeOrder(_minPrice, _maxPrice);
@@ -1205,6 +1201,27 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
       require(_minPrice <= sInD && dInS <= sInD);
       investment.sellPrice = sInD;
     }
+  }
+
+  /**
+   * @notice Separated from createCompoundOrder() to avoid stack too deep error
+   */
+  function __createCompoundOrder(
+    bool _orderType, // True for shorting, false for longing
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _collateralAmountInDAI
+  ) internal returns (CompoundOrder) {
+    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
+    CompoundOrder order = compoundFactory.createOrder(
+      _tokenAddress,
+      cycleNumber,
+      _stake,
+      _collateralAmountInDAI,
+      loanAmountInDAI,
+      _orderType
+    );
+    return order;
   }
 
   /**
