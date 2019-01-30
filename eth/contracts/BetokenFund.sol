@@ -1,10 +1,14 @@
 pragma solidity 0.5.0;
 
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
-import "./tokens/minime/MiniMeToken.sol";
+import "./interfaces/IMiniMeToken.sol";
+import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
-import "./CompoundOrderFactory.sol";
+import "./derivatives/CompoundOrderFactory.sol";
+import "./BetokenHelpers.sol";
+
 /**
  * @title The main smart contract of the Betoken hedge fund.
  * @author Zefram Lou (Zebang Liu)
@@ -73,6 +77,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address public proxyAddr;
 
   address public compoundFactoryAddr;
+  address public helpers;
 
   // Address to which the developer fees will be paid.
   address payable public developerFeeAccount;
@@ -138,10 +143,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
 
   // Contract instances
-  MiniMeToken internal cToken;
-  MiniMeToken internal sToken;
+  IMiniMeToken internal cToken;
+  IMiniMeToken internal sToken;
   BetokenProxy internal proxy;
-  CompoundOrderFactory internal compoundFactory;
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
 
@@ -182,26 +186,22 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address payable kro_addr,
     address dai_addr,
     address payable kyber_addr,
-    address _compoundFactoryAddr
+    address _compoundFactoryAddr,
+    address _helperAddr
   )
     public
     Utils(kro_addr, dai_addr, kyber_addr)
   {
     shareTokenAddr = _sTokenAddr;
-    sToken = MiniMeToken(_sTokenAddr);
-
+    sToken = IMiniMeToken(_sTokenAddr);
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
     developerFeeRate = _developerFeeRate;
     exitFeeRate = _exitFeeRate;
     cyclePhase = CyclePhase.Manage;
-    cycleNumber = 0;
-    startTimeOfCyclePhase = 0;
     compoundFactoryAddr = _compoundFactoryAddr;
-    
-    cToken = MiniMeToken(KRO_ADDR);
-    compoundFactory = CompoundOrderFactory(_compoundFactoryAddr);
-
+    helpers = _helperAddr;
+    cToken = IMiniMeToken(KRO_ADDR);
     previousVersion = _previousVersion;
   }
 
@@ -223,13 +223,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully changed candidate, false otherwise.
    */
   function developerInitiateUpgrade(address payable _candidate) public during(CyclePhase.Intermission) onlyOwner notReadyForUpgrade returns (bool _success) {
-    if (_candidate == address(0) || _candidate == address(this)) {
-      return false;
-    }
-    nextVersion = _candidate;
-    upgradeVotingActive = true;
-    emit DeveloperInitiatedUpgrade(cycleNumber, _candidate);
-    return true;
+    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.developerInitiateUpgrade.selector, _candidate));
+    if (!success) { return false; }
+    return abi.decode(result, (bool));
   }
 
   /**
@@ -240,23 +236,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully changed signal, false if no changes were made.
    */
   function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) notReadyForUpgrade returns (bool _success) {
-    if (upgradeSignal[cycleNumber][msg.sender] == false) {
-      if (_inSupport == true) {
-        upgradeSignal[cycleNumber][msg.sender] = true;
-        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].add(getVotingWeight(msg.sender));
-      } else {
-        return false;
-      }
-    } else {
-      if (_inSupport == false) {
-        upgradeSignal[cycleNumber][msg.sender] = false;
-        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].sub(getVotingWeight(msg.sender));
-      } else {
-        return false;
-      }
-    }
-    emit SignaledUpgrade(cycleNumber, msg.sender, _inSupport);
-    return true;
+    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.signalUpgrade.selector, _inSupport));
+    if (!success) { return false; }
+    return abi.decode(result, (bool));
   }
 
   /**
@@ -268,31 +250,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully proposed/changed candidate, false otherwise.
    */
   function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    // Input & state check
-    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
-      upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0)) {
-      return false;
-    }
-
-    // Ensure msg.sender has not been a proposer before
-    uint256 voteID = _chunkNumber.sub(1);
-    uint256 i;
-    for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposers[i] == msg.sender) {
-        return false;
-      }
-    }
-
-    // Ensure msg.sender has more voting weight than current proposer
-    uint256 senderWeight = getVotingWeight(msg.sender);
-    uint256 currProposerWeight = getVotingWeight(proposers[voteID]);
-    if (senderWeight > currProposerWeight || (senderWeight == currProposerWeight && msg.sender > proposers[voteID]) || msg.sender == proposers[voteID]) {
-      proposers[voteID] = msg.sender;
-      candidates[voteID] = _candidate;
-      emit ProposedCandidate(cycleNumber, _chunkNumber, msg.sender, _candidate);
-      return true;
-    }
-    return false;
+    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.proposeCandidate.selector, _chunkNumber, _candidate));
+    if (!success) { return false; }
+    return abi.decode(result, (bool));
   }
 
   /**
@@ -302,48 +262,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully changed vote, false otherwise.
    */
   function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    // Input & state check
-    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
-      return false;
-    }
-
-    // Ensure msg.sender has not been a proposer before
-    uint256 voteID = _chunkNumber.sub(1);
-    uint256 i;
-    for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposers[i] == msg.sender) {
-        return false;
-      }
-    }
-
-    // Register vote
-    VoteDirection currVote = managerVotes[cycleNumber][msg.sender][voteID];
-    uint256 votingWeight = getVotingWeight(msg.sender);
-    if (currVote == VoteDirection.Empty) {
-      if (_inSupport == true) {
-        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.For;
-        forVotes[voteID] = forVotes[voteID].add(votingWeight);
-      } else {
-        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.Against;
-        againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
-      }
-    } else if (currVote == VoteDirection.For) {
-      if (_inSupport == true) {
-        return false;
-      } else {
-        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.Against;
-        againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
-      }
-    } else if (currVote == VoteDirection.Against) {
-      if (_inSupport == true) {
-        managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.For;
-        forVotes[voteID] = forVotes[voteID].add(votingWeight);
-      } else {
-        return false;
-      }
-    }
-    emit Voted(cycleNumber, _chunkNumber, msg.sender, _inSupport, votingWeight);
-    return true;
+    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.voteOnCandidate.selector, _chunkNumber, _inSupport));
+    if (!success) { return false; }
+    return abi.decode(result, (bool));
   }
 
   /**
@@ -352,30 +273,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successful, false otherwise
    */
   function finalizeSuccessfulVote(uint256 _chunkNumber) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    // Input & state check
-    if (!__isValidChunk(_chunkNumber)) {
-      return false;
-    }
-
-    // Ensure the given vote was successful
-    if (__voteSuccessful(_chunkNumber) == false) {
-      return false;
-    }
-
-    // Ensure no previous vote was successful
-    uint256 voteID = _chunkNumber.sub(1);
-    uint256 i;
-    for (i = 0; i < voteID; i = i.add(1)) {
-      if (__voteSuccessful(i)) {
-        return false;
-      }
-    }
-
-    // End voting process
-    upgradeVotingActive = false;
-    nextVersion = candidates[voteID];
-    hasFinalizedNextVersion = true;
-    return true;
+    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.finalizeSuccessfulVote.selector, _chunkNumber));
+    if (!success) { return false; }
+    return abi.decode(result, (bool));
   }
 
   function migrateOwnedContractsToNextVersion() public nonReentrant readyForUpgradeMigration {
@@ -417,23 +317,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Returns the commission balance of `_manager`
    * @return the commission balance, denoted in DAI
    */
-  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
-    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
-    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
-    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
-      // take risk into account
-      uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle.sub(1)]);
-      uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
-      if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { continue; }
-      uint256 riskTakenProportion = riskTakenInCycle[_manager][cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
-      riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
-
-      uint256 fullCommission = totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle]))
-        .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle]));
-      uint256 commissionAfterPenalty = fullCommission.mul(riskTakenProportion).div(PRECISION);
-      _commission = _commission.add(commissionAfterPenalty);
-      _penalty = _penalty.add(fullCommission.sub(commissionAfterPenalty));
-    }
+  function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
+    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
+    if (!success) { revert(); }
+    (_commission, _penalty) = abi.decode(result, (uint256, uint256));
   }
 
   /**
@@ -515,57 +402,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   function nextPhase()
     public
   {
-    require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
-
-    if (cycleNumber == 0) {
-      require(msg.sender == owner());
-    }
-
-    if (cyclePhase == CyclePhase.Intermission) {
-      require(hasFinalizedNextVersion == false); // Shouldn't progress to next phase if upgrading
-
-      // Check if there is enough signal supporting upgrade
-      if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
-        upgradeVotingActive = true;
-        emit InitiatedUpgrade(cycleNumber);
-      }
-    } else if (cyclePhase == CyclePhase.Manage) {
-      // Burn any Kairo left in BetokenFund's account
-      require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
-
-      __handleFees();
-
-      managePhaseEndBlock[cycleNumber] = block.number;
-
-      // Clear/update upgrade related data
-      if (nextVersion == address(this)) {
-        // The developer proposed a candidate, but the managers decide to not upgrade at all
-        // Reset upgrade process
-        delete nextVersion;
-        delete hasFinalizedNextVersion;
-      }
-      if (nextVersion == address(0)) {
-        delete proposers;
-        delete candidates;
-        delete forVotes;
-        delete againstVotes;
-        delete upgradeVotingActive;
-      } else {
-        hasFinalizedNextVersion = true;
-        emit FinalizedNextVersion(cycleNumber, nextVersion);
-      }
-
-      // Start new cycle
-      cycleNumber = cycleNumber.add(1);
-    }
-
-    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
-    startTimeOfCyclePhase = now;
-
-    // Reward caller
-    cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD);
-
-    emit ChangedPhase(cycleNumber, uint(cyclePhase), now);
+    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
+    if (!success) { revert(); }
   }
 
 
@@ -584,47 +422,20 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   function registerWithDAI(uint256 _donationInDAI, address _referrer) public nonReentrant {
-    require(dai.transferFrom(msg.sender, address(this), _donationInDAI), "Failed DAI transfer");
-    __register(_donationInDAI, _referrer);
+    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI, _referrer));
+    if (!success) { revert(); }
   }
 
 
   function registerWithETH(address _referrer) public payable nonReentrant {
-    uint256 receivedDAI;
-
-    // trade ETH for DAI
-    (,,receivedDAI,) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
-    
-    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    if (receivedDAI > MAX_DONATION) {
-      require(dai.transfer(msg.sender, receivedDAI.sub(MAX_DONATION)), "Excess DAI transfer failed");
-      receivedDAI = MAX_DONATION;
-    }
-
-    // register new manager
-    __register(receivedDAI, _referrer);
+    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector, _referrer));
+    if (!success) { revert(); }
   }
 
   // _donationInTokens should use the token's precision
   function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public nonReentrant {
-    require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR, "Invalid token");
-    ERC20Detailed token = ERC20Detailed(_token);
-    require(token.totalSupply() > 0, "Zero token supply");
-
-    require(token.transferFrom(msg.sender, address(this), _donationInTokens), "Failed token transfer");
-
-    uint256 receivedDAI;
-
-    (,,receivedDAI,) = __kyberTrade(token, _donationInTokens, dai);
-
-    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    if (receivedDAI > MAX_DONATION) {
-      require(dai.transfer(msg.sender, receivedDAI.sub(MAX_DONATION)), "Excess DAI transfer failed");
-      receivedDAI = MAX_DONATION;
-    }
-
-    // register new manager
-    __register(receivedDAI, _referrer);
+    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens, _referrer));
+    if (!success) { revert(); }
   }
 
 
@@ -905,7 +716,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
 
     // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1), _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
+    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
   }
 
   /**
@@ -963,16 +774,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Return staked Kairo
     uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice.div(investment.buyPrice));
-    if (receiveKairoAmount > stakeOfSoldTokens) {
-      cToken.transfer(msg.sender, stakeOfSoldTokens);
-      cToken.generateTokens(msg.sender, receiveKairoAmount.sub(stakeOfSoldTokens));
-    } else {
-      cToken.transfer(msg.sender, receiveKairoAmount);
-      require(cToken.destroyTokens(address(this), stakeOfSoldTokens.sub(receiveKairoAmount)));
-    }
+    __returnStake(receiveKairoAmount, stakeOfSoldTokens);
 
     // Record risk taken in investment
-    riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(investment.stake.mul(now.sub(investment.buyTime)));
+    __recordRisk(investment.stake, investment.buyTime);
     
     // Emit event
     if (isPartialSell) {
@@ -1038,17 +843,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Return staked Kairo
     uint256 stake = order.stake();
     uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
-    if (receiveKairoAmount > stake) {
-      cToken.transfer(msg.sender, stake);
-      cToken.generateTokens(msg.sender, receiveKairoAmount.sub(stake));
-    } else {
-      cToken.transfer(msg.sender, receiveKairoAmount);
-      require(cToken.destroyTokens(address(this), stake.sub(receiveKairoAmount)));
-    }
+    __returnStake(receiveKairoAmount, stake);
 
     // Record risk taken
-    uint256 riskTaken = stake.mul(now.sub(order.buyTime()));
-    riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(riskTaken);
+    __recordRisk(stake, order.buyTime());
 
     // Emit event
     emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.tokenAddr(), receiveKairoAmount, outputAmount);
@@ -1106,35 +904,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return true;
   }
 
-  function __register(uint256 _donationInDAI, address _referrer) internal {
-    require(_donationInDAI > 0 && _donationInDAI <= MAX_DONATION, "Donation out of range");
-    require(_referrer != msg.sender, "Can't refer self");
-
-    MiniMeToken kro = MiniMeToken(KRO_ADDR);
-    require(kro.balanceOf(msg.sender) == 0 && userInvestments[msg.sender].length == 0 && userCompoundOrders[msg.sender].length == 0, "Already joined"); // each address can only join once
-
-    // mint KRO for msg.sender
-    uint256 kroPrice = kairoPrice();
-    uint256 kroAmount = _donationInDAI.mul(kroPrice).div(PRECISION);
-    require(kro.generateTokens(msg.sender, kroAmount), "Failed minting");
-
-    // Set risk fallback base stake
-    baseRiskStakeFallback[msg.sender] = kroAmount;
-
-    // mint KRO for referral program
-    if (_referrer != address(0) && kro.balanceOf(_referrer) > 0) {
-      uint256 bonusAmount = kroAmount.mul(REFERRAL_BONUS).div(PRECISION);
-      require(kro.generateTokens(msg.sender, bonusAmount), "Failed minting sender bonus");
-      require(kro.generateTokens(_referrer, bonusAmount), "Failed minting referrer bonus");
-    }
-
-    // transfer DAI to developerFeeAccount
-    require(dai.transfer(developerFeeAccount, _donationInDAI), "Failed DAI transfer to developerFeeAccount");
-    
-    // emit events
-    emit Register(msg.sender, block.number, _donationInDAI);
-  }
-
   function __deposit(uint256 _depositDAIAmount) internal {
     // Register investment and give shares
     if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
@@ -1182,23 +951,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
-    uint256 srcAmount;
     uint256 dInS;
     uint256 sInD;
-    if (_buy) {
-      srcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
-    } else {
-      srcAmount = investment.tokenAmount;
-    }
     ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
     if (_buy) {
-      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, srcAmount, token);
+      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), token);
       require(_minPrice <= dInS && dInS <= _maxPrice);
       investment.buyPrice = dInS;
       investment.tokenAmount = _actualDestAmount;
     } else {
-      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(token, srcAmount, dai);
-      require(_minPrice <= sInD && dInS <= sInD);
+      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(token, investment.tokenAmount, dai);
+      require(_minPrice <= sInD && sInD <= _maxPrice);
       investment.sellPrice = sInD;
     }
   }
@@ -1213,7 +976,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 _collateralAmountInDAI
   ) internal returns (CompoundOrder) {
     uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
-    CompoundOrder order = compoundFactory.createOrder(
+    CompoundOrder order = CompoundOrderFactory(compoundFactoryAddr).createOrder(
       _tokenAddress,
       cycleNumber,
       _stake,
@@ -1225,41 +988,18 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Update fund statistics, and pay developer fees & commissions.
+   * @notice Returns stake to manager after investment is sold, including reward/penalty based on performance
    */
-  function __handleFees() internal {
-    uint256 profit = 0;
-    if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
-      profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
-    }
-    uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
-    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(commissionThisCycle); // account for penalties
-    totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
-    uint256 devFee = developerFeeRate.mul(getBalance(dai, address(this))).div(PRECISION);
-    uint256 newTotalFunds = getBalance(dai, address(this)).sub(totalCommissionLeft).sub(devFee);
-
-    // Update values
-    emit ROI(cycleNumber, totalFundsInDAI, newTotalFunds);
-    totalFundsInDAI = newTotalFunds;
-
-    // Transfer fees
-    dai.transfer(developerFeeAccount, devFee);
-
-    // Emit event
-    emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle[cycleNumber]);
+  function __returnStake(uint256 _receiveKairoAmount, uint256 _stake) internal {
+    cToken.destroyTokens(address(this), _stake);
+    cToken.generateTokens(msg.sender, _receiveKairoAmount);
   }
 
-  function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {
-    return _chunkNumber >= 1 && _chunkNumber <= 5;
-  }
-
-  function __voteSuccessful(uint256 _chunkNumber) internal view returns (bool _success) {
-    if (!__isValidChunk(_chunkNumber)) {
-      return false;
-    }
-    uint256 voteID = _chunkNumber.sub(1);
-    return forVotes[voteID].mul(PRECISION).div(forVotes[voteID].add(againstVotes[voteID])) > VOTE_SUCCESS_THRESHOLD
-      && forVotes[voteID].add(againstVotes[voteID]) > getTotalVotingWeight().mul(QUORUM).div(PRECISION);
+  /**
+   * @notice Records risk taken in a trade based on stake and time of investment
+   */
+  function __recordRisk(uint256 _stake, uint256 _buyTime) internal {
+    riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
   }
 
   function() external payable {

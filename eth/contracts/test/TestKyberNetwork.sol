@@ -63,7 +63,7 @@ contract TestKyberNetwork is KyberNetwork, Utils(address(0),address(0),address(0
     ERC20Detailed src,
     uint srcAmount,
     ERC20Detailed dest
-  ) internal returns (uint destAmount) {
+  ) internal view returns (uint destAmount) {
     return srcAmount.mul(priceInDAI[address(src)]).mul(10**getDecimals(dest)).div(priceInDAI[address(dest)].mul(10**getDecimals(src)));
   }
 }

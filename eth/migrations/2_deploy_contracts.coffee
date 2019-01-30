@@ -60,6 +60,10 @@ module.exports = (deployer, network, accounts) ->
         await ControlToken.generateTokens(accounts[0], bnToString(1e4 * PRECISION))
         #await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION)
 
+        # deploy CompoundOrderFactory
+
+        # deploy BetokenHelpers
+
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,

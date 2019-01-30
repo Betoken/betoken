@@ -17,10 +17,10 @@ contract Utils {
    * @param _token the token's address
    */
   modifier isValidToken(address _token) {
-    require(_token != address(0), "Token zero address");
+    require(_token != address(0));
     if (_token != address(ETH_TOKEN_ADDRESS)) {
       ERC20Detailed token = ERC20Detailed(_token);
-      require(token.decimals() >= MIN_DECIMALS, "Token too few decimals");
+      require(token.decimals() >= MIN_DECIMALS);
     }
     _;
   }
