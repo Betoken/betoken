@@ -1,9 +1,16 @@
 pragma solidity 0.5.0;
 
-import "./ShortOrder.sol";
-import "./LongOrder.sol";
+import "./CompoundOrder.sol";
 
 contract CompoundOrderFactory {
+  address public SHORT_ORDER_LOGIC_CONTRACT;
+  address public LONG_ORDER_LOGIC_CONTRACT;
+
+  constructor(address _shortOrderLogicContract, address _longOrderLogicContract) public {
+    SHORT_ORDER_LOGIC_CONTRACT = _shortOrderLogicContract;
+    LONG_ORDER_LOGIC_CONTRACT = _longOrderLogicContract;
+  }
+
   function createOrder(
     address _tokenAddr,
     uint256 _cycleNumber,
@@ -13,11 +20,8 @@ contract CompoundOrderFactory {
     bool _orderType
   ) public returns (CompoundOrder) {
     CompoundOrder order;
-    if (_orderType) {
-      order = new ShortOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI);
-    } else {
-      order = new LongOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI);
-    }
+    address logicContract = _orderType ? SHORT_ORDER_LOGIC_CONTRACT : LONG_ORDER_LOGIC_CONTRACT;
+    order = new CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, _orderType, logicContract);
     return order;
   }
 }

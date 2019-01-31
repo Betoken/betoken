@@ -2,6 +2,8 @@ BetokenFund = artifacts.require "BetokenFund"
 BetokenProxy = artifacts.require "BetokenProxy"
 MiniMeToken = artifacts.require "MiniMeToken"
 MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
+LongOrderLogic = artifacts.require "LongOrderLogic"
+ShortOrderLogic = artifacts.require "ShortOrderLogic"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
 BetokenHelpers = artifacts.require "BetokenHelpers"
 BigNumber = require "bignumber.js"
@@ -61,9 +63,17 @@ module.exports = (deployer, network, accounts) ->
 
         await ControlToken.generateTokens(accounts[0], bnToString(1e4 * PRECISION))
         #await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION)
+        
+        # deploy ShortOrderLogic
+        await deployer.deploy(ShortOrderLogic)
+        shortOrderLogic = await ShortOrderLogic.deployed()
+        
+        # deploy LongOrderLogic
+        await deployer.deploy(LongOrderLogic)
+        longOrderLogic = await LongOrderLogic.deployed()
 
         # deploy CompoundOrderFactory
-        await deployer.deploy(CompoundOrderFactory)
+        await deployer.deploy(CompoundOrderFactory, shortOrderLogic.address, longOrderLogic.address)
         compoundOrderFactory = await CompoundOrderFactory.deployed()
 
         # deploy BetokenHelpers

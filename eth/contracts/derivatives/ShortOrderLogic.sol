@@ -1,16 +1,8 @@
 pragma solidity 0.5.0;
 
-import "./CompoundOrder.sol";
+import "./CompoundOrderLogic.sol";
 
-contract ShortOrder is CompoundOrder {
-  constructor(
-    address _tokenAddr,
-    uint256 _cycleNumber,
-    uint256 _stake,
-    uint256 _collateralAmountInDAI,
-    uint256 _loanAmountInDAI
-  ) public CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, true) {}
-
+contract ShortOrderLogic is CompoundOrderLogic {
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(tokenAddr) {
     super.executeOrder(_minPrice, _maxPrice);
     
