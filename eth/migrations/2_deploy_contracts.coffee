@@ -6,6 +6,7 @@ LongOrderLogic = artifacts.require "LongOrderLogic"
 ShortOrderLogic = artifacts.require "ShortOrderLogic"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
 BetokenHelpers = artifacts.require "BetokenHelpers"
+
 BigNumber = require "bignumber.js"
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
@@ -27,7 +28,7 @@ module.exports = (deployer, network, accounts) ->
         # deploy TestToken factory
         await deployer.deploy(TestTokenFactory)
         testTokenFactory = await TestTokenFactory.deployed()
-        
+
         # create TestDAI
         testDAIAddr = (await testTokenFactory.newToken("DAI Stable Coin", "DAI", 18)).logs[0].args.addr
         TestDAI = await TestToken.at(testDAIAddr)
@@ -62,7 +63,8 @@ module.exports = (deployer, network, accounts) ->
         ShareToken = await MiniMeToken.at(shareTokenAddr)
 
         await ControlToken.generateTokens(accounts[0], bnToString(1e4 * PRECISION))
-        #await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION)
+        await ControlToken.generateTokens(accounts[1], bnToString(1e4 * PRECISION))
+        await ControlToken.generateTokens(accounts[2], bnToString(1e4 * PRECISION))
         
         # deploy ShortOrderLogic
         await deployer.deploy(ShortOrderLogic)
@@ -107,8 +109,8 @@ module.exports = (deployer, network, accounts) ->
         # set proxy address in BetokenFund
         await betokenFund.setProxy(betokenProxy.address)
 
-        await ControlToken.transferOwnership(BetokenFund.address)
-        await ShareToken.transferOwnership(BetokenFund.address)
+        await ControlToken.transferOwnership(betokenFund.address)
+        await ShareToken.transferOwnership(betokenFund.address)
 
       when "mainnet"
         # Mainnet Migration

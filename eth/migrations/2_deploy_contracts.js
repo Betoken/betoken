@@ -41,7 +41,6 @@
           // deploy TestToken factory
           await deployer.deploy(TestTokenFactory);
           testTokenFactory = (await TestTokenFactory.deployed());
-          
           // create TestDAI
           testDAIAddr = ((await testTokenFactory.newToken("DAI Stable Coin", "DAI", 18))).logs[0].args.addr;
           TestDAI = (await TestToken.at(testDAIAddr));
@@ -83,8 +82,9 @@
           ControlToken = (await MiniMeToken.at(controlTokenAddr));
           ShareToken = (await MiniMeToken.at(shareTokenAddr));
           await ControlToken.generateTokens(accounts[0], bnToString(1e4 * PRECISION));
-          //await ControlToken.generateTokens(accounts[2], 1e4 * PRECISION)
-
+          await ControlToken.generateTokens(accounts[1], bnToString(1e4 * PRECISION));
+          await ControlToken.generateTokens(accounts[2], bnToString(1e4 * PRECISION));
+          
           // deploy ShortOrderLogic
           await deployer.deploy(ShortOrderLogic);
           shortOrderLogic = (await ShortOrderLogic.deployed());
@@ -106,8 +106,8 @@
           betokenProxy = (await BetokenProxy.deployed());
           // set proxy address in BetokenFund
           await betokenFund.setProxy(betokenProxy.address);
-          await ControlToken.transferOwnership(BetokenFund.address);
-          return (await ShareToken.transferOwnership(BetokenFund.address));
+          await ControlToken.transferOwnership(betokenFund.address);
+          return (await ShareToken.transferOwnership(betokenFund.address));
         case "mainnet":
           // Mainnet Migration
           config = require("../deployment_configs/mainnet.json");

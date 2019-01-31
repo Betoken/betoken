@@ -706,7 +706,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
-    ERC20Detailed token = ERC20Detailed(_tokenAddress);
 
     // Collect stake
     require(cToken.generateTokens(address(this), _stake));
@@ -726,7 +725,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Invest
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
+    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
 
     // Emit event
     emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
@@ -786,7 +785,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     }
 
     // Return staked Kairo
-    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice.div(investment.buyPrice));
+    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice).div(investment.buyPrice);
     __returnStake(receiveKairoAmount, stakeOfSoldTokens);
 
     // Record risk taken in investment
