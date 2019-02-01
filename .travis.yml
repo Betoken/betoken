@@ -11,4 +11,5 @@ install:
 
 script:
   - ganache-cli -l 7000000 &> /dev/null &
+  - truffle compile &> /dev/null &
   - truffle test --network development

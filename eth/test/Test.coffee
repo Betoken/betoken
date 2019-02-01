@@ -334,6 +334,7 @@ contract("price_changes", (accounts) ->
 
   it("prep_work", () ->
     this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
+    console.log this.fund
     dai = await DAI(this.fund)
 
     amount = 10 * PRECISION
