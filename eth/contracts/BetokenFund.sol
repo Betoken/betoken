@@ -104,7 +104,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public totalCommissionLeft;
 
   // Stores the lengths of each cycle phase in seconds.
-  uint256[2] phaseLengths;
+  uint256[2] public phaseLengths;
 
   // The last cycle where a user redeemed commission.
   mapping(address => uint256) public lastCommissionRedemption;
@@ -317,23 +317,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Returns the commission balance of `_manager`
    * @return the commission balance, denoted in DAI
    */
-  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
-    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
-    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
-    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
-      // take risk into account
-      uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle.sub(1)]);
-      uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
-      if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { continue; }
-      uint256 riskTakenProportion = riskTakenInCycle[_manager][cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
-      riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
-
-      uint256 fullCommission = totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle]))
-        .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle]));
-      uint256 commissionAfterPenalty = fullCommission.mul(riskTakenProportion).div(PRECISION);
-      _commission = _commission.add(commissionAfterPenalty);
-      _penalty = _penalty.add(fullCommission.sub(commissionAfterPenalty));
-    }
+  function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
+     (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
+    if (!success) { return (0, 0); }
+    return abi.decode(result, (uint256, uint256));
   }
 
   /**
