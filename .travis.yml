@@ -8,11 +8,7 @@ install:
   - npm install
   - npm install -g truffle
   - npm install -g ganache-cli
-  - npm uninstall ethereumjs-wallet
-  - npm uninstall truffle-hdwallet-provider
-  - npm install ethereumjs-wallet@0.6.0
-  - npm install truffle-hdwallet-provider@0.0.3
 
 script:
-  - ganache-cli &> /dev/null &
+  - ganache-cli -l 7000000 &> /dev/null &
   - truffle test
