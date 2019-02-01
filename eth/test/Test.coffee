@@ -333,8 +333,7 @@ contract("price_changes", (accounts) ->
   account = accounts[1]
 
   it("prep_work", () ->
-    this.fund = await BetokenFund.deployed()
-    await this.fund.nextPhase({from: owner})
+    this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
     dai = await DAI(this.fund)
 
     amount = 10 * PRECISION

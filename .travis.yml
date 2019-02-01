@@ -7,7 +7,7 @@ install:
   - cd eth
   - npm install
   - npm install -g truffle
-  - npm install -g ganache-cli
+  - npm install -g ganache-cli@6.2.5
 
 script:
   - ganache-cli -l 7000000 &> /dev/null &

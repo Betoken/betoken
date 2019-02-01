@@ -372,10 +372,7 @@
     account = accounts[1];
     it("prep_work", async function() {
       var amount, dai;
-      this.fund = (await BetokenFund.deployed());
-      await this.fund.nextPhase({
-        from: owner
-      });
+      this.fund = (await FUND(1, 0, owner)); // Starts in Deposit & Withdraw phase
       dai = (await DAI(this.fund));
       amount = 10 * PRECISION;
       await dai.mint(account, bnToString(amount), {
