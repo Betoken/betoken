@@ -28,8 +28,8 @@ module.exports = {
       },
       host: "localhost",
       port: 8545,
-      gas: 7000000,
-      gasPrice: 40 * Math.pow(10, 9),
+      gas: 6900000,
+      gasPrice: 4 * Math.pow(10, 9),
       network_id: 4
     }
   },
