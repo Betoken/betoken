@@ -1,6 +1,6 @@
 language: node_js
 node_js:
-- '8'
+- '10'
 sudo: enabled
 
 install:
@@ -11,4 +11,4 @@ install:
 
 script:
   - ganache-cli -l 7000000 &> /dev/null &
-  - truffle test
+  - truffle test --network development
