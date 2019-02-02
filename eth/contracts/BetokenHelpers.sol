@@ -63,6 +63,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
   address payable[5] candidates; // Candidates for a chunk
   uint256[5] forVotes; // For votes for a chunk
   uint256[5] againstVotes; // Against votes for a chunk
+  uint256 proposersVotingWeight; // Total voting weight of previous and current proposers
   mapping(uint256 => mapping(address => VoteDirection[5])) managerVotes; // Records each manager's vote
   mapping(uint256 => uint256) upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
   mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
@@ -164,6 +165,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
     if (senderWeight > currProposerWeight || (senderWeight == currProposerWeight && msg.sender > proposers[voteID]) || msg.sender == proposers[voteID]) {
       proposers[voteID] = msg.sender;
       candidates[voteID] = _candidate;
+      proposersVotingWeight = proposersVotingWeight.add(senderWeight).sub(currProposerWeight); // remove proposer weight to prevent insufficient quorum
       emit ProposedCandidate(cycleNumber, _chunkNumber, msg.sender, _candidate);
       return true;
     }
@@ -228,9 +230,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
     }
 
     // Ensure no previous vote was successful
-    uint256 voteID = _chunkNumber.sub(1);
-    uint256 i;
-    for (i = 0; i < voteID; i = i.add(1)) {
+    for (uint256 i = 1; i < _chunkNumber; i = i.add(1)) {
       if (__voteSuccessful(i)) {
         return false;
       }
@@ -238,7 +238,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
 
     // End voting process
     upgradeVotingActive = false;
-    nextVersion = candidates[voteID];
+    nextVersion = candidates[_chunkNumber.sub(1)];
     hasFinalizedNextVersion = true;
     return true;
   }
@@ -291,7 +291,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
     if (cycleNumber <= CYCLES_TILL_MATURITY) {
       return 0;
     }
-    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]).sub(proposersVotingWeight);
   }
 
 
@@ -356,6 +356,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
         delete forVotes;
         delete againstVotes;
         delete upgradeVotingActive;
+        delete proposersVotingWeight;
       } else {
         hasFinalizedNextVersion = true;
         emit FinalizedNextVersion(cycleNumber, nextVersion);

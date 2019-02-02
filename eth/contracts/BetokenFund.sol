@@ -138,6 +138,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address payable[5] candidates; // Candidates for a chunk
   uint256[5] forVotes; // For votes for a chunk
   uint256[5] againstVotes; // Against votes for a chunk
+  uint256 proposersVotingWeight; // Total voting weight of previous and current proposers
   mapping(uint256 => mapping(address => VoteDirection[5])) managerVotes; // Records each manager's vote
   mapping(uint256 => uint256) upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
   mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
@@ -358,7 +359,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     if (cycleNumber <= CYCLES_TILL_MATURITY) {
       return 0;
     }
-    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]).sub(proposersVotingWeight);
   }
 
   /**
