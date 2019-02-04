@@ -19,8 +19,7 @@ contract Utils {
   modifier isValidToken(address _token) {
     require(_token != address(0));
     if (_token != address(ETH_TOKEN_ADDRESS)) {
-      ERC20Detailed token = ERC20Detailed(_token);
-      require(token.decimals() >= MIN_DECIMALS);
+      require(isContract(_token));
     }
     _;
   }
@@ -40,7 +39,6 @@ contract Utils {
   uint constant internal MAX_QTY   = (10**28); // 10B tokens
   uint constant internal ETH_DECIMALS = 18;
   uint constant internal MAX_DECIMALS = 18;
-  uint constant internal MIN_DECIMALS = 11;
 
   constructor(
     address payable kro_addr,
@@ -131,5 +129,14 @@ contract Utils {
     _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, address(this)));
     _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
     _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
+  }
+
+  function isContract(address _addr) view internal returns(bool) {
+    uint size;
+    if (_addr == address(0)) return false;
+    assembly {
+        size := extcodesize(_addr)
+    }
+    return size>0;
   }
 }
