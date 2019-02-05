@@ -413,7 +413,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
 
   function kairoPrice() public view returns (uint256 _kairoPrice) {
-    if (cToken.totalSupply() == 0) {return 0;}
+    if (cToken.totalSupply() == 0) {return MIN_KRO_PRICE;}
     uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
     if (controlPerKairo < MIN_KRO_PRICE) {
       // keep price above minimum price

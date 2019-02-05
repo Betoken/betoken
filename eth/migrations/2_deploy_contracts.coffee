@@ -10,6 +10,7 @@ BetokenHelpers = artifacts.require "BetokenHelpers"
 BigNumber = require "bignumber.js"
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+ETH_ADDR = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
 PRECISION = 1e18
 
 bnToString = (bn) -> BigNumber(bn).toFixed(0)
@@ -42,13 +43,14 @@ module.exports = (deployer, network, accounts) ->
         for token in tokensInfo
           tokenAddrs.push((await testTokenFactory.newToken(token.name, token.symbol, token.decimals)).logs[0].args.addr)
         tokenAddrs.push(TestDAI.address)
-        tokenPrices = (bnToString(1000 * PRECISION) for i in [1..tokensInfo.length]).concat([bnToString(PRECISION)])
+        tokenAddrs.push(ETH_ADDR)
+        tokenPrices = (bnToString(1000 * PRECISION) for i in [1..tokensInfo.length]).concat([bnToString(PRECISION), bnToString(10000 * PRECISION)])
   
         # deploy TestKyberNetwork
         await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices)
 
         # mint tokens for KN
-        for token in tokenAddrs
+        for token in tokenAddrs[0..tokenAddrs.length - 2]
           tokenObj = await TestToken.at(token)
           await tokenObj.mint(TestKyberNetwork.address, bnToString(1e12 * PRECISION)) # one trillion tokens
 
@@ -61,10 +63,6 @@ module.exports = (deployer, network, accounts) ->
             ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true)).logs[0].args.addr
         ControlToken = await MiniMeToken.at(controlTokenAddr)
         ShareToken = await MiniMeToken.at(shareTokenAddr)
-
-        await ControlToken.generateTokens(accounts[0], bnToString(1e4 * PRECISION))
-        await ControlToken.generateTokens(accounts[1], bnToString(1e4 * PRECISION))
-        await ControlToken.generateTokens(accounts[2], bnToString(1e4 * PRECISION))
         
         # deploy ShortOrderLogic
         await deployer.deploy(ShortOrderLogic)

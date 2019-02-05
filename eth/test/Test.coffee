@@ -17,6 +17,8 @@ bnToString = (bn) -> BigNumber(bn).toFixed(0)
 
 PRECISION = 1e18
 OMG_PRICE = 1000 * PRECISION
+ETH_PRICE = 10000 * PRECISION
+DAI_PRICE = PRECISION
 EXIT_FEE = 0.03
 PHASE_LENGTHS = (require "../deployment_configs/testnet.json").phaseLengths
 DAY = 86400
@@ -72,6 +74,10 @@ KRO = (fund) ->
 epsilon_equal = (curr, prev) ->
   BigNumber(curr).minus(prev).div(prev).abs().lt(epsilon)
 
+calcRegisterPayAmount = (fund, kroAmount, tokenPrice) ->
+  kairoPrice = BigNumber await fund.kairoPrice.call()
+  return kroAmount * kairoPrice / tokenPrice
+
 contract("first_cycle", (accounts) ->
   owner = accounts[0]
   account = accounts[1]
@@ -86,6 +92,40 @@ contract("first_cycle", (accounts) ->
     # check cycle number
     cycleNumber = +await this.fund.cycleNumber.call()
     assert.equal(cycleNumber, 1, "cycle number didn't change after cycle start")
+  )
+
+  it("register_accounts", () ->
+    kro = await KRO(this.fund)
+    dai = await DAI(this.fund)
+    token = await TK("OMG")
+    account2 = accounts[2]
+    account3 = accounts[3]
+
+    amount = 10 * PRECISION
+
+    # register account[1] using ETH
+    await this.fund.registerWithETH(ZERO_ADDR, {from: account, value: await calcRegisterPayAmount(this.fund, amount, ETH_PRICE)})
+
+    # mint DAI for account[2]
+    daiAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, DAI_PRICE))
+    await dai.mint(account2, daiAmount, {from: owner})
+
+    # register account[2]
+    await dai.approve(this.fund.address, daiAmount, {from: account2})
+    await this.fund.registerWithDAI(daiAmount, ZERO_ADDR, {from: account2})
+
+    # mint OMG tokens for account[3]
+    omgAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, OMG_PRICE))
+    await token.mint(account3, omgAmount, {from: owner})
+
+    # register account[3] with account[2] as referrer
+    await token.approve(this.fund.address, omgAmount, {from: account3})
+    await this.fund.registerWithToken(token.address, omgAmount, account2, {from: account3})
+
+    # check Kairo balances
+    assert(epsilon_equal(amount, await kro.balanceOf.call(account)), "account 1 Kairo amount incorrect")
+    assert(epsilon_equal(amount * 1.1, await kro.balanceOf.call(account2)), "account 2 Kairo amount incorrect")
+    assert(epsilon_equal(amount * 1.1, await kro.balanceOf.call(account3)), "account 3 Kairo amount incorrect")
   )
 
   it("deposit_dai", () ->
@@ -219,7 +259,7 @@ contract("first_cycle", (accounts) ->
     prevFundTokenBlnce = BigNumber await token.balanceOf(this.fund.address)
 
     # buy token
-    amount = 1e4 * PRECISION
+    amount = 10 * PRECISION
     await this.fund.createInvestment(token.address, bnToString(amount), 0, MAX_PRICE, {from: account, gasPrice: 0})
 
     # check KRO balance
@@ -234,7 +274,8 @@ contract("first_cycle", (accounts) ->
 
     # create investment for account2
     account2 = accounts[2]
-    await this.fund.createInvestment(token.address, bnToString(amount), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    amount2 = amount * 1.1
+    await this.fund.createInvestment(token.address, bnToString(amount2), 0, MAX_PRICE, {from: account2, gasPrice: 0})
   )
 
   it("sell_investment", () ->
@@ -335,6 +376,9 @@ contract("price_changes", (accounts) ->
   it("prep_work", () ->
     this.fund = await FUND(1, 0, owner) # Starts in Deposit & Withdraw phase
     dai = await DAI(this.fund)
+
+    kroAmount = 10 * PRECISION
+    await this.fund.registerWithETH(ZERO_ADDR, {from: account, value: await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE)})
 
     amount = 10 * PRECISION
     await dai.mint(account, bnToString(amount), {from: owner}) # Mint DAI

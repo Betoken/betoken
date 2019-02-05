@@ -441,7 +441,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
 
     // mint KRO for msg.sender
     uint256 kroPrice = kairoPrice();
-    uint256 kroAmount = _donationInDAI.mul(kroPrice).div(PRECISION);
+    uint256 kroAmount = _donationInDAI.mul(PRECISION).div(kroPrice);
     require(cToken.generateTokens(msg.sender, kroAmount));
 
     // Set risk fallback base stake
@@ -450,6 +450,7 @@ contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), R
     // mint KRO for referral program
     if (_referrer != address(0) && cToken.balanceOf(_referrer) > 0) {
       uint256 bonusAmount = kroAmount.mul(REFERRAL_BONUS).div(PRECISION);
+      baseRiskStakeFallback[msg.sender] = baseRiskStakeFallback[msg.sender].add(bonusAmount);
       require(cToken.generateTokens(msg.sender, bonusAmount));
       require(cToken.generateTokens(_referrer, bonusAmount));
     }
