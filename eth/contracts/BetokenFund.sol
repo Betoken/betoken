@@ -187,11 +187,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address payable kro_addr,
     address dai_addr,
     address payable kyber_addr,
+    address compound_addr,
     address _compoundFactoryAddr,
     address _helperAddr
   )
     public
-    Utils(kro_addr, dai_addr, kyber_addr)
+    Utils(kro_addr, dai_addr, kyber_addr, compound_addr)
   {
     shareTokenAddr = _sTokenAddr;
     sToken = IMiniMeToken(_sTokenAddr);

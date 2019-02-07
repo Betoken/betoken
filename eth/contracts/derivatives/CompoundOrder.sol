@@ -3,7 +3,7 @@ pragma solidity 0.5.0;
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../Utils.sol";
 
-contract CompoundOrder is Ownable, Utils(0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9, 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359, 0x818E6FECD516Ecc3849DAf6845e3EC868087B755) {
+contract CompoundOrder is Ownable, Utils {
   modifier isInitialized {
     require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
     _;
@@ -36,11 +36,15 @@ contract CompoundOrder is Ownable, Utils(0x13c03e7a1C944Fa87ffCd657182616420C6ea
     uint256 _collateralAmountInDAI,
     uint256 _loanAmountInDAI,
     bool _orderType,
-    address _logicContract
-  ) public  {
+    address _logicContract,
+    address payable kro_addr,
+    address dai_addr,
+    address payable kyber_addr,
+    address compound_addr
+  ) public Utils(kro_addr, dai_addr, kyber_addr, compound_addr)  {
     // Initialize details of short order
     require(_tokenAddr != DAI_ADDR);
-    //require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
+    require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
     stake = _stake;
     collateralAmountInDAI = _collateralAmountInDAI;
     loanAmountInDAI = _loanAmountInDAI;

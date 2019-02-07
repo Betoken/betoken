@@ -32,7 +32,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, ShareToken, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, betokenHelpers, betokenProxy, compoundOrderFactory, config, controlTokenAddr, fund, i, j, k, len, len1, longOrderLogic, minimeFactory, ref, shareTokenAddr, shortOrderLogic, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, ShareToken, TestCompound, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, betokenProxy, config, controlTokenAddr, fund, i, j, k, len, len1, minimeFactory, ref, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
           // Local testnet migration
@@ -40,6 +40,7 @@
           TestKyberNetwork = artifacts.require("TestKyberNetwork");
           TestToken = artifacts.require("TestToken");
           TestTokenFactory = artifacts.require("TestTokenFactory");
+          TestCompound = artifacts.require("TestCompound");
           // deploy TestToken factory
           await deployer.deploy(TestTokenFactory);
           testTokenFactory = (await TestTokenFactory.deployed());
@@ -70,6 +71,8 @@
           
           // deploy TestKyberNetwork
           await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);
+          // deploy TestCompound
+          await deployer.deploy(TestCompound, tokenAddrs, tokenPrices);
           ref = tokenAddrs.slice(0, +(tokenAddrs.length - 2) + 1 || 9e9);
           // mint tokens for KN
           for (k = 0, len1 = ref.length; k < len1; k++) {
@@ -88,19 +91,15 @@
           
           // deploy ShortOrderLogic
           await deployer.deploy(ShortOrderLogic);
-          shortOrderLogic = (await ShortOrderLogic.deployed());
           
           // deploy LongOrderLogic
           await deployer.deploy(LongOrderLogic);
-          longOrderLogic = (await LongOrderLogic.deployed());
           // deploy CompoundOrderFactory
-          await deployer.deploy(CompoundOrderFactory, shortOrderLogic.address, longOrderLogic.address);
-          compoundOrderFactory = (await CompoundOrderFactory.deployed());
+          await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, ControlToken.address, TestDAI.address, TestKyberNetwork.address, TestCompound.address);
           // deploy BetokenHelpers
           await deployer.deploy(BetokenHelpers);
-          betokenHelpers = (await BetokenHelpers.deployed());
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, ControlToken.address, TestDAI.address, TestKyberNetwork.address, compoundOrderFactory.address, betokenHelpers.address);
+          await deployer.deploy(BetokenFund, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, ControlToken.address, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenHelpers.address);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, betokenFund.address);

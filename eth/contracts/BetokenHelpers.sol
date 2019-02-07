@@ -6,7 +6,7 @@ import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./interfaces/IMiniMeToken.sol";
 
-contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0)), ReentrancyGuard {
+contract BetokenHelpers is Ownable, Utils(address(0), address(0), address(0), address(0)), ReentrancyGuard {
   enum CyclePhase { Intermission, Manage }
   enum VoteDirection { Empty, For, Against }
   enum Subchunk { Propose, Vote }

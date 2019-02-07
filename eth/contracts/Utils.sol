@@ -27,8 +27,8 @@ contract Utils {
   address payable public KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
   address public DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
   address payable public KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
-
-  address public constant COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
+  address public COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
+  
   address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   bytes public constant PERM_HINT = "PERM";
 
@@ -44,11 +44,13 @@ contract Utils {
   constructor(
     address payable kro_addr,
     address dai_addr,
-    address payable kyber_addr
+    address payable kyber_addr,
+    address compound_addr
   ) public {
     KRO_ADDR = kro_addr;
     DAI_ADDR = dai_addr;
     KYBER_ADDR = kyber_addr;
+    COMPOUND_ADDR = compound_addr;
     dai = ERC20Detailed(dai_addr);
     compound = Compound(COMPOUND_ADDR);
   }

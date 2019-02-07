@@ -25,6 +25,7 @@ module.exports = (deployer, network, accounts) ->
         TestKyberNetwork = artifacts.require "TestKyberNetwork"
         TestToken = artifacts.require "TestToken"
         TestTokenFactory = artifacts.require "TestTokenFactory"
+        TestCompound = artifacts.require "TestCompound"
 
         # deploy TestToken factory
         await deployer.deploy(TestTokenFactory)
@@ -49,6 +50,9 @@ module.exports = (deployer, network, accounts) ->
         # deploy TestKyberNetwork
         await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices)
 
+        # deploy TestCompound
+        await deployer.deploy(TestCompound, tokenAddrs, tokenPrices)
+
         # mint tokens for KN
         for token in tokenAddrs[0..tokenAddrs.length - 2]
           tokenObj = await TestToken.at(token)
@@ -66,19 +70,18 @@ module.exports = (deployer, network, accounts) ->
         
         # deploy ShortOrderLogic
         await deployer.deploy(ShortOrderLogic)
-        shortOrderLogic = await ShortOrderLogic.deployed()
         
         # deploy LongOrderLogic
         await deployer.deploy(LongOrderLogic)
-        longOrderLogic = await LongOrderLogic.deployed()
 
         # deploy CompoundOrderFactory
-        await deployer.deploy(CompoundOrderFactory, shortOrderLogic.address, longOrderLogic.address)
-        compoundOrderFactory = await CompoundOrderFactory.deployed()
+        await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, ControlToken.address,
+          TestDAI.address,
+          TestKyberNetwork.address,
+          TestCompound.address)
 
         # deploy BetokenHelpers
         await deployer.deploy(BetokenHelpers)
-        betokenHelpers = await BetokenHelpers.deployed()
 
         # deploy BetokenFund contract
         await deployer.deploy(
@@ -92,8 +95,9 @@ module.exports = (deployer, network, accounts) ->
           ControlToken.address,
           TestDAI.address,
           TestKyberNetwork.address,
-          compoundOrderFactory.address,
-          betokenHelpers.address
+          TestCompound.address,
+          CompoundOrderFactory.address,
+          BetokenHelpers.address
         )
         betokenFund = await BetokenFund.deployed()
 
