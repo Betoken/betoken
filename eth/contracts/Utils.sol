@@ -30,6 +30,7 @@ contract Utils {
 
   address public constant COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
   address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  bytes public constant PERM_HINT = "PERM";
 
   ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   ERC20Detailed internal dai;
@@ -101,7 +102,6 @@ contract Utils {
     uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
     uint256 msgValue;
     uint256 rate;
-    bytes memory hint;
 
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       msgValue = 0;
@@ -119,7 +119,7 @@ contract Utils {
       MAX_QTY,
       rate,
       address(0),
-      hint
+      PERM_HINT
     );
     require(_actualDestAmount > 0);
     if (_srcToken != ETH_TOKEN_ADDRESS) {
