@@ -11,6 +11,7 @@ BigNumber = require "bignumber.js"
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 ETH_ADDR = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+WETH_ADDR = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 PRECISION = 1e18
 
 bnToString = (bn) -> BigNumber(bn).toFixed(0)
@@ -51,12 +52,17 @@ module.exports = (deployer, network, accounts) ->
         await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices)
 
         # deploy TestCompound
-        await deployer.deploy(TestCompound, tokenAddrs, tokenPrices)
+        await deployer.deploy(TestCompound, tokenAddrs[0..tokenAddrs.length - 2].concat([WETH_ADDR]), tokenPrices)
 
         # mint tokens for KN
         for token in tokenAddrs[0..tokenAddrs.length - 2]
           tokenObj = await TestToken.at(token)
           await tokenObj.mint(TestKyberNetwork.address, bnToString(1e12 * PRECISION)) # one trillion tokens
+
+        # mint tokens for Compound
+        for token in tokenAddrs[0..tokenAddrs.length - 2]
+          tokenObj = await TestToken.at(token)
+          await tokenObj.mint(TestCompound.address, bnToString(1e12 * PRECISION)) # one trillion tokens
 
         # deploy Kairo and Betoken Shares contracts
         await deployer.deploy(MiniMeTokenFactory)

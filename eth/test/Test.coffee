@@ -5,6 +5,7 @@ TestKyberNetwork = artifacts.require "TestKyberNetwork"
 TestToken = artifacts.require "TestToken"
 TestTokenFactory = artifacts.require "TestTokenFactory"
 TestCompound = artifacts.require "TestCompound"
+CompoundOrder = artifacts.require "CompoundOrder"
 
 BigNumber = require "bignumber.js"
 
@@ -70,6 +71,10 @@ ST = (fund) ->
 KRO = (fund) ->
   kroAddr = await fund.KRO_ADDR.call()
   return MiniMeToken.at(kroAddr)
+
+CO = (fund, account, id) ->
+  orderAddr = await fund.userCompoundOrders.call(account, id)
+  return CompoundOrder.at(orderAddr)
 
 epsilon_equal = (curr, prev) ->
   BigNumber(curr).minus(prev).div(prev).abs().lt(epsilon)
@@ -307,6 +312,80 @@ contract("first_cycle", (accounts) ->
     await timeTravel(6 * DAY)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account2, 0)).tokenAmount)
     await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+  )
+
+  it("create_compound_orders", () ->
+    kro = await KRO(this.fund)
+    token = await TK("OMG")
+    dai = await DAI(this.fund)
+    MAX_PRICE = bnToString(OMG_PRICE * 2)
+    fund = this.fund
+
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+
+    # create short order
+    amount = 1 * PRECISION
+    await this.fund.createCompoundOrder(true, token.address, bnToString(amount), 0, MAX_PRICE, {from: account, gasPrice: 0})
+    shortOrder = await CO(this.fund, account, 0)
+
+    # check KRO balance
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    assert.equal(prevKROBlnce.minus(kroBlnce).toNumber(), amount, "Kairo balance decrease incorrect")
+
+    # check fund token balance
+    fundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+    kroTotalSupply = BigNumber await kro.totalSupply.call()
+    assert.equal(prevFundDAIBlnce.minus(fundDAIBlnce).toNumber(), await shortOrder.collateralAmountInDAI.call(), "DAI balance decrease incorrect")
+
+    # create long order for account2
+    account2 = accounts[2]
+    await this.fund.createCompoundOrder(false, token.address, bnToString(amount), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+  )
+
+  it("sell_compound_orders", () ->
+    kro = await KRO(this.fund)
+    token = await TK("OMG")
+    dai = await DAI(this.fund)
+    MAX_PRICE = bnToString(OMG_PRICE * 2)
+    account2 = accounts[2]
+
+
+    # SHORT ORDER SELLING
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+
+    # sell short order
+    shortOrder = await CO(this.fund, account, 0)
+    compound = await TestCompound.deployed()
+    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account, gasPrice: 0})
+
+    # check KRO balance
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    stake = BigNumber await shortOrder.stake.call()
+    assert(epsilon_equal(stake, kroBlnce.minus(prevKROBlnce)), "account received Kairo amount incorrect")
+
+    # check fund DAI balance
+    fundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+    assert(epsilon_equal(await shortOrder.collateralAmountInDAI.call(), fundDAIBlnce.minus(prevFundDAIBlnce)), "short order returned incorrect DAI amount")
+
+
+    # LONG ORDER SELLING
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account2)
+    prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+
+    # sell account2's long order
+    longOrder = await CO(this.fund, account2, 0)
+    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account2, gasPrice: 0})
+
+    # check KRO balance
+    kroBlnce = BigNumber await kro.balanceOf.call(account2)
+    stake = BigNumber await longOrder.stake.call()
+    assert(epsilon_equal(stake, kroBlnce.minus(prevKROBlnce)), "account2 received Kairo amount incorrect")
+
+    # check fund DAI balance
+    fundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+    assert(epsilon_equal(await longOrder.collateralAmountInDAI.call(), fundDAIBlnce.minus(prevFundDAIBlnce)), "long order returned incorrect DAI amount")
   )
 
   it("next_cycle", () ->

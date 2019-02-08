@@ -853,7 +853,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.tokenAddr(), receiveKairoAmount, outputAmount);
   }
 
-  function repayShortOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
+  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
     // Load order info
     require(userCompoundOrders[msg.sender][_orderId] != address(0));
     CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);

@@ -14,15 +14,15 @@ contract LongOrderLogic is CompoundOrderLogic {
 
     // Get funds in DAI from BetokenFund
     require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
-    require(dai.approve(COMPOUND_ADDR, 0)); // Clear DAI allowance of Compound
-    require(dai.approve(COMPOUND_ADDR, collateralAmountInDAI)); // Approve DAI transfer to Compound
 
     // Convert received DAI to longing token
     (,uint256 actualTokenAmount) = __sellDAIForToken(collateralAmountInDAI);
 
     // Get loan from Compound in DAI
-    require(compound.supply(tokenAddr, actualTokenAmount) == 0); // Transfer DAI into Compound as supply
-    require(compound.borrow(DAI_ADDR, loanAmountInDAI) == 0);// Take out loan
+    require(token.approve(COMPOUND_ADDR, 0)); // Clear token allowance of Compound
+    require(token.approve(COMPOUND_ADDR, actualTokenAmount)); // Approve token transfer to Compound
+    require(compound.supply(tokenAddr, actualTokenAmount) == 0); // Transfer tokens into Compound as supply
+    require(compound.borrow(DAI_ADDR, loanAmountInDAI) == 0);// Take out loan in DAI
     require(compound.getAccountLiquidity(address(this)) > 0); // Ensure account liquidity is positive
 
     // Convert borrowed DAI to longing token

@@ -61,8 +61,9 @@ contract CompoundOrder is Ownable, Utils {
   }
 
   function sellOrder(uint256 _minPrice, uint256 _maxPrice) public returns (uint256 _inputAmount, uint256 _outputAmount) {
-    (bool success,) = logicContract.delegatecall(abi.encodeWithSelector(this.sellOrder.selector, _minPrice, _maxPrice));
+    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.sellOrder.selector, _minPrice, _maxPrice));
     if (!success) { revert(); }
+    return abi.decode(result, (uint256, uint256));
   }
 
   function repayLoan(uint256 _repayAmountInDAI) public {

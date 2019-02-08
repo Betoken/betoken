@@ -10,6 +10,7 @@ contract TestCompound is Compound, Ownable {
 
   address internal constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   uint public constant PRECISION = 10 ** 18;
+  uint256 public constant MAX_UINT = uint256(-1);
   uint public collateralRatio = 15 * (10 ** 17);
 
   mapping(address => mapping(address => uint)) supplyBalancesInAsset;
@@ -46,11 +47,12 @@ contract TestCompound is Compound, Ownable {
   }
   
   function withdraw(address asset, uint requestedAmount) public returns (uint) {
-    supplyBalancesInAsset[msg.sender][asset] = supplyBalancesInAsset[msg.sender][asset].sub(requestedAmount);
-    supplyBalancesInETH[msg.sender] = supplyBalancesInETH[msg.sender].sub(__tokenToETH(asset, requestedAmount));
+    uint256 amount = requestedAmount == MAX_UINT ? __ethToToken(asset, uint256(getAccountLiquidity(msg.sender))) : requestedAmount;
+    supplyBalancesInAsset[msg.sender][asset] = supplyBalancesInAsset[msg.sender][asset].sub(amount);
+    supplyBalancesInETH[msg.sender] = supplyBalancesInETH[msg.sender].sub(__tokenToETH(asset, amount));
 
     ERC20Detailed token = ERC20Detailed(asset);
-    require(token.transfer(msg.sender, requestedAmount));
+    require(token.transfer(msg.sender, amount));
 
     // check if there's still enough liquidity
     require(getAccountLiquidity(msg.sender) >= 0);
@@ -76,11 +78,14 @@ contract TestCompound is Compound, Ownable {
   function repayBorrow(address asset, uint amount) public returns (uint) {
     // accept repayment
     ERC20Detailed token = ERC20Detailed(asset);
-    require(token.transferFrom(msg.sender, address(this), amount));
+    uint256 repayAmount = amount == MAX_UINT ? borrowBalancesInAsset[msg.sender][asset] : amount;
+    require(token.transferFrom(msg.sender, address(this), repayAmount));
 
     // subtract from borrow balance
-    borrowBalancesInAsset[msg.sender][asset] = borrowBalancesInAsset[msg.sender][asset].sub(amount);
-    borrowBalancesInETH[msg.sender] = borrowBalancesInETH[msg.sender].sub(__tokenToETH(asset, amount));
+    borrowBalancesInAsset[msg.sender][asset] = borrowBalancesInAsset[msg.sender][asset].sub(repayAmount);
+    borrowBalancesInETH[msg.sender] = borrowBalancesInETH[msg.sender].sub(__tokenToETH(asset, repayAmount));
+
+    return 0;
   }
   
   function getAccountLiquidity(address account) view public returns (int) {
@@ -90,7 +95,7 @@ contract TestCompound is Compound, Ownable {
       return int(supplyBalance.sub(debt));
     } else {
       int result = int(debt.sub(supplyBalance));
-      require(result > -result);
+      require(result >= -result);
       return -result;
     }
   }
@@ -108,6 +113,12 @@ contract TestCompound is Compound, Ownable {
   }
 
   function __tokenToETH(address asset, uint amount) internal returns (uint) {
-    return amount.mul(assetPrices(asset));
+    ERC20Detailed token = ERC20Detailed(asset);
+    return amount.mul(assetPrices(asset)).div(10 ** uint256(token.decimals()));
+  }
+
+  function __ethToToken(address asset, uint amount) internal returns (uint) {
+    ERC20Detailed token = ERC20Detailed(asset);
+    return amount.mul(10 ** uint256(token.decimals())).div(assetPrices(asset));
   }
 }

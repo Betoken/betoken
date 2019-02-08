@@ -39,6 +39,7 @@ contract CompoundOrderFactory {
     CompoundOrder order;
     address logicContract = _orderType ? SHORT_ORDER_LOGIC_CONTRACT : LONG_ORDER_LOGIC_CONTRACT;
     order = new CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, _orderType, logicContract, KRO_ADDR, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR);
+    order.transferOwnership(msg.sender);
     return order;
   }
 }
