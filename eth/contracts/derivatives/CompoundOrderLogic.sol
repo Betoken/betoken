@@ -60,11 +60,13 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0)
 
   // Convert a DAI amount to the amount of a given token that's of equal value
   function __daiToToken(address _token, uint256 _daiAmount) internal view returns (uint256) {
-    return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).div(compound.assetPrices(_token));
+    ERC20Detailed t = ERC20Detailed(_token);
+    return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).mul(10 ** uint256(t.decimals())).div(compound.assetPrices(_token).mul(PRECISION));
   }
 
   // Convert a token amount to the amount of DAI that's of equal value
   function __tokenToDAI(address _token, uint256 _tokenAmount) internal view returns (uint256) {
-    return _tokenAmount.mul(compound.assetPrices(_token)).div(compound.assetPrices(DAI_ADDR));
+    ERC20Detailed t = ERC20Detailed(_token);
+    return _tokenAmount.mul(compound.assetPrices(_token)).mul(PRECISION).div(compound.assetPrices(DAI_ADDR).mul(10 ** uint256(t.decimals())));
   }
 }

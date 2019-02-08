@@ -543,6 +543,8 @@
       await this.fund.createInvestment(omg.address, bnToString(stake), 0, MAX_PRICE, {
         from: account
       });
+      // create 
+
       // raise asset price
       delta = 0.2;
       newPrice = OMG_PRICE * (1 + delta);

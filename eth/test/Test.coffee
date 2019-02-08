@@ -479,10 +479,11 @@ contract("price_changes", (accounts) ->
 
     # invest in asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
-
     stake = 0.1 * PRECISION
     investmentId = 0
     await this.fund.createInvestment(omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+
+    # create 
 
     # raise asset price
     delta = 0.2
