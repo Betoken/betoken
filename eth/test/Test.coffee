@@ -316,7 +316,8 @@ contract("first_cycle", (accounts) ->
     account2 = accounts[2]
     await timeTravel(6 * DAY)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account2, 0)).tokenAmount)
-    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    await this.fund.sellInvestmentAsset(1, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2, gasPrice: 0})
   )
 
   it("create_compound_orders", () ->
