@@ -24,7 +24,6 @@ contract Utils {
     _;
   }
 
-  address payable public KRO_ADDR;
   address public DAI_ADDR;
   address payable public KYBER_ADDR;
   address public COMPOUND_ADDR;
@@ -43,12 +42,10 @@ contract Utils {
   uint constant internal MAX_DECIMALS = 18;
 
   constructor(
-    address payable _kroAddr,
     address _daiAddr,
     address payable _kyberAddr,
     address _compoundAddr
   ) public {
-    KRO_ADDR = _kroAddr;
     DAI_ADDR = _daiAddr;
     KYBER_ADDR = _kyberAddr;
     COMPOUND_ADDR = _compoundAddr;

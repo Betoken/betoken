@@ -3,7 +3,7 @@ pragma solidity 0.5.0;
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../Utils.sol";
 
-contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0), address(0)) {
+contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0)) {
   modifier isInitialized {
     require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
     _;

@@ -116,7 +116,7 @@
 
   KRO = async function(fund) {
     var kroAddr;
-    kroAddr = (await fund.KRO_ADDR.call());
+    kroAddr = (await fund.controlTokenAddr.call());
     return MiniMeToken.at(kroAddr);
   };
 

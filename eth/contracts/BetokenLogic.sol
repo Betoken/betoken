@@ -6,7 +6,7 @@ import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./interfaces/IMiniMeToken.sol";
 
-contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0), address(0)), ReentrancyGuard {
+contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), ReentrancyGuard {
   enum CyclePhase { Intermission, Manage }
   enum VoteDirection { Empty, For, Against }
   enum Subchunk { Propose, Vote }
@@ -35,6 +35,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0), addr
   uint256 public constant CYCLES_TILL_MATURITY = 3;
   uint256 public constant QUORUM = 10 * (10 ** 16); // 10% quorum
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
+  address public controlTokenAddr;
   address public shareTokenAddr;
   address public proxyAddr;
   address public compoundFactoryAddr;

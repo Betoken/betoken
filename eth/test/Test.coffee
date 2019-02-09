@@ -71,7 +71,7 @@ ST = (fund) ->
   return MiniMeToken.at(shareTokenAddr)
 
 KRO = (fund) ->
-  kroAddr = await fund.KRO_ADDR.call()
+  kroAddr = await fund.controlTokenAddr.call()
   return MiniMeToken.at(kroAddr)
 
 CPD = () ->

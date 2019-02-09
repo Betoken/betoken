@@ -6,7 +6,6 @@ contract CompoundOrderFactory {
   address public SHORT_ORDER_LOGIC_CONTRACT;
   address public LONG_ORDER_LOGIC_CONTRACT;
 
-  address payable public KRO_ADDR;
   address public DAI_ADDR;
   address payable public KYBER_ADDR;
   address public COMPOUND_ADDR;
@@ -14,7 +13,6 @@ contract CompoundOrderFactory {
   constructor(
     address _shortOrderLogicContract,
     address _longOrderLogicContract,
-    address payable _kroAddr,
     address _daiAddr,
     address payable _kyberAddr,
     address _compoundAddr
@@ -22,7 +20,6 @@ contract CompoundOrderFactory {
     SHORT_ORDER_LOGIC_CONTRACT = _shortOrderLogicContract;
     LONG_ORDER_LOGIC_CONTRACT = _longOrderLogicContract;
 
-    KRO_ADDR = _kroAddr;
     DAI_ADDR = _daiAddr;
     KYBER_ADDR = _kyberAddr;
     COMPOUND_ADDR = _compoundAddr;
@@ -38,7 +35,7 @@ contract CompoundOrderFactory {
   ) public returns (CompoundOrder) {
     CompoundOrder order;
     address logicContract = _orderType ? SHORT_ORDER_LOGIC_CONTRACT : LONG_ORDER_LOGIC_CONTRACT;
-    order = new CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, _orderType, logicContract, KRO_ADDR, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR);
+    order = new CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, _orderType, logicContract, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR);
     order.transferOwnership(msg.sender);
     return order;
   }

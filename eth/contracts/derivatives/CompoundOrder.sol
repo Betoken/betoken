@@ -37,11 +37,10 @@ contract CompoundOrder is Ownable, Utils {
     uint256 _loanAmountInDAI,
     bool _orderType,
     address _logicContract,
-    address payable _kroAddr,
     address _daiAddr,
     address payable _kyberAddr,
     address _compoundAddr
-  ) public Utils(_kroAddr, _daiAddr, _kyberAddr, _compoundAddr)  {
+  ) public Utils(_daiAddr, _kyberAddr, _compoundAddr)  {
     // Initialize details of short order
     require(_tokenAddr != DAI_ADDR);
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs

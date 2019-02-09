@@ -81,10 +81,14 @@ module.exports = (deployer, network, accounts) ->
         await deployer.deploy(LongOrderLogic)
 
         # deploy CompoundOrderFactory
-        await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, ControlToken.address,
+        await deployer.deploy(
+          CompoundOrderFactory,
+          ShortOrderLogic.address,
+          LongOrderLogic.address,
           TestDAI.address,
           TestKyberNetwork.address,
-          TestCompound.address)
+          TestCompound.address
+        )
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic)
@@ -92,13 +96,13 @@ module.exports = (deployer, network, accounts) ->
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,
+          ControlToken.address,
           ShareToken.address,
           accounts[0], #developerFeeAccount
           config.phaseLengths,
           bnToString(config.developerFeeRate),
           bnToString(config.exitFeeRate),
           ZERO_ADDR,
-          ControlToken.address,
           TestDAI.address,
           TestKyberNetwork.address,
           TestCompound.address,

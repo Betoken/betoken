@@ -70,10 +70,13 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant QUORUM = 10 * (10 ** 16); // 10% quorum
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
 
+  // Address of the Kairo token contract.
+  address public controlTokenAddr;
+
   // Address of the share token contract.
   address public shareTokenAddr;
 
-  // Address of the BetokenProxy contract
+  // Address of the BetokenProxy contract.
   address public proxyAddr;
 
   address public compoundFactoryAddr;
@@ -178,13 +181,13 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
 
   constructor(
+    address payable _kroAddr,
     address payable _sTokenAddr,
     address payable _developerFeeAccount,
     uint256[2] memory _phaseLengths,
     uint256 _developerFeeRate,
     uint256 _exitFeeRate,
     address payable _previousVersion,
-    address payable _kroAddr,
     address _daiAddr,
     address payable _kyberAddr,
     address _compoundAddr,
@@ -192,8 +195,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address _helperAddr
   )
     public
-    Utils(_kroAddr, _daiAddr, _kyberAddr, _compoundAddr)
+    Utils(_daiAddr, _kyberAddr, _compoundAddr)
   {
+    controlTokenAddr = _kroAddr;
     shareTokenAddr = _sTokenAddr;
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
