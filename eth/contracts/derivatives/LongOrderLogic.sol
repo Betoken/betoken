@@ -94,7 +94,7 @@ contract LongOrderLogic is CompoundOrderLogic {
     // Convert longing token to DAI
     uint256 repayAmountInToken = __daiToToken(tokenAddr, _repayAmountInDAI);
     (uint256 actualDAIAmount,) = __sellTokenForDAI(repayAmountInToken);
-
+    
     // Repay loan to Compound
     require(dai.approve(COMPOUND_ADDR, 0));
     require(dai.approve(COMPOUND_ADDR, actualDAIAmount));

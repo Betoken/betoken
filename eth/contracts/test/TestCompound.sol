@@ -13,14 +13,15 @@ contract TestCompound is Compound, Ownable {
   uint256 public constant MAX_UINT = uint256(-1);
   uint public collateralRatio = 15 * (10 ** 17);
 
+  address[] public supportedTokens;
+
   mapping(address => mapping(address => uint)) supplyBalancesInAsset;
   mapping(address => mapping(address => uint)) borrowBalancesInAsset;
-  mapping(address => uint) supplyBalancesInETH;
-  mapping(address => uint) borrowBalancesInETH;
   
   mapping(address => uint256) public priceInDAI;
 
   constructor(address[] memory _tokens, uint256[] memory _pricesInDAI) public {
+    supportedTokens = _tokens;
     for (uint256 i = 0; i < _tokens.length; i = i.add(1)) {
       priceInDAI[_tokens[i]] = _pricesInDAI[i];
     }
@@ -30,18 +31,11 @@ contract TestCompound is Compound, Ownable {
     priceInDAI[_token] = _priceInDAI;
   }
 
-  function setAllTokenPrices(address[] memory _tokens, uint256[] memory _pricesInDAI) public onlyOwner {
-    for (uint256 i = 0; i < _tokens.length; i = i.add(1)) {
-      priceInDAI[_tokens[i]] = _pricesInDAI[i];
-    }
-  }
-
   function supply(address asset, uint amount) public returns (uint) {
     ERC20Detailed token = ERC20Detailed(asset);
     require(token.transferFrom(msg.sender, address(this), amount));
 
     supplyBalancesInAsset[msg.sender][asset] = supplyBalancesInAsset[msg.sender][asset].add(amount);
-    supplyBalancesInETH[msg.sender] = supplyBalancesInETH[msg.sender].add(__tokenToETH(asset, amount));
     
     return 0;
   }
@@ -49,7 +43,6 @@ contract TestCompound is Compound, Ownable {
   function withdraw(address asset, uint requestedAmount) public returns (uint) {
     uint256 amount = requestedAmount == MAX_UINT ? __ethToToken(asset, uint256(getAccountLiquidity(msg.sender))) : requestedAmount;
     supplyBalancesInAsset[msg.sender][asset] = supplyBalancesInAsset[msg.sender][asset].sub(amount);
-    supplyBalancesInETH[msg.sender] = supplyBalancesInETH[msg.sender].sub(__tokenToETH(asset, amount));
 
     ERC20Detailed token = ERC20Detailed(asset);
     require(token.transfer(msg.sender, amount));
@@ -63,7 +56,6 @@ contract TestCompound is Compound, Ownable {
   function borrow(address asset, uint amount) public returns (uint) {
     // add to borrow balance
     borrowBalancesInAsset[msg.sender][asset] = borrowBalancesInAsset[msg.sender][asset].add(amount);
-    borrowBalancesInETH[msg.sender] = borrowBalancesInETH[msg.sender].add(__tokenToETH(asset, amount));
 
     // transfer asset
     ERC20Detailed token = ERC20Detailed(asset);
@@ -83,14 +75,13 @@ contract TestCompound is Compound, Ownable {
 
     // subtract from borrow balance
     borrowBalancesInAsset[msg.sender][asset] = borrowBalancesInAsset[msg.sender][asset].sub(repayAmount);
-    borrowBalancesInETH[msg.sender] = borrowBalancesInETH[msg.sender].sub(__tokenToETH(asset, repayAmount));
 
     return 0;
   }
   
   function getAccountLiquidity(address account) view public returns (int) {
-    uint supplyBalance = supplyBalancesInETH[account];
-    uint debt = borrowBalancesInETH[account].mul(collateralRatio).div(PRECISION);
+    uint supplyBalance = __supplyBalancesInETH(account);
+    uint debt = __borrowBalancesInETH(account).mul(collateralRatio).div(PRECISION);
     if (supplyBalance > debt) {
       return int(supplyBalance.sub(debt));
     } else {
@@ -112,13 +103,31 @@ contract TestCompound is Compound, Ownable {
     return priceInDAI[asset].mul(PRECISION).div(priceInDAI[WETH_ADDR]);
   }
 
-  function __tokenToETH(address asset, uint amount) internal returns (uint) {
-    ERC20Detailed token = ERC20Detailed(asset);
-    return amount.mul(assetPrices(asset)).div(10 ** uint256(token.decimals()));
+  function __tokenToETH(address asset, uint amount) internal view returns (uint) {
+    // PRECISION here should be replaced with 10 ** token.decimals()
+    // But that somehow causes the VM to revert, so just leave it
+    // It's for testing purposes anyways
+    return amount.mul(assetPrices(asset)).div(PRECISION);
   }
 
-  function __ethToToken(address asset, uint amount) internal returns (uint) {
-    ERC20Detailed token = ERC20Detailed(asset);
-    return amount.mul(10 ** uint256(token.decimals())).div(assetPrices(asset));
+  function __ethToToken(address asset, uint amount) internal view returns (uint) {
+    // PRECISION here should be replaced with 10 ** token.decimals()
+    // But that somehow causes the VM to revert, so just leave it
+    // It's for testing purposes anyways
+    return amount.mul(PRECISION).div(assetPrices(asset));
+  }
+
+  function __supplyBalancesInETH(address account) internal view returns(uint _balance) {
+    for (uint i = 0; i < supportedTokens.length; i++) {
+      address asset = supportedTokens[i];
+      _balance = _balance.add(__tokenToETH(asset, supplyBalancesInAsset[account][asset]));
+    }
+  }
+
+  function __borrowBalancesInETH(address account) internal view returns(uint _balance) {
+    for (uint i = 0; i < supportedTokens.length; i = i.add(1)) {
+      address asset = supportedTokens[i];
+      _balance = _balance.add(__tokenToETH(asset, borrowBalancesInAsset[account][asset]));
+    }
   }
 }

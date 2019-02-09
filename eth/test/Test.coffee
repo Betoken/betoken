@@ -13,6 +13,8 @@ epsilon = 1e-4
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 PRECISION = 1e18
+SHORT_LEVERAGE = -0.5
+LONG_LEVERAGE = 1.5
 
 bnToString = (bn) -> BigNumber(bn).toFixed(0)
 
@@ -71,6 +73,9 @@ ST = (fund) ->
 KRO = (fund) ->
   kroAddr = await fund.KRO_ADDR.call()
   return MiniMeToken.at(kroAddr)
+
+CPD = () ->
+  return TestCompound.deployed()
 
 CO = (fund, account, id) ->
   orderAddr = await fund.userCompoundOrders.call(account, id)
@@ -472,91 +477,142 @@ contract("price_changes", (accounts) ->
     kn = await KN(this.fund)
     kro = await KRO(this.fund)
     omg = await TK("OMG")
+    cpd = await CPD()
     MAX_PRICE = bnToString(OMG_PRICE * 2)
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await cpd.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
-    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     stake = 0.1 * PRECISION
     investmentId = 0
     await this.fund.createInvestment(omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
 
-    # create 
+    # create short order
+    shortId = 0
+    await this.fund.createCompoundOrder(true, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+    # create long order
+    longId = 1
+    await this.fund.createCompoundOrder(false, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
 
-    # raise asset price
+    # raise asset price by 20%
     delta = 0.2
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await cpd.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
 
     # sell asset
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, investmentId)).tokenAmount)
     await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {from: account})
 
     # check KRO reward
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), delta), "KRO reward incorrect")
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO reward incorrect")
+
+    # sell short order
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    await this.fund.sellCompoundOrder(shortId, 0, MAX_PRICE, {from: account})
+
+    # check KRO penalty
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO penalty incorrect")
+
+    # sell long order
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    await this.fund.sellCompoundOrder(longId, 0, MAX_PRICE, {from: account})
+
+    # check KRO reward
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO reward incorrect")
   )
 
   it("lower_asset_price", () ->
     kn = await KN(this.fund)
     kro = await KRO(this.fund)
     omg = await TK("OMG")
+    cpd = await CPD()
     MAX_PRICE = bnToString(OMG_PRICE * 2)
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await cpd.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
-    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
-
     stake = 0.1 * PRECISION
     investmentId = 1
     await this.fund.createInvestment(omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
 
-    # lower asset price
+    # create short order
+    shortId = 2
+    await this.fund.createCompoundOrder(true, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+    # create long order
+    longId = 3
+    await this.fund.createCompoundOrder(false, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+
+    # lower asset price by 20%
     delta = -0.2
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await cpd.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
 
     # sell asset
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, investmentId)).tokenAmount)
     await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {from: account})
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), delta), "KRO penalty incorrect")
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO penalty incorrect")
+
+    # sell short order
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    await this.fund.sellCompoundOrder(shortId, 0, MAX_PRICE, {from: account})
+
+    # check KRO reward
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO reward incorrect")
+
+    # sell long order
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    await this.fund.sellCompoundOrder(longId, 0, MAX_PRICE, {from: account})
+
+    # check KRO penalty
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO penalty incorrect")
   )
 
   it("lower_asset_price_to_0", () ->
     kn = await KN(this.fund)
     kro = await KRO(this.fund)
     omg = await TK("OMG")
+    cpd = await CPD()
     MAX_PRICE = bnToString(OMG_PRICE * 2)
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await cpd.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
-    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
-
     stake = 0.1 * PRECISION
     investmentId = 2
     await this.fund.createInvestment(omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
 
-    # lower asset price
-    delta = -0.999
+    # lower asset price by 99.99%
+    delta = -0.9999
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await cpd.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
 
     # sell asset
+    prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, investmentId)).tokenAmount)
     await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {from: account})
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), delta), "KRO penalty incorrect")
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO penalty incorrect")
   )
 )
 
