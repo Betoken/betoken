@@ -6,26 +6,26 @@ contract CompoundOrderFactory {
   address public SHORT_ORDER_LOGIC_CONTRACT;
   address public LONG_ORDER_LOGIC_CONTRACT;
 
-  address payable public KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
-  address public DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
-  address payable public KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
-  address public COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
+  address payable public KRO_ADDR;
+  address public DAI_ADDR;
+  address payable public KYBER_ADDR;
+  address public COMPOUND_ADDR;
 
   constructor(
     address _shortOrderLogicContract,
     address _longOrderLogicContract,
-    address payable kro_addr,
-    address dai_addr,
-    address payable kyber_addr,
-    address compound_addr
+    address payable _kroAddr,
+    address _daiAddr,
+    address payable _kyberAddr,
+    address _compoundAddr
   ) public {
     SHORT_ORDER_LOGIC_CONTRACT = _shortOrderLogicContract;
     LONG_ORDER_LOGIC_CONTRACT = _longOrderLogicContract;
 
-    KRO_ADDR = kro_addr;
-    DAI_ADDR = dai_addr;
-    KYBER_ADDR = kyber_addr;
-    COMPOUND_ADDR = compound_addr;
+    KRO_ADDR = _kroAddr;
+    DAI_ADDR = _daiAddr;
+    KYBER_ADDR = _kyberAddr;
+    COMPOUND_ADDR = _compoundAddr;
   }
 
   function createOrder(

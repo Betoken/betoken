@@ -7,7 +7,7 @@ import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
 import "./derivatives/CompoundOrderFactory.sol";
-import "./BetokenHelpers.sol";
+import "./BetokenLogic.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
@@ -184,18 +184,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 _developerFeeRate,
     uint256 _exitFeeRate,
     address payable _previousVersion,
-    address payable kro_addr,
-    address dai_addr,
-    address payable kyber_addr,
-    address compound_addr,
+    address payable _kroAddr,
+    address _daiAddr,
+    address payable _kyberAddr,
+    address _compoundAddr,
     address _compoundFactoryAddr,
     address _helperAddr
   )
     public
-    Utils(kro_addr, dai_addr, kyber_addr, compound_addr)
+    Utils(_kroAddr, _daiAddr, _kyberAddr, _compoundAddr)
   {
     shareTokenAddr = _sTokenAddr;
-    sToken = IMiniMeToken(_sTokenAddr);
     developerFeeAccount = _developerFeeAccount;
     phaseLengths = _phaseLengths;
     developerFeeRate = _developerFeeRate;
@@ -203,8 +202,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     cyclePhase = CyclePhase.Manage;
     compoundFactoryAddr = _compoundFactoryAddr;
     helpers = _helperAddr;
-    cToken = IMiniMeToken(KRO_ADDR);
     previousVersion = _previousVersion;
+
+    cToken = IMiniMeToken(_kroAddr);
+    sToken = IMiniMeToken(_sTokenAddr);
   }
 
   function setProxy(address _proxyAddr) public onlyOwner {

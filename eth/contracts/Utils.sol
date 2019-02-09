@@ -24,16 +24,17 @@ contract Utils {
     _;
   }
 
-  address payable public KRO_ADDR = 0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9;
-  address public DAI_ADDR = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
-  address payable public KYBER_ADDR = 0x818E6FECD516Ecc3849DAf6845e3EC868087B755;
-  address public COMPOUND_ADDR = 0x3FDA67f7583380E67ef93072294a7fAc882FD7E7;
+  address payable public KRO_ADDR;
+  address public DAI_ADDR;
+  address payable public KYBER_ADDR;
+  address public COMPOUND_ADDR;
   
   address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   bytes public constant PERM_HINT = "PERM";
 
   ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   ERC20Detailed internal dai;
+  KyberNetwork internal kyber;
   Compound internal compound;
 
   uint constant internal PRECISION = (10**18);
@@ -42,17 +43,19 @@ contract Utils {
   uint constant internal MAX_DECIMALS = 18;
 
   constructor(
-    address payable kro_addr,
-    address dai_addr,
-    address payable kyber_addr,
-    address compound_addr
+    address payable _kroAddr,
+    address _daiAddr,
+    address payable _kyberAddr,
+    address _compoundAddr
   ) public {
-    KRO_ADDR = kro_addr;
-    DAI_ADDR = dai_addr;
-    KYBER_ADDR = kyber_addr;
-    COMPOUND_ADDR = compound_addr;
-    dai = ERC20Detailed(dai_addr);
-    compound = Compound(COMPOUND_ADDR);
+    KRO_ADDR = _kroAddr;
+    DAI_ADDR = _daiAddr;
+    KYBER_ADDR = _kyberAddr;
+    COMPOUND_ADDR = _compoundAddr;
+
+    dai = ERC20Detailed(_daiAddr);
+    kyber = KyberNetwork(_kyberAddr);
+    compound = Compound(_compoundAddr);
   }
 
   function getDecimals(ERC20Detailed _token) internal view returns(uint256) {
@@ -112,8 +115,8 @@ contract Utils {
     } else {
       msgValue = _srcAmount;
     }
-    (,rate) = KyberNetwork(KYBER_ADDR).getExpectedRate(_srcToken, _destToken, _srcAmount);
-    _actualDestAmount = KyberNetwork(KYBER_ADDR).tradeWithHint.value(msgValue)(
+    (,rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
+    _actualDestAmount = kyber.tradeWithHint.value(msgValue)(
       _srcToken,
       _srcAmount,
       _destToken,

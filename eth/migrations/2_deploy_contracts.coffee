@@ -5,7 +5,7 @@ MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
 LongOrderLogic = artifacts.require "LongOrderLogic"
 ShortOrderLogic = artifacts.require "ShortOrderLogic"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
-BetokenHelpers = artifacts.require "BetokenHelpers"
+BetokenLogic = artifacts.require "BetokenLogic"
 
 BigNumber = require "bignumber.js"
 
@@ -86,8 +86,8 @@ module.exports = (deployer, network, accounts) ->
           TestKyberNetwork.address,
           TestCompound.address)
 
-        # deploy BetokenHelpers
-        await deployer.deploy(BetokenHelpers)
+        # deploy BetokenLogic
+        await deployer.deploy(BetokenLogic)
 
         # deploy BetokenFund contract
         await deployer.deploy(
@@ -103,7 +103,7 @@ module.exports = (deployer, network, accounts) ->
           TestKyberNetwork.address,
           TestCompound.address,
           CompoundOrderFactory.address,
-          BetokenHelpers.address
+          BetokenLogic.address
         )
         betokenFund = await BetokenFund.deployed()
 
