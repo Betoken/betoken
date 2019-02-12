@@ -928,7 +928,7 @@
         from: accounts[1]
       });
       // check balances
-      assert(BigNumber((await dai.balanceOf(accounts[1]))).toNumber() >= depositAmount * 2, "didn't transfer assets to account[1]");
+      assert(BigNumber((await dai.balanceOf(accounts[1]))).toNumber() >= depositAmount * 2.2, "didn't transfer assets to account[1]");
       // check BetokenProxy
       proxy = (await BetokenProxy.deployed());
       return assert.equal((await proxy.betokenFundAddress.call()), accounts[1], "BetokenFund address incorrect in BetokenProxy");

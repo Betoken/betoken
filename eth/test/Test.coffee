@@ -803,7 +803,7 @@ contract("community_initiated_upgrade", (accounts) ->
     await this.fund.transferAssetToNextVersion(dai.address, {from: accounts[1]})
 
     # check balances
-    assert(BigNumber(await dai.balanceOf(accounts[1])).toNumber() >= depositAmount * 2, "didn't transfer assets to account[1]")
+    assert(BigNumber(await dai.balanceOf(accounts[1])).toNumber() >= depositAmount * 2.2, "didn't transfer assets to account[1]")
 
     # check BetokenProxy
     proxy = await BetokenProxy.deployed()
