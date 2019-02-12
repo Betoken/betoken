@@ -134,17 +134,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   CyclePhase public cyclePhase;
 
   // Upgrade governance related variables
-  bool hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
-  bool upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
+  bool public hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
+  bool public upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
   address payable public nextVersion; // Address of the next version of BetokenFund.
-  address [5] proposers; // Manager who proposed the upgrade candidate in a chunk
-  address payable[5] candidates; // Candidates for a chunk
-  uint256[5] forVotes; // For votes for a chunk
-  uint256[5] againstVotes; // Against votes for a chunk
-  uint256 proposersVotingWeight; // Total voting weight of previous and current proposers
-  mapping(uint256 => mapping(address => VoteDirection[5])) managerVotes; // Records each manager's vote
-  mapping(uint256 => uint256) upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
-  mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
+  address[5] public proposers; // Manager who proposed the upgrade candidate in a chunk
+  address payable[5] public candidates; // Candidates for a chunk
+  uint256[5] public forVotes; // For votes for a chunk
+  uint256[5] public againstVotes; // Against votes for a chunk
+  uint256 public proposersVotingWeight; // Total voting weight of previous and current proposers
+  mapping(uint256 => mapping(address => VoteDirection[5])) public managerVotes; // Records each manager's vote
+  mapping(uint256 => uint256) public upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
+  mapping(uint256 => mapping(address => bool)) public upgradeSignal; // Maps manager address to whether they support initiating an upgrade
 
   // Contract instances
   IMiniMeToken internal cToken;

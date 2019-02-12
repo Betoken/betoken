@@ -4,6 +4,7 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
+import "./BetokenProxy.sol";
 import "./interfaces/IMiniMeToken.sol";
 
 contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), ReentrancyGuard {
@@ -57,18 +58,20 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   mapping(uint256 => uint256) public totalCommissionOfCycle;
   mapping(uint256 => uint256) public managePhaseEndBlock;
   CyclePhase public cyclePhase;
-  bool hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
-  bool upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
+  bool public hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
+  bool public upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
   address payable public nextVersion; // Address of the next version of BetokenFund.
-  address [5] proposers; // Manager who proposed the upgrade candidate in a chunk
-  address payable[5] candidates; // Candidates for a chunk
-  uint256[5] forVotes; // For votes for a chunk
-  uint256[5] againstVotes; // Against votes for a chunk
-  uint256 proposersVotingWeight; // Total voting weight of previous and current proposers
-  mapping(uint256 => mapping(address => VoteDirection[5])) managerVotes; // Records each manager's vote
-  mapping(uint256 => uint256) upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
-  mapping(uint256 => mapping(address => bool)) upgradeSignal; // Maps manager address to whether they support initiating an upgrade
+  address[5] public proposers; // Manager who proposed the upgrade candidate in a chunk
+  address payable[5] public candidates; // Candidates for a chunk
+  uint256[5] public forVotes; // For votes for a chunk
+  uint256[5] public againstVotes; // Against votes for a chunk
+  uint256 public proposersVotingWeight; // Total voting weight of previous and current proposers
+  mapping(uint256 => mapping(address => VoteDirection[5])) public managerVotes; // Records each manager's vote
+  mapping(uint256 => uint256) public upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
+  mapping(uint256 => mapping(address => bool)) public upgradeSignal; // Maps manager address to whether they support initiating an upgrade
   IMiniMeToken internal cToken;
+  IMiniMeToken internal sToken;
+  BetokenProxy internal proxy;
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 daiAmount, uint256 _timestamp);
@@ -152,10 +155,11 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     }
 
     // Ensure msg.sender has not been a proposer before
+    // Ensure candidate hasn't been proposed in previous vote
     uint256 voteID = _chunkNumber.sub(1);
     uint256 i;
     for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposers[i] == msg.sender) {
+      if (proposers[i] == msg.sender || candidates[i] == _candidate) {
         return false;
       }
     }
@@ -230,6 +234,11 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
       return false;
     }
 
+    // Ensure the chunk given has ended
+    if (_chunkNumber >= currentChunk()) {
+      return false;
+    }
+
     // Ensure no previous vote was successful
     for (uint256 i = 1; i < _chunkNumber; i = i.add(1)) {
       if (__voteSuccessful(i)) {
@@ -258,7 +267,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   }
 
   /**
-   * @notice The manage phase is divided into 9 3-day chunks. Determins which chunk the fund's in right now.
+   * @notice The manage phase is divided into 9 3-day chunks. Determines which chunk the fund's in right now.
    * @return The index of the current chunk (starts from 0). Returns 0 if not in Manage phase.
    */
   function currentChunk() public view returns (uint) {
