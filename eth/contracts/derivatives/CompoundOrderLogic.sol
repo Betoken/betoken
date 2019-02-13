@@ -1,9 +1,9 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./Utils.sol";
+import "../Utils.sol";
 
-contract CompoundOrder is Ownable, Utils {
+contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0)) {
   modifier isInitialized {
     require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
     _;
@@ -13,7 +13,7 @@ contract CompoundOrder is Ownable, Utils {
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
 
-  // Instance variables
+  // Instance variables 
   uint256 public stake;
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
@@ -25,26 +25,6 @@ contract CompoundOrder is Ownable, Utils {
 
   // Contract instances
   ERC20Detailed internal token;
-
-  constructor(
-    address _tokenAddr,
-    uint256 _cycleNumber,
-    uint256 _stake,
-    uint256 _collateralAmountInDAI,
-    uint256 _loanAmountInDAI,
-    bool _orderType
-  ) internal isValidToken(_tokenAddr) {
-    // Initialize details of short order
-    require(_tokenAddr != DAI_ADDR);
-    require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
-    stake = _stake;
-    collateralAmountInDAI = _collateralAmountInDAI;
-    loanAmountInDAI = _loanAmountInDAI;
-    cycleNumber = _cycleNumber;
-    tokenAddr = _tokenAddr;
-    orderType = _orderType;
-    token = ERC20Detailed(_tokenAddr);
-  }
   
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {
     buyTime = now;
@@ -55,7 +35,7 @@ contract CompoundOrder is Ownable, Utils {
   function repayLoan(uint256 _repayAmountInDAI) public;
 
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    int256 liquidityInETH = compound.getAccountLiquidity(this);
+    int256 liquidityInETH = compound.getAccountLiquidity(address(this));
     if (liquidityInETH >= 0) {
       return (false, __tokenToDAI(WETH_ADDR, uint256(liquidityInETH)));
     } else {
@@ -80,11 +60,13 @@ contract CompoundOrder is Ownable, Utils {
 
   // Convert a DAI amount to the amount of a given token that's of equal value
   function __daiToToken(address _token, uint256 _daiAmount) internal view returns (uint256) {
-    return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).div(compound.assetPrices(_token));
+    ERC20Detailed t = ERC20Detailed(_token);
+    return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).mul(10 ** uint256(t.decimals())).div(compound.assetPrices(_token).mul(PRECISION));
   }
 
   // Convert a token amount to the amount of DAI that's of equal value
   function __tokenToDAI(address _token, uint256 _tokenAmount) internal view returns (uint256) {
-    return _tokenAmount.mul(compound.assetPrices(_token)).div(compound.assetPrices(DAI_ADDR));
+    ERC20Detailed t = ERC20Detailed(_token);
+    return _tokenAmount.mul(compound.assetPrices(_token)).mul(PRECISION).div(compound.assetPrices(DAI_ADDR).mul(10 ** uint256(t.decimals())));
   }
 }

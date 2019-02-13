@@ -1,47 +1,38 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
-import "./CompoundOrder.sol";
+import "./CompoundOrderLogic.sol";
 
-contract LongOrder is CompoundOrder {
-  constructor(
-    address _tokenAddr,
-    uint256 _cycleNumber,
-    uint256 _stake,
-    uint256 _collateralAmountInDAI,
-    uint256 _loanAmountInDAI
-  ) public CompoundOrder(_tokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, false) {}
-
+contract ShortOrderLogic is CompoundOrderLogic {
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(tokenAddr) {
     super.executeOrder(_minPrice, _maxPrice);
     
     // Ensure token's price is between _minPrice and _maxPrice
-    uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the longing token's price in ETH
+    uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the shorting token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound
     tokenPrice = __tokenToDAI(tokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
-    require(dai.transferFrom(owner(), this, collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
     require(dai.approve(COMPOUND_ADDR, 0)); // Clear DAI allowance of Compound
     require(dai.approve(COMPOUND_ADDR, collateralAmountInDAI)); // Approve DAI transfer to Compound
 
-    // Convert received DAI to longing token
-    (,uint256 actualTokenAmount) = __sellDAIForToken(collateralAmountInDAI);
+    // Get loan from Compound in tokenAddr
+    uint256 loanAmountInToken = __daiToToken(tokenAddr, loanAmountInDAI);
+    require(compound.supply(DAI_ADDR, collateralAmountInDAI) == 0); // Transfer DAI into Compound as supply
+    require(compound.borrow(tokenAddr, loanAmountInToken) == 0);// Take out loan
+    require(compound.getAccountLiquidity(address(this)) > 0); // Ensure account liquidity is positive
 
-    // Get loan from Compound in DAI
-    require(compound.supply(tokenAddr, actualTokenAmount) == 0); // Transfer DAI into Compound as supply
-    require(compound.borrow(DAI_ADDR, loanAmountInDAI) == 0);// Take out loan
-    require(compound.getAccountLiquidity(this) > 0); // Ensure account liquidity is positive
+    // Convert loaned tokens to DAI
+    (uint256 actualDAIAmount,) = __sellTokenForDAI(loanAmountInToken);
+    loanAmountInDAI = actualDAIAmount; // Change loan amount to actual DAI received
 
-    // Convert borrowed DAI to longing token
-    __sellDAIForToken(loanAmountInDAI);
-
-    // Repay leftover DAI to avoid complications
-    if (dai.balanceOf(this) > 0) {
-      uint256 repayAmount = dai.balanceOf(this);
-      require(dai.approve(COMPOUND_ADDR, 0));
-      require(dai.approve(COMPOUND_ADDR, repayAmount));
-      require(compound.repayBorrow(DAI_ADDR, repayAmount) == 0);
+    // Repay leftover tokens to avoid complications
+    if (token.balanceOf(address(this)) > 0) {
+      uint256 repayAmount = token.balanceOf(address(this));
+      require(token.approve(COMPOUND_ADDR, 0));
+      require(token.approve(COMPOUND_ADDR, repayAmount));
+      require(compound.repayBorrow(tokenAddr, repayAmount) == 0);
     }
   }
 
@@ -56,21 +47,21 @@ contract LongOrder is CompoundOrder {
     isSold = true;
 
     // Ensure price is within range provided by user
-    uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the longing token's price in ETH
+    uint256 tokenPrice = compound.assetPrices(tokenAddr); // Get the shorting token's price in ETH
     tokenPrice = __tokenToDAI(tokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
-    
+
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = compound.getBorrowBalance(this, dai);
+      uint256 currentDebt = __tokenToDAI(tokenAddr, compound.getBorrowBalance(address(this), tokenAddr));
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = __tokenToDAI(tokenAddr, token.balanceOf(this));
+      uint256 currentBalance = dai.balanceOf(address(this));
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -84,33 +75,28 @@ contract LongOrder is CompoundOrder {
       repayLoan(repayAmount);
 
       // Withdraw all available liquidity
-      require(compound.withdraw(tokenAddr, uint256(-1)) == 0);
+      require(compound.withdraw(DAI_ADDR, uint256(-1)) == 0);
     }
-
-    // Sell all longing token to DAI
-    __sellTokenForDAI(token.balanceOf(this));
 
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
-    _outputAmount = dai.balanceOf(this);
-    require(dai.transfer(owner(), dai.balanceOf(this)));
-    require(token.transfer(owner(), token.balanceOf(this))); // Send back potential leftover tokens
+    _outputAmount = dai.balanceOf(address(this));
+    require(dai.transfer(owner(), dai.balanceOf(address(this))));
   }
 
   // Allows manager to repay loan to avoid liquidation
   function repayLoan(uint256 _repayAmountInDAI) public onlyOwner isValidToken(tokenAddr) isInitialized {
-    // Convert longing token to DAI
-    uint256 repayAmountInToken = __daiToToken(tokenAddr, _repayAmountInDAI);
-    (uint256 actualDAIAmount,) = __sellTokenForDAI(repayAmountInToken);
+    // Convert DAI to shorting token
+    (,uint256 actualTokenAmount) = __sellDAIForToken(_repayAmountInDAI);
 
     // Repay loan to Compound
-    require(dai.approve(COMPOUND_ADDR, 0));
-    require(dai.approve(COMPOUND_ADDR, actualDAIAmount));
-    require(compound.repayBorrow(DAI_ADDR, actualDAIAmount) == 0);
+    require(token.approve(COMPOUND_ADDR, 0));
+    require(token.approve(COMPOUND_ADDR, actualTokenAmount));
+    require(compound.repayBorrow(tokenAddr, actualTokenAmount) == 0);
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    uint256 borrowBalance = compound.getBorrowBalance(this, DAI_ADDR);
+    uint256 borrowBalance = __tokenToDAI(tokenAddr, compound.getBorrowBalance(address(this), tokenAddr));
     if (loanAmountInDAI >= borrowBalance) {
       return (false, loanAmountInDAI.sub(borrowBalance));
     } else {
@@ -119,8 +105,8 @@ contract LongOrder is CompoundOrder {
   }
 
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    uint256 supply = __tokenToDAI(tokenAddr, compound.getSupplyBalance(this, tokenAddr));
-    uint256 borrow = compound.getBorrowBalance(this, DAI_ADDR);
+    uint256 supply = compound.getSupplyBalance(address(this), DAI_ADDR);
+    uint256 borrow = __tokenToDAI(tokenAddr, compound.getBorrowBalance(address(this), tokenAddr));
     return supply.mul(PRECISION).div(borrow);
   }
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.5.0;
 
 contract Compound {
   uint public collateralRatio;
@@ -9,6 +9,5 @@ contract Compound {
   function getAccountLiquidity(address account) view public returns (int);
   function getSupplyBalance(address account, address asset) view public returns (uint);
   function getBorrowBalance(address account, address asset) view public returns (uint);
-  function liquidateBorrow(address targetAccount, address assetBorrow, address assetCollateral, uint requestedAmountClose) public returns (uint);
   function assetPrices(address asset) public view returns (uint);
 }

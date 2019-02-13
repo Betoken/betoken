@@ -1,18 +1,15 @@
 language: node_js
 node_js:
-- '8'
+- '10'
 sudo: enabled
 
 install:
   - cd eth
   - npm install
-  - npm install -g truffle@4.1.15
-  - npm install -g ganache-cli
-  - npm uninstall ethereumjs-wallet
-  - npm uninstall truffle-hdwallet-provider
-  - npm install ethereumjs-wallet@0.6.0
-  - npm install truffle-hdwallet-provider@0.0.3
+  - npm install -g truffle
+  - npm install -g ganache-cli@6.2.5
 
 script:
-  - ganache-cli &> /dev/null &
-  - truffle test
+  - ganache-cli -l 7000000 &> /dev/null &
+  - truffle compile &> /dev/null &
+  - truffle test --network development
