@@ -13,7 +13,7 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0)
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
 
-  // Instance variables
+  // Instance variables 
   uint256 public stake;
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
