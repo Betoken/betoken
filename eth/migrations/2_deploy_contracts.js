@@ -34,7 +34,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, ShareToken, TestCompound, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, betokenProxy, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, minimeFactory, ref, ref1, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var COMPOUND_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, ShareToken, TestCompound, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, minimeFactory, ref, ref1, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
           // Local testnet migration
@@ -112,10 +112,9 @@
           await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenLogic.address);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
-          await deployer.deploy(BetokenProxy, betokenFund.address);
-          betokenProxy = (await BetokenProxy.deployed());
+          await deployer.deploy(BetokenProxy, BetokenFund.address);
           // set proxy address in BetokenFund
-          await betokenFund.setProxy(betokenProxy.address);
+          await betokenFund.setProxy(BetokenProxy.address);
           await ControlToken.transferOwnership(betokenFund.address);
           return (await ShareToken.transferOwnership(betokenFund.address));
         case "mainnet":
@@ -125,22 +124,36 @@
           KAIRO_ADDR = "0x0532894d50c8f6D51887f89eeF853Cc720D7ffB4";
           KYBER_ADDR = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
           DAI_ADDR = "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359";
+          COMPOUND_ADDR = "0x3FDA67f7583380E67ef93072294a7fAc882FD7E7";
           DEVELOPER_ACCOUNT = "0x332d87209f7c8296389c307eae170c2440830a47";
           // deploy Betoken Shares contracts
           await deployer.deploy(MiniMeTokenFactory);
           minimeFactory = (await MiniMeTokenFactory.deployed());
           ShareToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr);
-          // deploy BetokenProxy contract
-
+          // deploy ShortOrderLogic
+          await deployer.deploy(ShortOrderLogic);
+          
+          // deploy LongOrderLogic
+          await deployer.deploy(LongOrderLogic);
+          // deploy CompoundOrderFactory
+          await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR);
+          // deploy BetokenLogic
+          await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, KAIRO_ADDR, ShareToken.address, KYBER_ADDR, DAI_ADDR, BetokenProxy.address, DEVELOPER_ACCOUNT, config.phaseLengths, config.commissionRate, config.assetFeeRate, config.developerFeeRate, config.exitFeeRate, config.functionCallReward, 0, 0, "0x0");
+          await deployer.deploy(BetokenFund, KAIRO_ADDR, ShareToken.address, DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR, CompoundOrderFactory.address, BetokenLogic.address);
+          // deploy BetokenProxy contract
+          await deployer.deploy(BetokenProxy, BetokenFund.address);
+          // set proxy address in BetokenFund
+          await betokenFund.setProxy(BetokenProxy.address);
           // transfer ShareToken ownership to BetokenFund
           await ShareToken.transferOwnership(BetokenFund.address);
-          // transfer fund ownership to developer
+          // transfer fund ownership to developer multisig
           fund = (await BetokenFund.deployed());
           return (await fund.transferOwnership(DEVELOPER_ACCOUNT));
       }
     });
   };
+
+  // IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract
 
 }).call(this);
