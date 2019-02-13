@@ -838,11 +838,151 @@ contract("developer_initiated_upgrade", (accounts) ->
     await this.fund.developerInitiateUpgrade(accounts[1], {from: owner})
     assert.equal(await this.fund.nextVersion.call(), accounts[1], "next version not set")
 
+    # next phase
+    this.fund = await FUND(4, 1, owner)
+
+    # check if upgrade voting is active
+    assert(await this.fund.upgradeVotingActive.call(), "upgrade voting not active")
+
     # jump to the next cycle to finalize next version
     this.fund = await FUND(5, 0, owner)
 
     # ensure next version is finalized
     assert(await this.fund.hasFinalizedNextVersion.call(), "next version not finalized")
+  )
+
+  it("migrate_to_next_version", () ->
+    dai = await DAI(this.fund)
+
+    # let account[3] withdraw their deposit
+    await this.fund.withdrawDAI(bnToString(depositAmount * 0.75), {from: accounts[3]})
+
+    # jump to end of intermission
+    await timeTravel(3 * DAY + 10)
+
+    # migrate
+    await this.fund.migrateOwnedContractsToNextVersion({from: accounts[2]})
+    await this.fund.transferAssetToNextVersion(dai.address, {from: accounts[1]})
+
+    # check balances
+    assert(BigNumber(await dai.balanceOf(accounts[1])).toNumber() >= depositAmount * 2.2, "didn't transfer assets to account[1]")
+
+    # check BetokenProxy
+    proxy = await BetokenProxy.deployed()
+    assert.equal(await proxy.betokenFundAddress.call(), accounts[1], "BetokenFund address incorrect in BetokenProxy")
+  )
+)
+
+contract("community_overrides_developer_upgrade", (accounts) ->
+  owner = accounts[0]
+  kroAmounts = [3 * PRECISION, 10 * PRECISION, 20 * PRECISION, 5 * PRECISION]
+  depositAmount = 10 * PRECISION
+
+  it("prep_work", () ->
+    this.fund = await FUND(1, 0, owner) # Starts in Intermission phase
+    dai = await DAI(this.fund)
+
+    # register managers
+    for i in [1..3]
+      await this.fund.registerWithETH(ZERO_ADDR, {from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
+
+    # deposit funds
+    for i in [1..3]
+      await dai.mint(accounts[i], bnToString(depositAmount), {from: owner}) # Mint DAI
+      await dai.approve(this.fund.address, bnToString(depositAmount), {from: accounts[i]}) # Approve transfer
+      await this.fund.depositDAI(bnToString(depositAmount), {from: accounts[i]}) # Deposit for account
+
+    # move to the 4th cycle (due to the cooldown period after deployment)
+    this.fund = await FUND(4, 0, owner)
+  )
+
+  it("initiate_upgrade", () ->
+    await this.fund.developerInitiateUpgrade(accounts[3], {from: owner})
+    assert.equal(await this.fund.nextVersion.call(), accounts[3], "next version not set")
+
+    # next phase
+    this.fund = await FUND(4, 1, owner)
+
+    # check if upgrade voting is active
+    assert(await this.fund.upgradeVotingActive.call(), "upgrade voting not active")
+  )
+
+  it("make_first_proposal", () ->
+    chunkNum = 1
+
+    # wait till chunk 1
+    await timeTravel(3 * DAY)
+
+    # account 1 propose account 1 as candidate
+    await this.fund.proposeCandidate(chunkNum, accounts[1], {from: accounts[1]})
+
+    # account 2 propose current contract as candidate
+    await this.fund.proposeCandidate(chunkNum, this.fund.address, {from: accounts[2]})
+
+    # account 3 unsuccessfully challeng candidate
+    assert(await this.fund.proposeCandidate.call(chunkNum, accounts[3], {from: accounts[3]}) == false, "account3 successfully challenged candidate")
+
+    # wait till second subchunk
+    await timeTravel(1 * DAY)
+
+    # check candidate
+    candidate = await this.fund.candidates.call(chunkNum - 1)
+    assert.equal(candidate, this.fund.address, "candidate incorrect")
+  )
+
+  it("reject_first_proposal", () ->
+    chunkNum = 1
+
+    # account 1 and owner support proporal, account 3 rejects it
+    await this.fund.voteOnCandidate(chunkNum, true, {from: accounts[1]})
+    await this.fund.voteOnCandidate(chunkNum, true, {from: owner})
+    await this.fund.voteOnCandidate(chunkNum, false, {from: accounts[3]})
+
+    # wait till next chunk
+    # the 10 is just to make sure it actually goes to the next chunk
+    # instead of some weird border condition
+    await timeTravel(2 * DAY + 10)
+
+    # ensure vote can't be finalized
+    assert((await this.fund.finalizeSuccessfulVote.call(chunkNum)) == false, "unsuccessful vote finalized")
+  )
+
+  it("make_second_proposal", () ->
+    chunkNum = 2
+
+    # account 1 propose account 1 as candidate
+    # using accounts[1] here instead of creating a new BetokenFund
+    # because I'm lazy
+    await this.fund.proposeCandidate(chunkNum, accounts[1], {from: accounts[1]})
+
+    # wait till second subchunk
+    await timeTravel(1 * DAY)
+
+    # check candidate
+    candidate = await this.fund.candidates.call(chunkNum - 1)
+    assert.equal(candidate, accounts[1], "candidate incorrect")
+  )
+
+  it("accept_second_proposal", () ->
+    chunkNum = 2
+
+    # account 3 and owner support proporal
+    await this.fund.voteOnCandidate(chunkNum, true, {from: owner})
+    await this.fund.voteOnCandidate(chunkNum, true, {from: accounts[3]})
+
+    # wait till next chunk
+    await timeTravel(2 * DAY)
+
+    # finalize successful vote
+    await this.fund.finalizeSuccessfulVote(chunkNum, {from: accounts[2]})
+
+    # go to next cycle
+    this.fund = await FUND(5, 0, owner)
+
+    # check if next version is finalized
+    assert(await this.fund.hasFinalizedNextVersion.call(), "next version not finalized")
+    # check if the next version is accounts[1]
+    assert.equal(await this.fund.nextVersion.call(), accounts[1], "next version incorrect")
   )
 
   it("migrate_to_next_version", () ->
