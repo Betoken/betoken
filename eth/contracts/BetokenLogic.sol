@@ -103,7 +103,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    * @return True if successfully changed candidate, false otherwise.
    */
   function developerInitiateUpgrade(address payable _candidate) public returns (bool _success) {
-    if (_candidate == address(0) || _candidate == address(this)) {
+    if (_candidate == address(0) || _candidate == address(this) || !__isMature()) {
       return false;
     }
     nextVersion = _candidate;
@@ -120,6 +120,10 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    * @return True if successfully changed signal, false if no changes were made.
    */
   function signalUpgrade(bool _inSupport) public returns (bool _success) {
+    if (!__isMature()) {
+      return false;
+    }
+
     if (upgradeSignal[cycleNumber][msg.sender] == false) {
       if (_inSupport == true) {
         upgradeSignal[cycleNumber][msg.sender] = true;
@@ -150,7 +154,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
-      upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0)) {
+      upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0) || !__isMature()) {
       return false;
     }
 
@@ -185,7 +189,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    */
   function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public returns (bool _success) {
     // Input & state check
-    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false) {
+    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false || !__isMature()) {
       return false;
     }
 
@@ -225,7 +229,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    */
   function finalizeSuccessfulVote(uint256 _chunkNumber) public returns (bool _success) {
     // Input & state check
-    if (!__isValidChunk(_chunkNumber)) {
+    if (!__isValidChunk(_chunkNumber) || !__isMature()) {
       return false;
     }
 
@@ -251,6 +255,10 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     nextVersion = candidates[_chunkNumber.sub(1)];
     hasFinalizedNextVersion = true;
     return true;
+  }
+
+  function __isMature() internal view returns (bool) {
+    return cycleNumber > CYCLES_TILL_MATURITY;
   }
 
   function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {
@@ -291,14 +299,14 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   }
 
   function getVotingWeight(address _of) public view returns (uint256 _weight) {
-    if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
+    if (!__isMature() || _of == address(0)) {
       return 0;
     }
     return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
   }
 
   function getTotalVotingWeight() public view returns (uint256 _weight) {
-    if (cycleNumber <= CYCLES_TILL_MATURITY) {
+    if (!__isMature()) {
       return 0;
     }
     return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]).sub(proposersVotingWeight);

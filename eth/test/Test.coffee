@@ -810,3 +810,59 @@ contract("community_initiated_upgrade", (accounts) ->
     assert.equal(await proxy.betokenFundAddress.call(), accounts[1], "BetokenFund address incorrect in BetokenProxy")
   )
 )
+
+contract("developer_initiated_upgrade", (accounts) ->
+  owner = accounts[0]
+  kroAmounts = [3 * PRECISION, 10 * PRECISION, 20 * PRECISION, 5 * PRECISION]
+  depositAmount = 10 * PRECISION
+
+  it("prep_work", () ->
+    this.fund = await FUND(1, 0, owner) # Starts in Intermission phase
+    dai = await DAI(this.fund)
+
+    # register managers
+    for i in [1..3]
+      await this.fund.registerWithETH(ZERO_ADDR, {from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
+
+    # deposit funds
+    for i in [1..3]
+      await dai.mint(accounts[i], bnToString(depositAmount), {from: owner}) # Mint DAI
+      await dai.approve(this.fund.address, bnToString(depositAmount), {from: accounts[i]}) # Approve transfer
+      await this.fund.depositDAI(bnToString(depositAmount), {from: accounts[i]}) # Deposit for account
+
+    # move to the 4th cycle (due to the cooldown period after deployment)
+    this.fund = await FUND(4, 0, owner)
+  )
+
+  it("initiate_upgrade", () ->
+    await this.fund.developerInitiateUpgrade(accounts[1], {from: owner})
+    assert.equal(await this.fund.nextVersion.call(), accounts[1], "next version not set")
+
+    # jump to the next cycle to finalize next version
+    this.fund = await FUND(5, 0, owner)
+
+    # ensure next version is finalized
+    assert(await this.fund.hasFinalizedNextVersion.call(), "next version not finalized")
+  )
+
+  it("migrate_to_next_version", () ->
+    dai = await DAI(this.fund)
+
+    # let account[3] withdraw their deposit
+    await this.fund.withdrawDAI(bnToString(depositAmount * 0.75), {from: accounts[3]})
+
+    # jump to end of intermission
+    await timeTravel(3 * DAY + 10)
+
+    # migrate
+    await this.fund.migrateOwnedContractsToNextVersion({from: accounts[2]})
+    await this.fund.transferAssetToNextVersion(dai.address, {from: accounts[1]})
+
+    # check balances
+    assert(BigNumber(await dai.balanceOf(accounts[1])).toNumber() >= depositAmount * 2.2, "didn't transfer assets to account[1]")
+
+    # check BetokenProxy
+    proxy = await BetokenProxy.deployed()
+    assert.equal(await proxy.betokenFundAddress.call(), accounts[1], "BetokenFund address incorrect in BetokenProxy")
+  )
+)
