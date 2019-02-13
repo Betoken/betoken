@@ -55,6 +55,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     _;
   }
 
+  // Fund parameters
   uint256 public constant COMMISSION_RATE = 20 * (10 ** 16); // The proportion of profits that gets distributed to Kairo holders every cycle.
   uint256 public constant ASSET_FEE_RATE = 1 * (10 ** 15); // The proportion of fund balance that gets distributed to Kairo holders every cycle.
   uint256 public constant NEXT_PHASE_REWARD = 1 * (10 ** 18); // Amount of Kairo rewarded to the user who calls nextPhase().
@@ -69,6 +70,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant CYCLES_TILL_MATURITY = 3;
   uint256 public constant QUORUM = 10 * (10 ** 16); // 10% quorum
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
+
+  // Instance variables
 
   // Address of the Kairo token contract.
   address public controlTokenAddr;
@@ -151,6 +154,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   IMiniMeToken internal sToken;
   BetokenProxy internal proxy;
 
+  // Events
+
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
 
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
@@ -212,6 +217,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     sToken = IMiniMeToken(_sTokenAddr);
   }
 
+  /**
+   * @notice Used during deployment to set the BetokenProxy contract address.
+   * @param _proxyAddr the proxy's address
+   */
   function setProxy(address _proxyAddr) public onlyOwner {
     require(_proxyAddr != address(0));
     require(proxyAddr == address(0));
@@ -285,12 +294,20 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return abi.decode(result, (bool));
   }
 
+  /**
+   * @notice Transfers ownership of Kairo & Share token contracts to the next version. Also updates BetokenFund's
+   *         address in BetokenProxy.
+   */
   function migrateOwnedContractsToNextVersion() public nonReentrant readyForUpgradeMigration {
     cToken.transferOwnership(nextVersion);
     sToken.transferOwnership(nextVersion);
     proxy.updateBetokenFundAddress();
   }
 
+  /**
+   * @notice Transfers assets to the next version.
+   * @param _assetAddress the address of the asset to be transferred. Use ETH_TOKEN_ADDRESS to transfer Ether.
+   */
   function transferAssetToNextVersion(address _assetAddress) public nonReentrant readyForUpgradeMigration isValidToken(_assetAddress) {
     if (_assetAddress == address(ETH_TOKEN_ADDRESS)) {
       nextVersion.transfer(address(this).balance);
@@ -354,6 +371,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
   }
 
+  /**
+   * @notice Calculates an account's voting weight based on their Kairo balance
+   *         3 cycles ago
+   * @param _of the account to be queried
+   * @return The account's voting weight
+   */
   function getVotingWeight(address _of) public view returns (uint256 _weight) {
     if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
       return 0;
@@ -361,6 +384,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
   }
 
+  /**
+   * @notice Calculates the total voting weight based on the total Kairo supply
+   *         3 cycles ago. The weights of proposers are deducted.
+   * @return The total voting weight right now
+   */
   function getTotalVotingWeight() public view returns (uint256 _weight) {
     if (cycleNumber <= CYCLES_TILL_MATURITY) {
       return 0;
@@ -418,6 +446,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * Manager registration
    */
 
+  /**
+   * @notice Calculates the current price of Kairo. The price is equal to the amount of DAI each Kairo
+   *         can control, and it's kept above MIN_KRO_PRICE.
+   * @return Kairo's current price
+   */
   function kairoPrice() public view returns (uint256 _kairoPrice) {
     if (cToken.totalSupply() == 0) {return MIN_KRO_PRICE;}
     uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
@@ -428,18 +461,37 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return controlPerKairo;
   }
 
+  /**
+   * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
+   * @param _donationInDAI the amount of DAI to be used for registration
+   * @param _referrer the manager who referred the sender
+   */
   function registerWithDAI(uint256 _donationInDAI, address _referrer) public nonReentrant {
     (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI, _referrer));
     if (!success) { revert(); }
   }
 
-
+  /**
+   * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
+   * @param _referrer the manager who referred the sender
+   */
   function registerWithETH(address _referrer) public payable nonReentrant {
     (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector, _referrer));
     if (!success) { revert(); }
   }
 
-  // _donationInTokens should use the token's precision
+  /**
+   * @notice Registers `msg.sender` as a manager, using tokens as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
+   * @param _token the token to be used for payment
+   * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
+   * @param _referrer the manager who referred the sender
+   */
   function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public nonReentrant {
     (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens, _referrer));
     if (!success) { revert(); }
@@ -630,7 +682,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Redeems commission in shares.
+   * @notice Redeems commission in Betoken shares.
    */
   function redeemCommissionInShares()
     public
@@ -647,7 +699,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough demand. Callable by anyone. Money goes to developer.
+   * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough volume. Callable by anyone. Money goes to developer.
    * @param _tokenAddr address of the token to be sold
    */
   function sellLeftoverToken(address _tokenAddr)
@@ -661,6 +713,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     dai.transfer(developerFeeAccount, actualDAIReceived);
   }
 
+  /**
+   * @notice Sells CompoundOrder left over due to manager not selling or KyberNetwork not having enough volume. Callable by anyone. Money goes to developer.
+   * @param _orderAddress address of the CompoundOrder to be sold
+   */
   function sellLeftoverCompoundOrder(address _orderAddress)
     public
     nonReentrant
@@ -727,10 +783,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   /**
    * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
+   *         The user can sell only part of the investment by changing _tokenAmount.
    * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
    *   the original buy price and however much tokens that are not sold.
    * @param _investmentId the ID of the investment
-   * @param _tokenAmount the amount of tokens to be sold
+   * @param _tokenAmount the amount of tokens to be sold.
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
    */
@@ -796,8 +853,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
   }
 
+  /**
+   * @notice Creates a new Compound order to either short or leverage long a token.
+   * @param _orderType true for a short order, false for a levarage long order
+   * @param _tokenAddress address of the token to be traded
+   * @param _stake amount of Kairos to be staked
+   * @param _minPrice the minimum token price for the trade
+   * @param _maxPrice the maximum token price for the trade
+   */
   function createCompoundOrder(
-    bool _orderType, // True for shorting, false for longing
+    bool _orderType,
     address _tokenAddress,
     uint256 _stake,
     uint256 _minPrice,
@@ -829,6 +894,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
   }
 
+  /**
+   * @notice Sells a compound order
+   * @param _orderId the ID of the order to be sold (index in userCompoundOrders[msg.sender])
+   * @param _minPrice the minimum token price for the trade
+   * @param _maxPrice the maximum token price for the trade
+   */
   function sellCompoundOrder(
     uint256 _orderId,
     uint256 _minPrice,
@@ -858,6 +929,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.tokenAddr(), receiveKairoAmount, outputAmount);
   }
 
+  /**
+   * @notice Repys debt for a Compound order to prevent the collateral ratio from dropping below threshold.
+   * @param _orderId the ID of the Compound order
+   * @param _repayAmountInDAI amount of DAI to use for repaying debt
+   */
   function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
     // Load order info
     require(userCompoundOrders[msg.sender][_orderId] != address(0));
@@ -910,6 +986,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     return true;
   }
 
+  /**
+   * @notice Handles deposits by minting Betoken Shares & updating total funds.
+   * @param _depositDAIAmount The amount of the deposit in DAI
+   */
   function __deposit(uint256 _depositDAIAmount) internal {
     // Register investment and give shares
     if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
@@ -920,12 +1000,20 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
   }
 
+  /**
+   * @notice Handles deposits by burning Betoken Shares & updating total funds.
+   * @param _withdrawDAIAmount The amount of the withdrawal in DAI
+   */
   function __withdraw(uint256 _withdrawDAIAmount) internal {
     // Burn Shares
     sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI));
     totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
   }
 
+  /**
+   * @notice Handles commission redemptions. Updates the related variables.
+   * @return the amount of commission to be redeemed
+   */
   function __redeemCommission() internal returns (uint256 _commission) {
     require(lastCommissionRedemption[msg.sender] < cycleNumber);
 

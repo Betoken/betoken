@@ -55,6 +55,11 @@ contract Utils {
     compound = Compound(_compoundAddr);
   }
 
+  /**
+   * @notice Get the number of decimals of a token
+   * @param _token the token to be queried
+   * @return number of decimals
+   */
   function getDecimals(ERC20Detailed _token) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
       return uint256(ETH_DECIMALS);
@@ -62,6 +67,12 @@ contract Utils {
     return uint256(_token.decimals());
   }
 
+  /**
+   * @notice Get the token balance of an account
+   * @param _token the token to be queried
+   * @param _addr the account whose balance will be returned
+   * @return token balance of the account
+   */
   function getBalance(ERC20Detailed _token, address _addr) internal view returns(uint256) {
     if (address(_token) == address(ETH_TOKEN_ADDRESS)) {
       return uint256(_addr.balance);
@@ -69,6 +80,15 @@ contract Utils {
     return uint256(_token.balanceOf(_addr));
   }
 
+  /**
+   * @notice Calculates the rate of a trade. The rate is the price of the source token in the dest token, in 18 decimals.
+   *         Note: the rate is on the token level, not the wei level, so for example if 1 Atoken = 10 Btoken, then the rate
+   *         from A to B is 10 * 10**18, regardless of how many decimals each token uses.
+   * @param srcAmount amount of source token
+   * @param destAmount amount of dest token
+   * @param srcDecimals decimals used by source token
+   * @param dstDecimals decimals used by dest token
+   */
   function calcRateFromQty(uint srcAmount, uint destAmount, uint srcDecimals, uint dstDecimals)
         internal pure returns(uint)
   {
@@ -89,7 +109,10 @@ contract Utils {
    * @param _srcToken the token to convert from
    * @param _srcAmount the amount of tokens to be converted
    * @param _destToken the destination token
-   * @return _destPriceInSrc the price of the destination token, in terms of source tokens
+   * @return _destPriceInSrc the price of the dest token, in terms of source tokens
+   *         _srcPriceInDest the price of the source token, in terms of dest tokens
+   *         _actualDestAmount actual amount of dest token traded
+   *         _actualSrcAmount actual amount of src token traded
    */
   function __kyberTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken)
     internal 
@@ -133,6 +156,11 @@ contract Utils {
     _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
   }
 
+  /**
+   * @notice Checks if an Ethereum account is a smart contract
+   * @param _addr the account to be checked
+   * @return True if the account is a smart contract, false otherwise
+   */
   function isContract(address _addr) view internal returns(bool) {
     uint size;
     if (_addr == address(0)) return false;

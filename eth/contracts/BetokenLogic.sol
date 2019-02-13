@@ -257,14 +257,28 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     return true;
   }
 
+  /**
+   * @notice Checks if the fund is mature enough for initiating an upgrade
+   * @return True if mature enough, false otherwise
+   */
   function __isMature() internal view returns (bool) {
     return cycleNumber > CYCLES_TILL_MATURITY;
   }
 
+  /**
+   * @notice Checks if a chunk number is valid
+   * @param _chunkNumber the chunk number to be checked
+   * @return True if valid, false otherwise
+   */
   function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {
     return _chunkNumber >= 1 && _chunkNumber <= 5;
   }
 
+  /**
+   * @notice Checks if a vote was successful
+   * @param _chunkNumber the chunk number of the vote
+   * @return True if successful, false otherwise
+   */
   function __voteSuccessful(uint256 _chunkNumber) internal view returns (bool _success) {
     if (!__isValidChunk(_chunkNumber)) {
       return false;
@@ -298,6 +312,12 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
   }
 
+  /**
+   * @notice Calculates an account's voting weight based on their Kairo balance
+   *         3 cycles ago
+   * @param _of the account to be queried
+   * @return The account's voting weight
+   */
   function getVotingWeight(address _of) public view returns (uint256 _weight) {
     if (!__isMature() || _of == address(0)) {
       return 0;
@@ -305,6 +325,11 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
   }
 
+  /**
+   * @notice Calculates the total voting weight based on the total Kairo supply
+   *         3 cycles ago. The weights of proposers are deducted.
+   * @return The total voting weight right now
+   */
   function getTotalVotingWeight() public view returns (uint256 _weight) {
     if (!__isMature()) {
       return 0;
@@ -398,6 +423,11 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    * Manager registration
    */
 
+  /**
+   * @notice Calculates the current price of Kairo. The price is equal to the amount of DAI each Kairo
+   *         can control, and it's kept above MIN_KRO_PRICE.
+   * @return Kairo's current price
+   */
   function kairoPrice() public view returns (uint256 _kairoPrice) {
     if (cToken.totalSupply() == 0) {return 0;}
     uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
@@ -408,11 +438,24 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     return controlPerKairo;
   }
 
+  /**
+   * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
+   * @param _donationInDAI the amount of DAI to be used for registration
+   * @param _referrer the manager who referred the sender
+   */
   function registerWithDAI(uint256 _donationInDAI, address _referrer) public {
     require(dai.transferFrom(msg.sender, address(this), _donationInDAI));
     __register(_donationInDAI, _referrer);
   }
 
+  /**
+   * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
+   * @param _referrer the manager who referred the sender
+   */
   function registerWithETH(address _referrer) public payable {
     uint256 receivedDAI;
 
@@ -429,7 +472,14 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     __register(receivedDAI, _referrer);
   }
 
-  // _donationInTokens should use the token's precision
+  /**
+   * @notice Registers `msg.sender` as a manager, using tokens as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
+   * @param _token the token to be used for payment
+   * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
+   * @param _referrer the manager who referred the sender
+   */
   function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public {
     require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR);
     ERC20Detailed token = ERC20Detailed(_token);
@@ -451,6 +501,11 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     __register(receivedDAI, _referrer);
   }
 
+  /**
+   * @notice Registers `msg.sender` as a manager.
+   * @param _donationInDAI the amount of DAI to be used for registration
+   * @param _referrer the manager who referred the sender
+   */
   function __register(uint256 _donationInDAI, address _referrer) internal {
     require(_donationInDAI > 0 && _donationInDAI <= MAX_DONATION);
     require(_referrer != msg.sender);
