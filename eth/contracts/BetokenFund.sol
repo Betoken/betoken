@@ -39,6 +39,15 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
+   * @notice Passes if the token is not a stablecoin
+   * @param _token the token to be checked
+   */
+  modifier notStablecoin(address _token) {
+    require(!isStablecoin[_token]);
+    _;
+  }
+
+  /**
    * @notice Passes if the fund is ready for migrating to the next version
    */
   modifier readyForUpgradeMigration {
@@ -82,8 +91,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Address of the BetokenProxy contract.
   address public proxyAddr;
 
+  // Address of the CompoundOrderFactory contract.
   address public compoundFactoryAddr;
-  address public helpers;
+
+  // Address of the BetokenLogic contract.
+  address public betokenLogic;
 
   // Address to which the developer fees will be paid.
   address payable public developerFeeAccount;
@@ -132,6 +144,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // The block number at which the Manage phase ended for a given cycle
   mapping(uint256 => uint256) public managePhaseEndBlock;
+
+  // For checking if a token is a stablecoin
+  mapping(address => bool) public isStablecoin;
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -197,7 +212,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address payable _kyberAddr,
     address _compoundAddr,
     address _compoundFactoryAddr,
-    address _helperAddr
+    address _betokenLogic,
+    address[] memory _stableCoins
   )
     public
     Utils(_daiAddr, _kyberAddr, _compoundAddr)
@@ -210,8 +226,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     exitFeeRate = _exitFeeRate;
     cyclePhase = CyclePhase.Manage;
     compoundFactoryAddr = _compoundFactoryAddr;
-    helpers = _helperAddr;
+    betokenLogic = _betokenLogic;
     previousVersion = _previousVersion;
+    
+    for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
+      isStablecoin[_stableCoins[i]] = true;
+    }
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
@@ -239,7 +259,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully changed candidate, false otherwise.
    */
   function developerInitiateUpgrade(address payable _candidate) public during(CyclePhase.Intermission) onlyOwner notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.developerInitiateUpgrade.selector, _candidate));
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.developerInitiateUpgrade.selector, _candidate));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -252,7 +272,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully changed signal, false if no changes were made.
    */
   function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.signalUpgrade.selector, _inSupport));
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.signalUpgrade.selector, _inSupport));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -266,7 +286,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully proposed/changed candidate, false otherwise.
    */
   function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.proposeCandidate.selector, _chunkNumber, _candidate));
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.proposeCandidate.selector, _chunkNumber, _candidate));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -278,7 +298,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successfully changed vote, false otherwise.
    */
   function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.voteOnCandidate.selector, _chunkNumber, _inSupport));
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.voteOnCandidate.selector, _chunkNumber, _inSupport));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -289,7 +309,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return True if successful, false otherwise
    */
   function finalizeSuccessfulVote(uint256 _chunkNumber) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.finalizeSuccessfulVote.selector, _chunkNumber));
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.finalizeSuccessfulVote.selector, _chunkNumber));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -342,7 +362,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return the commission balance, denoted in DAI
    */
   function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
-     (bool success, bytes memory result) = helpers.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
+     (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
     if (!success) { return (0, 0); }
     return abi.decode(result, (uint256, uint256));
   }
@@ -437,7 +457,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   function nextPhase()
     public
   {
-    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
     if (!success) { revert(); }
   }
 
@@ -469,7 +489,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _referrer the manager who referred the sender
    */
   function registerWithDAI(uint256 _donationInDAI, address _referrer) public nonReentrant {
-    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI, _referrer));
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI, _referrer));
     if (!success) { revert(); }
   }
 
@@ -480,7 +500,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _referrer the manager who referred the sender
    */
   function registerWithETH(address _referrer) public payable nonReentrant {
-    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector, _referrer));
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector, _referrer));
     if (!success) { revert(); }
   }
 
@@ -493,7 +513,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _referrer the manager who referred the sender
    */
   function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public nonReentrant {
-    (bool success,) = helpers.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens, _referrer));
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens, _referrer));
     if (!success) { revert(); }
   }
 
@@ -752,6 +772,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     public
     nonReentrant
     isValidToken(_tokenAddress)
+    notStablecoin(_tokenAddress)
     during(CyclePhase.Manage)
   {
     require(_minPrice <= _maxPrice);
@@ -872,6 +893,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     nonReentrant
     during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
+    notStablecoin(_tokenAddress)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);

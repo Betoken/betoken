@@ -107,7 +107,8 @@ module.exports = (deployer, network, accounts) ->
           TestKyberNetwork.address,
           TestCompound.address,
           CompoundOrderFactory.address,
-          BetokenLogic.address
+          BetokenLogic.address,
+          [TestDAI.address]
         )
         betokenFund = await BetokenFund.deployed()
 
@@ -134,6 +135,17 @@ module.exports = (deployer, network, accounts) ->
         DAI_ADDR = "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
         COMPOUND_ADDR = "0x3FDA67f7583380E67ef93072294a7fAc882FD7E7"
         DEVELOPER_ACCOUNT = "0x332d87209f7c8296389c307eae170c2440830a47"
+        STABLECOINS = [
+          DAI_ADDR,
+          "0x0000000000085d4780B73119b644AE5ecd22b376", # TUSD
+          "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+          "0xdB25f211AB05b1c97D595516F45794528a807ad8", # EURS
+          "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+          "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd", # GUSD
+          "0x8E870D67F660D95d5be530380D0eC0bd388289E1", # PAX
+          "0x57Ab1E02fEE23774580C119740129eAC7081e9D3", # sUSD
+          "0xAbdf147870235FcFC34153828c769A70B3FAe01F" # EURT
+        ]
 
         # deploy Betoken Shares contracts
         await deployer.deploy(MiniMeTokenFactory)

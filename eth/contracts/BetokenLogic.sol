@@ -40,7 +40,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   address public shareTokenAddr;
   address public proxyAddr;
   address public compoundFactoryAddr;
-  address public helpers;
+  address public betokenLogic;
   address payable public developerFeeAccount;
   address payable public previousVersion;
   uint256 public cycleNumber;
@@ -57,6 +57,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   mapping(address => address[]) public userCompoundOrders;
   mapping(uint256 => uint256) public totalCommissionOfCycle;
   mapping(uint256 => uint256) public managePhaseEndBlock;
+  mapping(address => bool) public isStablecoin;
   CyclePhase public cyclePhase;
   bool public hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
   bool public upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
