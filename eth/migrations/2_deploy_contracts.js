@@ -34,7 +34,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var COMPOUND_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, ShareToken, TestCompound, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, minimeFactory, ref, ref1, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var COMPOUND_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, STABLECOINS, ShareToken, TestCompound, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, minimeFactory, ref, ref1, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
           // Local testnet migration
@@ -109,7 +109,7 @@
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenLogic.address);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenLogic.address, [TestDAI.address]);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
@@ -126,6 +126,17 @@
           DAI_ADDR = "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359";
           COMPOUND_ADDR = "0x3FDA67f7583380E67ef93072294a7fAc882FD7E7";
           DEVELOPER_ACCOUNT = "0x332d87209f7c8296389c307eae170c2440830a47";
+          STABLECOINS = [
+            DAI_ADDR,
+            "0x0000000000085d4780B73119b644AE5ecd22b376", // TUSD
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC
+            "0xdB25f211AB05b1c97D595516F45794528a807ad8", // EURS
+            "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT
+            "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd", // GUSD
+            "0x8E870D67F660D95d5be530380D0eC0bd388289E1", // PAX
+            "0x57Ab1E02fEE23774580C119740129eAC7081e9D3", // sUSD
+            "0xAbdf147870235FcFC34153828c769A70B3FAe01F" // EURT
+          ];
           // deploy Betoken Shares contracts
           await deployer.deploy(MiniMeTokenFactory);
           minimeFactory = (await MiniMeTokenFactory.deployed());
