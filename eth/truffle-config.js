@@ -35,8 +35,6 @@ module.exports = {
   },
   compilers: {
     solc: {
-      version: "0.5.0", // A version or constraint - Ex. "^0.5.0"
-                         // Can also be set to "native" to use a native solc
       settings: {
         optimizer: {
           enabled: true,
