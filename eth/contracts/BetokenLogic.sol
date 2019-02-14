@@ -522,7 +522,8 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     baseRiskStakeFallback[msg.sender] = kroAmount;
 
     // mint KRO for referral program
-    if (_referrer != address(0) && cToken.balanceOf(_referrer) > 0) {
+    // skip for Manage phase since it would mess up the Kairo-DAI peg
+    if (_referrer != address(0) && cToken.balanceOf(_referrer) > 0 && cyclePhase == CyclePhase.Intermission) {
       uint256 bonusAmount = kroAmount.mul(REFERRAL_BONUS).div(PRECISION);
       baseRiskStakeFallback[msg.sender] = baseRiskStakeFallback[msg.sender].add(bonusAmount);
       require(cToken.generateTokens(msg.sender, bonusAmount));
