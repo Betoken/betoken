@@ -113,7 +113,7 @@ contract("first_cycle", (accounts) ->
     amount = 10 * PRECISION
 
     # register account[1] using ETH
-    await this.fund.registerWithETH(ZERO_ADDR, {from: account, value: await calcRegisterPayAmount(this.fund, amount, ETH_PRICE)})
+    await this.fund.registerWithETH({from: account, value: await calcRegisterPayAmount(this.fund, amount, ETH_PRICE)})
 
     # mint DAI for account[2]
     daiAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, DAI_PRICE))
@@ -121,20 +121,20 @@ contract("first_cycle", (accounts) ->
 
     # register account[2]
     await dai.approve(this.fund.address, daiAmount, {from: account2})
-    await this.fund.registerWithDAI(daiAmount, ZERO_ADDR, {from: account2})
+    await this.fund.registerWithDAI(daiAmount, {from: account2})
 
     # mint OMG tokens for account[3]
     omgAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, OMG_PRICE))
     await token.mint(account3, omgAmount, {from: owner})
 
-    # register account[3] with account[2] as referrer
+    # register account[3]
     await token.approve(this.fund.address, omgAmount, {from: account3})
-    await this.fund.registerWithToken(token.address, omgAmount, account2, {from: account3})
+    await this.fund.registerWithToken(token.address, omgAmount, {from: account3})
 
     # check Kairo balances
     assert(epsilon_equal(amount, await kro.balanceOf.call(account)), "account 1 Kairo amount incorrect")
-    assert(epsilon_equal(amount * 1.1, await kro.balanceOf.call(account2)), "account 2 Kairo amount incorrect")
-    assert(epsilon_equal(amount * 1.1, await kro.balanceOf.call(account3)), "account 3 Kairo amount incorrect")
+    assert(epsilon_equal(amount, await kro.balanceOf.call(account2)), "account 2 Kairo amount incorrect")
+    assert(epsilon_equal(amount, await kro.balanceOf.call(account3)), "account 3 Kairo amount incorrect")
   )
 
   it("deposit_dai", () ->
@@ -269,7 +269,7 @@ contract("first_cycle", (accounts) ->
 
     # buy token
     amount = 10 * PRECISION
-    await this.fund.createInvestment(token.address, bnToString(amount), 0, MAX_PRICE, {from: account, gasPrice: 0})
+    await this.fund.createInvestment(token.address, bnToString(amount), 0, MAX_PRICE, {from: account})
 
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account)
@@ -283,8 +283,7 @@ contract("first_cycle", (accounts) ->
 
     # create investment for account2
     account2 = accounts[2]
-    amount2 = amount * 1.1
-    await this.fund.createInvestment(token.address, bnToString(amount2), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    await this.fund.createInvestment(token.address, bnToString(amount), 0, MAX_PRICE, {from: account2})
   )
 
   it("sell_investment", () ->
@@ -300,7 +299,7 @@ contract("first_cycle", (accounts) ->
 
     # sell investment
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, 0)).tokenAmount)
-    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount), 0, MAX_PRICE, {from: account, gasPrice: 0})
+    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount), 0, MAX_PRICE, {from: account})
 
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account)
@@ -315,8 +314,8 @@ contract("first_cycle", (accounts) ->
     account2 = accounts[2]
     await timeTravel(6 * DAY)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account2, 0)).tokenAmount)
-    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2, gasPrice: 0})
-    await this.fund.sellInvestmentAsset(1, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2})
+    await this.fund.sellInvestmentAsset(1, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2})
   )
 
   it("create_compound_orders", () ->
@@ -331,7 +330,7 @@ contract("first_cycle", (accounts) ->
 
     # create short order
     amount = 1 * PRECISION
-    await this.fund.createCompoundOrder(true, token.address, bnToString(amount), 0, MAX_PRICE, {from: account, gasPrice: 0})
+    await this.fund.createCompoundOrder(true, token.address, bnToString(amount), 0, MAX_PRICE, {from: account})
     shortOrder = await CO(this.fund, account, 0)
 
     # check KRO balance
@@ -345,7 +344,7 @@ contract("first_cycle", (accounts) ->
 
     # create long order for account2
     account2 = accounts[2]
-    await this.fund.createCompoundOrder(false, token.address, bnToString(amount), 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    await this.fund.createCompoundOrder(false, token.address, bnToString(amount), 0, MAX_PRICE, {from: account2})
   )
 
   it("sell_compound_orders", () ->
@@ -362,7 +361,7 @@ contract("first_cycle", (accounts) ->
 
     # sell short order
     shortOrder = await CO(this.fund, account, 0)
-    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account, gasPrice: 0})
+    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account})
 
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account)
@@ -380,7 +379,7 @@ contract("first_cycle", (accounts) ->
 
     # sell account2's long order
     longOrder = await CO(this.fund, account2, 0)
-    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account2, gasPrice: 0})
+    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account2})
 
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account2)
@@ -461,7 +460,7 @@ contract("price_changes", (accounts) ->
     dai = await DAI(this.fund)
 
     kroAmount = 10 * PRECISION
-    await this.fund.registerWithETH(ZERO_ADDR, {from: account, value: await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE)})
+    await this.fund.registerWithETH({from: account, value: await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE)})
 
     amount = 10 * PRECISION
     await dai.mint(account, bnToString(amount), {from: owner}) # Mint DAI
@@ -678,7 +677,7 @@ contract("community_initiated_upgrade", (accounts) ->
 
     # register managers
     for i in [1..3]
-      await this.fund.registerWithETH(ZERO_ADDR, {from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
+      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
 
     # deposit funds
     for i in [1..3]
@@ -822,7 +821,7 @@ contract("developer_initiated_upgrade", (accounts) ->
 
     # register managers
     for i in [1..3]
-      await this.fund.registerWithETH(ZERO_ADDR, {from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
+      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
 
     # deposit funds
     for i in [1..3]
@@ -884,7 +883,7 @@ contract("community_overrides_developer_upgrade", (accounts) ->
 
     # register managers
     for i in [1..3]
-      await this.fund.registerWithETH(ZERO_ADDR, {from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
+      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
 
     # deposit funds
     for i in [1..3]

@@ -28,7 +28,6 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   uint256 public constant NEXT_PHASE_REWARD = 1 * (10 ** 18); // Amount of Kairo rewarded to the user who calls nextPhase().
   uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
-  uint256 public constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
   uint256 public constant CHUNK_SIZE = 3 days;
@@ -442,22 +441,18 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   /**
    * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
    * @param _donationInDAI the amount of DAI to be used for registration
-   * @param _referrer the manager who referred the sender
    */
-  function registerWithDAI(uint256 _donationInDAI, address _referrer) public {
+  function registerWithDAI(uint256 _donationInDAI) public {
     require(dai.transferFrom(msg.sender, address(this), _donationInDAI));
-    __register(_donationInDAI, _referrer);
+    __register(_donationInDAI);
   }
 
   /**
    * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
-   * @param _referrer the manager who referred the sender
    */
-  function registerWithETH(address _referrer) public payable {
+  function registerWithETH() public payable {
     uint256 receivedDAI;
 
     // trade ETH for DAI
@@ -470,18 +465,16 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     }
 
     // register new manager
-    __register(receivedDAI, _referrer);
+    __register(receivedDAI);
   }
 
   /**
    * @notice Registers `msg.sender` as a manager, using tokens as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
    * @param _token the token to be used for payment
    * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
-   * @param _referrer the manager who referred the sender
    */
-  function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public {
+  function registerWithToken(address _token, uint256 _donationInTokens) public {
     require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR);
     ERC20Detailed token = ERC20Detailed(_token);
     require(token.totalSupply() > 0);
@@ -499,17 +492,15 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     }
 
     // register new manager
-    __register(receivedDAI, _referrer);
+    __register(receivedDAI);
   }
 
   /**
    * @notice Registers `msg.sender` as a manager.
    * @param _donationInDAI the amount of DAI to be used for registration
-   * @param _referrer the manager who referred the sender
    */
-  function __register(uint256 _donationInDAI, address _referrer) internal {
+  function __register(uint256 _donationInDAI) internal {
     require(_donationInDAI > 0 && _donationInDAI <= MAX_DONATION);
-    require(_referrer != msg.sender);
 
     require(cToken.balanceOf(msg.sender) == 0 && userInvestments[msg.sender].length == 0 && userCompoundOrders[msg.sender].length == 0); // each address can only join once
 
@@ -520,15 +511,6 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
 
     // Set risk fallback base stake
     baseRiskStakeFallback[msg.sender] = kroAmount;
-
-    // mint KRO for referral program
-    // skip for Manage phase since it would mess up the Kairo-DAI peg
-    if (_referrer != address(0) && cToken.balanceOf(_referrer) > 0 && cyclePhase == CyclePhase.Intermission) {
-      uint256 bonusAmount = kroAmount.mul(REFERRAL_BONUS).div(PRECISION);
-      baseRiskStakeFallback[msg.sender] = baseRiskStakeFallback[msg.sender].add(bonusAmount);
-      require(cToken.generateTokens(msg.sender, bonusAmount));
-      require(cToken.generateTokens(_referrer, bonusAmount));
-    }
 
     // transfer DAI to developerFeeAccount
     require(dai.transfer(developerFeeAccount, _donationInDAI));
