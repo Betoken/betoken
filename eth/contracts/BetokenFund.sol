@@ -70,7 +70,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant NEXT_PHASE_REWARD = 1 * (10 ** 18); // Amount of Kairo rewarded to the user who calls nextPhase().
   uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
-  uint256 public constant REFERRAL_BONUS = 10 * (10 ** 16); // 10% bonus for getting referred
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
   // Upgrade constants
@@ -484,36 +483,30 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
    * @param _donationInDAI the amount of DAI to be used for registration
-   * @param _referrer the manager who referred the sender
    */
-  function registerWithDAI(uint256 _donationInDAI, address _referrer) public nonReentrant {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI, _referrer));
+  function registerWithDAI(uint256 _donationInDAI) public nonReentrant {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI));
     if (!success) { revert(); }
   }
 
   /**
    * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
-   * @param _referrer the manager who referred the sender
    */
-  function registerWithETH(address _referrer) public payable nonReentrant {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector, _referrer));
+  function registerWithETH() public payable nonReentrant {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector));
     if (!success) { revert(); }
   }
 
   /**
    * @notice Registers `msg.sender` as a manager, using tokens as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   *         Having a referrer provides bonus Kairo for both `msg.sender` and the referrer.
    * @param _token the token to be used for payment
    * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
-   * @param _referrer the manager who referred the sender
    */
-  function registerWithToken(address _token, uint256 _donationInTokens, address _referrer) public nonReentrant {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens, _referrer));
+  function registerWithToken(address _token, uint256 _donationInTokens) public nonReentrant {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens));
     if (!success) { revert(); }
   }
 
