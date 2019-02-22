@@ -68,7 +68,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant COMMISSION_RATE = 20 * (10 ** 16); // The proportion of profits that gets distributed to Kairo holders every cycle.
   uint256 public constant ASSET_FEE_RATE = 1 * (10 ** 15); // The proportion of fund balance that gets distributed to Kairo holders every cycle.
   uint256 public constant NEXT_PHASE_REWARD = 1 * (10 ** 18); // Amount of Kairo rewarded to the user who calls nextPhase().
-  uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
+  uint256 public constant MAX_BUY_KRO_PROP = 1 * (10 ** 16); // max Kairo you can buy is 1% of total supply
+  uint256 public constant FALLBACK_MAX_DONATION = 100 * (10 ** 18); // If payment cap for registration is below 100 DAI, use 100 DAI instead
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
@@ -361,7 +362,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @return the commission balance, denoted in DAI
    */
   function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
-     (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
     if (!success) { return (0, 0); }
     return abi.decode(result, (uint256, uint256));
   }
