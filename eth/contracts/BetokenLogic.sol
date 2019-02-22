@@ -26,7 +26,8 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   uint256 public constant COMMISSION_RATE = 20 * (10 ** 16); // The proportion of profits that gets distributed to Kairo holders every cycle.
   uint256 public constant ASSET_FEE_RATE = 1 * (10 ** 15); // The proportion of fund balance that gets distributed to Kairo holders every cycle.
   uint256 public constant NEXT_PHASE_REWARD = 1 * (10 ** 18); // Amount of Kairo rewarded to the user who calls nextPhase().
-  uint256 public constant MAX_DONATION = 100 * (10 ** 18); // max donation is 100 DAI
+  uint256 public constant MAX_BUY_KRO_PROP = 1 * (10 ** 16); // max Kairo you can buy is 1% of total supply
+  uint256 public constant FALLBACK_MAX_DONATION = 100 * (10 ** 18); // If payment cap for registration is below 100 DAI, use 100 DAI instead
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
@@ -437,6 +438,19 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     }
     return controlPerKairo;
   }
+  
+  /**
+   * @notice Calculates the max amount a new manager can pay for an account. Equivalent to 1% of Kairo total supply.
+   *         If less than 100 DAI, returns 100 DAI.
+   * @return the max DAI amount for purchasing a manager account
+   */
+  function maxRegistrationPaymentInDAI() public view returns (uint256 _maxDonationInDAI) {
+    uint256 kroPrice = kairoPrice();
+    _maxDonationInDAI = MAX_BUY_KRO_PROP.mul(cToken.totalSupply()).div(PRECISION).mul(kroPrice).div(PRECISION);
+    if (_maxDonationInDAI < FALLBACK_MAX_DONATION) {
+      _maxDonationInDAI = FALLBACK_MAX_DONATION;
+    }
+  }
 
   /**
    * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
@@ -445,6 +459,14 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    */
   function registerWithDAI(uint256 _donationInDAI) public {
     require(dai.transferFrom(msg.sender, address(this), _donationInDAI));
+
+    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
+    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
+    if (_donationInDAI > maxDonationInDAI) {
+      require(dai.transfer(msg.sender, _donationInDAI.sub(maxDonationInDAI)));
+      _donationInDAI = maxDonationInDAI;
+    }
+
     __register(_donationInDAI);
   }
 
@@ -459,9 +481,10 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     (,,receivedDAI,) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
     
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    if (receivedDAI > MAX_DONATION) {
-      require(dai.transfer(msg.sender, receivedDAI.sub(MAX_DONATION)));
-      receivedDAI = MAX_DONATION;
+    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
+    if (receivedDAI > maxDonationInDAI) {
+      require(dai.transfer(msg.sender, receivedDAI.sub(maxDonationInDAI)));
+      receivedDAI = maxDonationInDAI;
     }
 
     // register new manager
@@ -486,9 +509,10 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     (,,receivedDAI,) = __kyberTrade(token, _donationInTokens, dai);
 
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    if (receivedDAI > MAX_DONATION) {
-      require(dai.transfer(msg.sender, receivedDAI.sub(MAX_DONATION)));
-      receivedDAI = MAX_DONATION;
+    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
+    if (receivedDAI > maxDonationInDAI) {
+      require(dai.transfer(msg.sender, receivedDAI.sub(maxDonationInDAI)));
+      receivedDAI = maxDonationInDAI;
     }
 
     // register new manager
@@ -500,13 +524,10 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
    * @param _donationInDAI the amount of DAI to be used for registration
    */
   function __register(uint256 _donationInDAI) internal {
-    require(_donationInDAI > 0 && _donationInDAI <= MAX_DONATION);
-
     require(cToken.balanceOf(msg.sender) == 0 && userInvestments[msg.sender].length == 0 && userCompoundOrders[msg.sender].length == 0); // each address can only join once
 
     // mint KRO for msg.sender
-    uint256 kroPrice = kairoPrice();
-    uint256 kroAmount = _donationInDAI.mul(PRECISION).div(kroPrice);
+    uint256 kroAmount = _donationInDAI.mul(PRECISION).div(kairoPrice());
     require(cToken.generateTokens(msg.sender, kroAmount));
 
     // Set risk fallback base stake
