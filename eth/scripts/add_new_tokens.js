@@ -12,7 +12,7 @@
 
   tokenFactory = TestTokenFactory.at(TOKEN_FACTORY_ADDR);
 
-  NEW_TOKENS = ["DTH", "CNN", "EKO", "OCN", "PRO", "OST", "MKR", "DCC*"];
+  NEW_TOKENS = ["WBTC"];
 
   module.exports = async function(callback) {
     var i, len, results, token, tokenAddr, tokenSymbol;

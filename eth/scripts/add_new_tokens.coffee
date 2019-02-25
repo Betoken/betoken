@@ -7,14 +7,8 @@ TOKEN_FACTORY_ADDR = "0x76fc4b929325D04f5e3F3724eFDDFB45B52d3160"
 tokenFactory = TestTokenFactory.at(TOKEN_FACTORY_ADDR)
 
 NEW_TOKENS = [
-    "DTH",
-    "CNN",
-    "EKO",
-    "OCN",
-    "PRO",
-    "OST",
-    "MKR",
-    "DCC*"
+    "WBTC",
+    
 ]
 
 module.exports = (callback) ->
