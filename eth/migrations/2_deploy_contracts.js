@@ -34,7 +34,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var COMPOUND_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, STABLECOINS, ShareToken, TestCompound, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, minimeFactory, ref, ref1, shareTokenAddr, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var COMPOUND_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, STABLECOINS, ShareToken, TestCompound, TestCompoundRopsten, TestDAI, TestKyberNetwork, TestToken, TestTokenFactory, betokenFund, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, minimeFactory, ref, ref1, shareTokenAddr, supportedTokens, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
           // Local testnet migration
@@ -110,6 +110,42 @@
           await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
           await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenLogic.address, [TestDAI.address]);
+          betokenFund = (await BetokenFund.deployed());
+          // deploy BetokenProxy contract
+          await deployer.deploy(BetokenProxy, BetokenFund.address);
+          // set proxy address in BetokenFund
+          await betokenFund.setProxy(BetokenProxy.address);
+          await ControlToken.transferOwnership(betokenFund.address);
+          return (await ShareToken.transferOwnership(betokenFund.address));
+        case "ropsten":
+          // Local testnet migration
+          config = require("../deployment_configs/ropsten.json");
+          KYBER_ADDR = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
+          DAI_ADDR = "0xaD6D458402F60fD3Bd25163575031ACDce07538D";
+          TestCompoundRopsten = artifacts.require("TestCompoundRopsten");
+          
+          // deploy TestCompound
+          supportedTokens = [DAI_ADDR, "0xDb0040451F373949A4Be60dcd7b6B8D6E42658B6"];
+          await deployer.deploy(TestCompoundRopsten, supportedTokens);
+          // deploy Kairo and Betoken Shares contracts
+          await deployer.deploy(MiniMeTokenFactory);
+          minimeFactory = (await MiniMeTokenFactory.deployed());
+          controlTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Kairo", 18, "KRO", true))).logs[0].args.addr;
+          shareTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr;
+          ControlToken = (await MiniMeToken.at(controlTokenAddr));
+          ShareToken = (await MiniMeToken.at(shareTokenAddr));
+          
+          // deploy ShortOrderLogic
+          await deployer.deploy(ShortOrderLogic);
+          
+          // deploy LongOrderLogic
+          await deployer.deploy(LongOrderLogic);
+          // deploy CompoundOrderFactory
+          await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, DAI_ADDR, KYBER_ADDR, TestCompoundRopsten.address);
+          // deploy BetokenLogic
+          await deployer.deploy(BetokenLogic);
+          // deploy BetokenFund contract
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, TestCompoundRopsten.address, CompoundOrderFactory.address, BetokenLogic.address, [DAI_ADDR]);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
