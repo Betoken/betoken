@@ -73,6 +73,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
+  uint256 public constant INACTIVE_THRESHOLD = 6; // Number of inactive cycles after which a manager's Kairo balance can be burned
   // Upgrade constants
   uint256 public constant CHUNK_SIZE = 3 days;
   uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
@@ -97,7 +98,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Address of the BetokenLogic contract.
   address public betokenLogic;
 
-  // Address to which the developer fees will be paid.
+  // Address to which the development team funding will be sent.
   address payable public devFundingAccount;
 
   // Address of the previous version of BetokenFund.
@@ -112,7 +113,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
 
-  // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
+  // The proportion of Betoken Shares total supply to mint and use for funding the development team. Fixed point decimal.
   uint256 public devFundingRate;
 
   // Total amount of commission unclaimed by managers
@@ -144,6 +145,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // For checking if a token is a stablecoin
   mapping(address => bool) public isStablecoin;
+
+  // The last cycle where a manager made an investment
+  mapping(address => uint256) public lastActiveCycle;
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -717,7 +721,21 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Sell short order
     (, uint256 outputAmount) = order.sellOrder(0, MAX_QTY);
     dai.transfer(devFundingAccount, outputAmount);
-}
+  }
+
+  /**
+   * @notice Burns the Kairo balance of a manager who has been inactive for a certain number of cycles
+   * @param _deadman the manager whose Kairo balance will be burned
+   */
+  function burnDeadman(address _deadman)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    require(_deadman != address(this));
+    require(cycleNumber.sub(lastActiveCycle[_deadman]) >= INACTIVE_THRESHOLD);
+    cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman));
+  }
 
   /**
    * Manage phase functions
@@ -764,6 +782,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     // Invest
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
     (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
+
+    // Update last active cycle
+    lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
     emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
@@ -878,6 +899,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Add order to list
     userCompoundOrders[msg.sender].push(address(order));
+
+    // Update last active cycle
+    lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
     emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);

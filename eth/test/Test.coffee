@@ -25,6 +25,7 @@ ETH_PRICE = 10000 * PRECISION
 DAI_PRICE = PRECISION
 PHASE_LENGTHS = (require "../deployment_configs/testnet.json").phaseLengths
 DAY = 86400
+INACTIVE_THRESHOLD = 6
 
 # travel `time` seconds forward in time
 timeTravel = (time) ->
@@ -245,6 +246,12 @@ contract("first_cycle", (accounts) ->
     assert.equal(tokenBlnce.minus(prevTokenBlnce).toNumber(), Math.round(amount * PRECISION / OMG_PRICE), "DAI balance increase incorrect")
   )
 
+  it("can't_burn_deadman", () ->
+    try
+      await this.fund.burnDeadman(account, {from: account})
+      assert.fail("burnt KRO of active manager")
+  )
+
   it("phase_0_to_1", () ->
     await timeTravel(PHASE_LENGTHS[0])
     await this.fund.nextPhase({from: owner})
@@ -445,9 +452,17 @@ contract("first_cycle", (accounts) ->
     assert(BigNumber(commissionAmount._penalty).eq(0), "penalty amount incorrect")
   )
 
-  it("next_phase", () ->
-    await timeTravel(PHASE_LENGTHS[0])
-    await this.fund.nextPhase({from: owner})
+  it("burn_deadmen", () ->
+    # jump to point where all managers are dead
+    this.fund = await FUND(2 + INACTIVE_THRESHOLD, 0, account)
+
+    # burn account
+    await this.fund.burnDeadman(account, {from: account})
+
+    # check Kairo balance
+    kro = await KRO(this.fund)
+    kroBlnce = BigNumber await kro.balanceOf.call(account)
+    assert(kroBlnce.eq(0), "failed to burn KRO of deadman")
   )
 )
 
@@ -639,7 +654,6 @@ contract("param_setters", (accounts) ->
 
   it("address_setters", () ->
     newAddr = "0xdd974D5C2e2928deA5F71b9825b8b646686BD200"
-    kro = await KRO(this.fund)
 
     # changeDeveloperFeeAccount()
     # valid address
