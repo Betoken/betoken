@@ -31,6 +31,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
+  uint256 public constant INACTIVE_THRESHOLD = 6; // Number of inactive cycles after which a manager's Kairo balance can be burned
   uint256 public constant CHUNK_SIZE = 3 days;
   uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
   uint256 public constant CYCLES_TILL_MATURITY = 3;
@@ -57,6 +58,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   mapping(uint256 => uint256) public totalCommissionOfCycle;
   mapping(uint256 => uint256) public managePhaseEndBlock;
   mapping(address => bool) public isStablecoin;
+  mapping(address => uint256) public lastActiveCycle;
   CyclePhase public cyclePhase;
   bool public hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
   bool public upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
