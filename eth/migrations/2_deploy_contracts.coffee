@@ -98,10 +98,9 @@ module.exports = (deployer, network, accounts) ->
           BetokenFund,
           ControlToken.address,
           ShareToken.address,
-          accounts[0], #developerFeeAccount
+          accounts[0], #devFundingAccount
           config.phaseLengths,
-          bnToString(config.developerFeeRate),
-          bnToString(config.exitFeeRate),
+          bnToString(config.devFundingRate),
           ZERO_ADDR,
           TestDAI.address,
           TestKyberNetwork.address,
@@ -179,8 +178,7 @@ module.exports = (deployer, network, accounts) ->
           ShareToken.address,
           DEVELOPER_ACCOUNT
           config.phaseLengths,
-          bnToString(config.developerFeeRate),
-          bnToString(config.exitFeeRate),
+          bnToString(config.devFundingRate),
           ZERO_ADDR,
           DAI_ADDR,
           KYBER_ADDR,

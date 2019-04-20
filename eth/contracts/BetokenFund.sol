@@ -98,7 +98,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address public betokenLogic;
 
   // Address to which the developer fees will be paid.
-  address payable public developerFeeAccount;
+  address payable public devFundingAccount;
 
   // Address of the previous version of BetokenFund.
   address payable public previousVersion;
@@ -113,10 +113,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public startTimeOfCyclePhase;
 
   // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
-  uint256 public developerFeeRate;
-
-  // The proportion of funds that goes the the devs during withdrawals. Fixed point decimal.
-  uint256 public exitFeeRate;
+  uint256 public devFundingRate;
 
   // Total amount of commission unclaimed by managers
   uint256 public totalCommissionLeft;
@@ -203,10 +200,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   constructor(
     address payable _kroAddr,
     address payable _sTokenAddr,
-    address payable _developerFeeAccount,
+    address payable _devFundingAccount,
     uint256[2] memory _phaseLengths,
-    uint256 _developerFeeRate,
-    uint256 _exitFeeRate,
+    uint256 _devFundingRate,
     address payable _previousVersion,
     address _daiAddr,
     address payable _kyberAddr,
@@ -220,10 +216,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     controlTokenAddr = _kroAddr;
     shareTokenAddr = _sTokenAddr;
-    developerFeeAccount = _developerFeeAccount;
+    devFundingAccount = _devFundingAccount;
     phaseLengths = _phaseLengths;
-    developerFeeRate = _developerFeeRate;
-    exitFeeRate = _exitFeeRate;
+    devFundingRate = _devFundingRate;
     cyclePhase = CyclePhase.Manage;
     compoundFactoryAddr = _compoundFactoryAddr;
     betokenLogic = _betokenLogic;
@@ -426,7 +421,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function changeDeveloperFeeAccount(address payable _newAddr) public onlyOwner {
     require(_newAddr != address(0) && _newAddr != address(this));
-    developerFeeAccount = _newAddr;
+    devFundingAccount = _newAddr;
   }
 
   /**
@@ -435,20 +430,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function changeDeveloperFeeRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
-    require(_newProp < developerFeeRate);
-    developerFeeRate = _newProp;
+    require(_newProp < devFundingRate);
+    devFundingRate = _newProp;
   }
-
-  /**
-   * @notice Changes exit fee rate. May only decrease. Only callable by owner.
-   * @param _newProp the new proportion, fixed point decimal
-   */
-  function changeExitFeeRate(uint256 _newProp) public onlyOwner {
-    require(_newProp < PRECISION);
-    require(_newProp < exitFeeRate);
-    exitFeeRate = _newProp;
-  }
-
   
 
   /**
@@ -617,10 +601,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __withdraw(actualDAIWithdrawn);
 
     // Transfer Ether to user
-    uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
-    developerFeeAccount.transfer(exitFee);
-    actualETHWithdrawn = actualETHWithdrawn.sub(exitFee);
-
     msg.sender.transfer(actualETHWithdrawn);
 
     // Emit event
@@ -639,13 +619,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __withdraw(_amountInDAI);
 
     // Transfer DAI to user
-    uint256 exitFee = _amountInDAI.mul(exitFeeRate).div(PRECISION);
-    dai.transfer(developerFeeAccount, exitFee);
-    uint256 actualDAIWithdrawn = _amountInDAI.sub(exitFee);
-    dai.transfer(msg.sender, actualDAIWithdrawn);
+    dai.transfer(msg.sender, _amountInDAI);
 
     // Emit event
-    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, actualDAIWithdrawn, actualDAIWithdrawn, now);
+    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
   }
 
   /**
@@ -671,10 +648,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __withdraw(actualDAIWithdrawn);
 
     // Transfer tokens to user
-    uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
-    token.transfer(developerFeeAccount, exitFee);
-    actualTokenWithdrawn = actualTokenWithdrawn.sub(exitFee);
-    
     token.transfer(msg.sender, actualTokenWithdrawn);
 
     // Emit event
@@ -724,7 +697,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
     (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, address(this)), dai);
-    dai.transfer(developerFeeAccount, actualDAIReceived);
+    dai.transfer(devFundingAccount, actualDAIReceived);
   }
 
   /**
@@ -743,7 +716,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Sell short order
     (, uint256 outputAmount) = order.sellOrder(0, MAX_QTY);
-    dai.transfer(developerFeeAccount, outputAmount);
+    dai.transfer(devFundingAccount, outputAmount);
 }
 
   /**
