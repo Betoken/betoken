@@ -109,7 +109,7 @@
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenLogic.address, [TestDAI.address]);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, TestCompound.address, CompoundOrderFactory.address, BetokenLogic.address, [TestDAI.address]);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
@@ -151,7 +151,7 @@
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, KAIRO_ADDR, ShareToken.address, DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR, CompoundOrderFactory.address, BetokenLogic.address);
+          await deployer.deploy(BetokenFund, KAIRO_ADDR, ShareToken.address, DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR, CompoundOrderFactory.address, BetokenLogic.address);
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
           // set proxy address in BetokenFund

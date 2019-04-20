@@ -23,16 +23,16 @@ PRECISION = 1e18
 OMG_PRICE = 1000 * PRECISION
 ETH_PRICE = 10000 * PRECISION
 DAI_PRICE = PRECISION
-EXIT_FEE = 0.03
 PHASE_LENGTHS = (require "../deployment_configs/testnet.json").phaseLengths
 DAY = 86400
 
+# travel `time` seconds forward in time
 timeTravel = (time) ->
   return new Promise((resolve, reject) -> 
     web3.currentProvider.send({
       jsonrpc: "2.0"
       method: "evm_increaseTime"
-      params: [time] # 86400 is num seconds in day
+      params: [time]
       id: new Date().getTime()
     }, (err, result) ->
       if err
@@ -217,7 +217,7 @@ contract("first_cycle", (accounts) ->
 
     # check dai balance
     daiBlnce = BigNumber await dai.balanceOf.call(account)
-    assert.equal(daiBlnce.minus(prevDAIBlnce).toNumber(), amount * (1 - EXIT_FEE), "DAI balance increase incorrect")
+    assert.equal(daiBlnce.minus(prevDAIBlnce).toNumber(), amount, "DAI balance increase incorrect")
   )
 
   it("withdraw_token", () ->
@@ -242,7 +242,7 @@ contract("first_cycle", (accounts) ->
 
     # check token balance
     tokenBlnce = BigNumber await token.balanceOf.call(account)
-    assert.equal(tokenBlnce.minus(prevTokenBlnce).toNumber(), Math.round(amount * (1 - EXIT_FEE) * PRECISION / OMG_PRICE), "DAI balance increase incorrect")
+    assert.equal(tokenBlnce.minus(prevTokenBlnce).toNumber(), Math.round(amount * PRECISION / OMG_PRICE), "DAI balance increase incorrect")
   )
 
   it("phase_0_to_1", () ->
@@ -623,10 +623,10 @@ contract("param_setters", (accounts) ->
 
   it("decrease_only_proportion_setters", () ->
     # changeDeveloperFeeRate()
-    devFeeRate = BigNumber await this.fund.developerFeeRate.call()
+    devFeeRate = BigNumber await this.fund.devFundingRate.call()
     # valid
     await this.fund.changeDeveloperFeeRate(devFeeRate.idiv(2), {from: owner})
-    assert.equal(BigNumber(await this.fund.developerFeeRate.call()).toNumber(), devFeeRate.idiv(2).toNumber(), "changeDeveloperFeeRate() faulty")
+    assert.equal(BigNumber(await this.fund.devFundingRate.call()).toNumber(), devFeeRate.idiv(2).toNumber(), "changeDeveloperFeeRate() faulty")
     # invalid -- >= 1
     try
       await this.fund.changeDeveloperFeeRate(BigNumber(PRECISION), {from: owner})
@@ -635,20 +635,6 @@ contract("param_setters", (accounts) ->
     try
       await this.fund.changeDeveloperFeeRate(devFeeRate, {from: owner})
       assert.fail("changeDeveloperFeeRate() accepted >= current rate")
-
-    # changeExitFeeRate()
-    exitFeeRate = BigNumber await this.fund.exitFeeRate.call()
-    # valid
-    await this.fund.changeExitFeeRate(exitFeeRate.idiv(2), {from: owner})
-    assert.equal(BigNumber(await this.fund.exitFeeRate.call()).toNumber(), exitFeeRate.idiv(2).toNumber(), "changeExitFeeRate() faulty")
-    # invalid -- >= 1
-    try
-      await this.fund.changeExitFeeRate(BigNumber(PRECISION), {from: owner})
-      assert.fail("changeExitFeeRate() accepted >=1 rate")
-    # invalid -- larger than current value
-    try
-      await this.fund.changeExitFeeRate(exitFeeRate, {from: owner})
-      assert.fail("changeExitFeeRate() accepted >= current rate")
   )
 
   it("address_setters", () ->
@@ -658,7 +644,7 @@ contract("param_setters", (accounts) ->
     # changeDeveloperFeeAccount()
     # valid address
     await this.fund.changeDeveloperFeeAccount(newAddr, {from: owner})
-    assert.equal(await this.fund.developerFeeAccount.call(), newAddr, "changeDeveloperFeeAccount() faulty")
+    assert.equal(await this.fund.devFundingAccount.call(), newAddr, "changeDeveloperFeeAccount() faulty")
     # invalid address
     try
       await this.fund.changeDeveloperFeeAccount(ZERO_ADDR, {from: owner})

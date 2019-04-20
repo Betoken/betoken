@@ -41,13 +41,12 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   address public proxyAddr;
   address public compoundFactoryAddr;
   address public betokenLogic;
-  address payable public developerFeeAccount;
+  address payable public devFundingAccount;
   address payable public previousVersion;
   uint256 public cycleNumber;
   uint256 public totalFundsInDAI;
   uint256 public startTimeOfCyclePhase;
-  uint256 public developerFeeRate;
-  uint256 public exitFeeRate;
+  uint256 public devFundingRate;
   uint256 public totalCommissionLeft;
   uint256[2] public phaseLengths;
   mapping(address => uint256) public lastCommissionRedemption;
@@ -372,15 +371,15 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
       uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
       totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(commissionThisCycle); // account for penalties
       totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
-      uint256 devFee = developerFeeRate.mul(getBalance(dai, address(this))).div(PRECISION);
-      uint256 newTotalFunds = getBalance(dai, address(this)).sub(totalCommissionLeft).sub(devFee);
+      uint256 newTotalFunds = getBalance(dai, address(this)).sub(totalCommissionLeft);
 
       // Update values
       emit ROI(cycleNumber, totalFundsInDAI, newTotalFunds);
       totalFundsInDAI = newTotalFunds;
 
-      // Transfer fees
-      dai.transfer(developerFeeAccount, devFee);
+      // Give the developer Betoken shares inflation funding
+      uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
+      sToken.generateTokens(devFundingAccount, devFunding);
 
       // Emit event
       emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle[cycleNumber]);
@@ -533,8 +532,8 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
     // Set risk fallback base stake
     baseRiskStakeFallback[msg.sender] = kroAmount;
 
-    // transfer DAI to developerFeeAccount
-    require(dai.transfer(developerFeeAccount, _donationInDAI));
+    // transfer DAI to devFundingAccount
+    require(dai.transfer(devFundingAccount, _donationInDAI));
     
     // emit events
     emit Register(msg.sender, block.number, _donationInDAI);
