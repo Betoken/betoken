@@ -115,7 +115,7 @@ contract Utils {
    *         _actualSrcAmount actual amount of src token traded
    */
   function __kyberTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken)
-    internal 
+    internal
     returns(
       uint256 _destPriceInSrc,
       uint256 _srcPriceInDest,
@@ -127,7 +127,6 @@ contract Utils {
     uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
     uint256 msgValue;
     uint256 rate;
-
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       msgValue = 0;
       _srcToken.approve(KYBER_ADDR, 0);

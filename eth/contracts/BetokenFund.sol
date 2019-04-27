@@ -1053,13 +1053,13 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _maxPrice the maximum price for the trade
    * @param _buy whether to buy or sell the given investment
    */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy) 
-    internal 
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy)
+    internal
     returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
-    uint256 dInS;
-    uint256 sInD;
+    uint256 dInS; // price of dest token denominated in src token
+    uint256 sInD; // price of src token denominated in dest token
     ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
     if (_buy) {
       (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), token);
@@ -1109,9 +1109,5 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
   }
 
-  function() external payable {
-    if (msg.sender != KYBER_ADDR || msg.sender != previousVersion) {
-      revert();
-    }
-  }
+  function() external payable {}
 }

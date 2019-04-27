@@ -36,12 +36,12 @@ contract ShortOrderLogic is CompoundOrderLogic {
     }
   }
 
-  function sellOrder(uint256 _minPrice, uint256 _maxPrice) 
-    public 
-    onlyOwner 
-    isValidToken(tokenAddr) 
-    isInitialized 
-    returns (uint256 _inputAmount, uint256 _outputAmount) 
+  function sellOrder(uint256 _minPrice, uint256 _maxPrice)
+    public
+    onlyOwner
+    isValidToken(tokenAddr)
+    isInitialized
+    returns (uint256 _inputAmount, uint256 _outputAmount)
   {
     require(isSold == false);
     isSold = true;

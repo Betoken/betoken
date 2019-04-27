@@ -13,6 +13,7 @@ BigNumber = require "bignumber.js"
 epsilon = 1e-4
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+ETH_ADDR = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
 PRECISION = 1e18
 SHORT_LEVERAGE = -0.5
 LONG_LEVERAGE = 1.5
@@ -173,7 +174,7 @@ contract("first_cycle", (accounts) ->
     st = await ST(this.fund)
 
     # mint token for user
-    amount = 1000 * PRECISION
+    amount = 1 * PRECISION
     await token.mint(account, bnToString(amount), {from: owner})
 
     # deposit token
@@ -195,6 +196,33 @@ contract("first_cycle", (accounts) ->
     # check token balance
     tokenBlnce = BigNumber(await token.balanceOf.call(account))
     assert.equal(prevTokenBlnce.minus(tokenBlnce).toNumber(), amount, "token balance decrease incorrect")
+  )
+
+  it("deposit_ether", () ->
+    dai = await DAI(this.fund)
+    st = await ST(this.fund)
+    account3 = accounts[3]
+
+    eth_amount = 0.01 * PRECISION
+    amount = eth_amount / PRECISION * ETH_PRICE # amount of deposit in DAI
+
+    # deposit ETH
+    fundBalance = BigNumber await this.fund.totalFundsInDAI.call()
+    prevETHBlnce = BigNumber await web3.eth.getBalance(account3)
+    prevShareBlnce = BigNumber await st.balanceOf.call(account3)
+    await this.fund.depositEther({from: account3, value: bnToString(eth_amount), gasPrice: 0})
+
+    # check fund balance
+    newFundBalance = BigNumber(await this.fund.totalFundsInDAI.call())
+    assert.equal(newFundBalance.minus(fundBalance).toNumber(), amount, "fund balance increase incorrect")
+
+    # check user ETH balance
+    ethBlnce = BigNumber await web3.eth.getBalance(account3)
+    assert.equal(prevETHBlnce.minus(ethBlnce).toNumber(), eth_amount, "ETH balance decrease incorrect")
+
+    # check shares
+    shareBlnce = BigNumber(await st.balanceOf.call(account3))
+    assert.equal(shareBlnce.minus(prevShareBlnce).toNumber(), amount, "received share amount incorrect")
   )
 
   it("withdraw_dai", () ->
@@ -246,6 +274,31 @@ contract("first_cycle", (accounts) ->
     assert.equal(tokenBlnce.minus(prevTokenBlnce).toNumber(), Math.round(amount * PRECISION / OMG_PRICE), "DAI balance increase incorrect")
   )
 
+  it("withdraw_ether", () ->
+    dai = await DAI(this.fund)
+    st = await ST(this.fund)
+
+    # withdraw dai
+    amount = 0.1 * PRECISION
+    eth_amount = amount / ETH_PRICE * PRECISION
+    prevShareBlnce = BigNumber await st.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    prevETHBlnce = BigNumber await web3.eth.getBalance(account)
+    await this.fund.withdrawEther(bnToString(amount), {from: account, gasPrice: 0})
+
+    # check shares
+    shareBlnce = BigNumber await st.balanceOf.call(account)
+    assert.equal(prevShareBlnce.minus(shareBlnce).toNumber(), amount, "burnt share amount incorrect")
+
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert.equal(prevFundBlnce.minus(fundBlnce).toNumber(), amount, "fund balance decrease incorrect")
+
+    # check ether balance
+    ethBlnce = BigNumber await web3.eth.getBalance(account)
+    assert.equal(ethBlnce.minus(prevETHBlnce).toNumber(), eth_amount, "ETH balance increase incorrect")
+  )
+
   it("can't_burn_deadman", () ->
     try
       await this.fund.burnDeadman(account, {from: account})
@@ -290,7 +343,7 @@ contract("first_cycle", (accounts) ->
 
     # create investment for account2
     account2 = accounts[2]
-    await this.fund.createInvestment(token.address, bnToString(amount), 0, MAX_PRICE, {from: account2})
+    await this.fund.createInvestment(ETH_ADDR, bnToString(amount), 0, bnToString(ETH_PRICE * 2), {from: account2})
   )
 
   it("sell_investment", () ->
@@ -321,8 +374,9 @@ contract("first_cycle", (accounts) ->
     account2 = accounts[2]
     await timeTravel(6 * DAY)
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account2, 0)).tokenAmount)
-    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2})
-    await this.fund.sellInvestmentAsset(1, bnToString(tokenAmount.div(2)), 0, MAX_PRICE, {from: account2})
+    # sell half of the investment, then sell the rest
+    await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount.div(2)), 0, bnToString(ETH_PRICE * 2), {from: account2})
+    await this.fund.sellInvestmentAsset(1, bnToString(tokenAmount.div(2)), 0, bnToString(ETH_PRICE * 2), {from: account2})
   )
 
   it("create_compound_orders", () ->

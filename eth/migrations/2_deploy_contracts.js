@@ -73,6 +73,12 @@
           
           // deploy TestKyberNetwork
           await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);
+          // send ETH to TestKyberNetwork
+          await web3.eth.sendTransaction({
+            from: accounts[0],
+            to: TestKyberNetwork.address,
+            value: 1 * PRECISION
+          });
           // deploy TestCompound
           await deployer.deploy(TestCompound, tokenAddrs.slice(0, +(tokenAddrs.length - 2) + 1 || 9e9).concat([WETH_ADDR]), tokenPrices);
           ref = tokenAddrs.slice(0, +(tokenAddrs.length - 2) + 1 || 9e9);
