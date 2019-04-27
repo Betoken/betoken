@@ -51,6 +51,9 @@ module.exports = (deployer, network, accounts) ->
         # deploy TestKyberNetwork
         await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices)
 
+        # send ETH to TestKyberNetwork
+        await web3.eth.sendTransaction({from: accounts[0], to: TestKyberNetwork.address, value: 1 * PRECISION})
+
         # deploy TestCompound
         await deployer.deploy(TestCompound, tokenAddrs[0..tokenAddrs.length - 2].concat([WETH_ADDR]), tokenPrices)
 

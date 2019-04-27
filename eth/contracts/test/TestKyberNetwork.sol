@@ -66,4 +66,6 @@ contract TestKyberNetwork is KyberNetwork, Utils(address(0), address(0), address
   ) internal view returns (uint destAmount) {
     return srcAmount.mul(priceInDAI[address(src)]).mul(10**getDecimals(dest)).div(priceInDAI[address(dest)].mul(10**getDecimals(src)));
   }
+
+  function() external payable {}
 }
