@@ -38,9 +38,9 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
     (, uint256 liquidityInETH, uint256 shortfall) = COMPTROLLER.getAccountLiquidity(address(this));
     if (shortfall == 0) {
-      return (false, __tokenToDAI(address(0), uint256(liquidityInETH)));
+      return (false, __tokenToDAI(address(0), liquidityInETH.mul(15 * 10 ** 17).div(PRECISION)));
     } else {
-      return (true, __tokenToDAI(address(0), uint256(shortfall)));
+      return (true, __tokenToDAI(address(0), shortfall));
     }
   }
   

@@ -56,8 +56,8 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     isSold = true;
 
     // Ensure price is within range provided by user
-    uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
-    tokenPrice = __tokenToDAI(address(0), tokenPrice); // Convert token price to be in DAI
+    uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the longing token's price in ETH
+    tokenPrice = __tokenToDAI(compoundTokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
     
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral

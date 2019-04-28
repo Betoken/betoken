@@ -768,7 +768,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
-    require(isCompoundToken[_tokenAddress]);
 
     // Collect stake
     require(cToken.generateTokens(address(this), _stake));
@@ -892,6 +891,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
+    require(isCompoundToken[_tokenAddress]);
 
     // Collect stake
     require(cToken.generateTokens(address(this), _stake));

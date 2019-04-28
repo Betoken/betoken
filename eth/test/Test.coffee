@@ -5,8 +5,12 @@ MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
 TestKyberNetwork = artifacts.require "TestKyberNetwork"
 TestToken = artifacts.require "TestToken"
 TestTokenFactory = artifacts.require "TestTokenFactory"
-TestCompound = artifacts.require "TestCompound"
 CompoundOrder = artifacts.require "CompoundOrder"
+TestPriceOracle = artifacts.require "TestPriceOracle"
+TestComptroller = artifacts.require "TestComptroller"
+TestCERC20 = artifacts.require "TestCERC20"
+TestCEther = artifacts.require "TestCEther"
+TestCERC20Factory = artifacts.require "TestCERC20Factory"
 
 BigNumber = require "bignumber.js"
 
@@ -75,8 +79,10 @@ KRO = (fund) ->
   kroAddr = await fund.controlTokenAddr.call()
   return MiniMeToken.at(kroAddr)
 
-CPD = () ->
-  return TestCompound.deployed()
+CPD = (underlying) ->
+  factory = await TestCERC20Factory.deployed()
+  addr = await factory.createdTokens.call(underlying)
+  return TestCERC20.at(addr)
 
 CO = (fund, account, id) ->
   orderAddr = await fund.userCompoundOrders.call(account, id)
@@ -322,7 +328,6 @@ contract("first_cycle", (accounts) ->
     kro = await KRO(this.fund)
     token = await TK("OMG")
     MAX_PRICE = bnToString(OMG_PRICE * 2)
-    fund = this.fund
 
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     prevFundTokenBlnce = BigNumber await token.balanceOf(this.fund.address)
@@ -338,7 +343,7 @@ contract("first_cycle", (accounts) ->
     # check fund token balance
     fundDAIBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     kroTotalSupply = BigNumber await kro.totalSupply.call()
-    fundTokenBlnce = BigNumber await token.balanceOf(fund.address)
+    fundTokenBlnce = BigNumber await token.balanceOf(this.fund.address)
     assert.equal(fundTokenBlnce.minus(prevFundTokenBlnce).toNumber(), Math.floor(fundDAIBlnce.times(PRECISION).div(kroTotalSupply).times(amount).div(OMG_PRICE).toNumber()), "token balance increase incorrect")
 
     # create investment for account2
@@ -385,13 +390,14 @@ contract("first_cycle", (accounts) ->
     dai = await DAI(this.fund)
     MAX_PRICE = bnToString(OMG_PRICE * 2)
     fund = this.fund
+    cToken = await CPD(token.address)
 
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
 
     # create short order
     amount = 1 * PRECISION
-    await this.fund.createCompoundOrder(true, token.address, bnToString(amount), 0, MAX_PRICE, {from: account})
+    await this.fund.createCompoundOrder(true, cToken.address, bnToString(amount), 0, MAX_PRICE, {from: account})
     shortOrder = await CO(this.fund, account, 0)
 
     # check KRO balance
@@ -405,7 +411,7 @@ contract("first_cycle", (accounts) ->
 
     # create long order for account2
     account2 = accounts[2]
-    await this.fund.createCompoundOrder(false, token.address, bnToString(amount), 0, MAX_PRICE, {from: account2})
+    await this.fund.createCompoundOrder(false, TestCEther.address, bnToString(amount), 0, bnToString(ETH_PRICE * 2), {from: account2})
   )
 
   it("sell_compound_orders", () ->
@@ -544,12 +550,13 @@ contract("price_changes", (accounts) ->
     kn = await KN(this.fund)
     kro = await KRO(this.fund)
     omg = await TK("OMG")
-    cpd = await CPD()
+    cOMG = await CPD(omg.address)
+    oracle = await TestPriceOracle.deployed()
     MAX_PRICE = bnToString(OMG_PRICE * 2)
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
-    await cpd.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
     stake = 0.1 * PRECISION
@@ -558,16 +565,16 @@ contract("price_changes", (accounts) ->
 
     # create short order
     shortId = 0
-    await this.fund.createCompoundOrder(true, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+    await this.fund.createCompoundOrder(true, cOMG.address, bnToString(stake), 0, MAX_PRICE, {from: account})
     # create long order
     longId = 1
-    await this.fund.createCompoundOrder(false, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+    await this.fund.createCompoundOrder(false, cOMG.address, bnToString(stake), 0, MAX_PRICE, {from: account})
 
     # raise asset price by 20%
     delta = 0.2
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
-    await cpd.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await oracle.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
@@ -599,12 +606,13 @@ contract("price_changes", (accounts) ->
     kn = await KN(this.fund)
     kro = await KRO(this.fund)
     omg = await TK("OMG")
-    cpd = await CPD()
+    cOMG = await CPD(omg.address)
+    oracle = await TestPriceOracle.deployed()
     MAX_PRICE = bnToString(OMG_PRICE * 2)
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
-    await cpd.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
     stake = 0.1 * PRECISION
@@ -613,16 +621,16 @@ contract("price_changes", (accounts) ->
 
     # create short order
     shortId = 2
-    await this.fund.createCompoundOrder(true, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+    await this.fund.createCompoundOrder(true, cOMG.address, bnToString(stake), 0, MAX_PRICE, {from: account})
     # create long order
     longId = 3
-    await this.fund.createCompoundOrder(false, omg.address, bnToString(stake), 0, MAX_PRICE, {from: account})
+    await this.fund.createCompoundOrder(false, cOMG.address, bnToString(stake), 0, MAX_PRICE, {from: account})
 
     # lower asset price by 20%
     delta = -0.2
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
-    await cpd.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await oracle.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
@@ -654,12 +662,13 @@ contract("price_changes", (accounts) ->
     kn = await KN(this.fund)
     kro = await KRO(this.fund)
     omg = await TK("OMG")
-    cpd = await CPD()
+    cOMG = await CPD(omg.address)
+    oracle = await TestPriceOracle.deployed()
     MAX_PRICE = bnToString(OMG_PRICE * 2)
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
-    await cpd.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
     stake = 0.1 * PRECISION
@@ -670,7 +679,7 @@ contract("price_changes", (accounts) ->
     delta = -0.9999
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
-    await cpd.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await oracle.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)

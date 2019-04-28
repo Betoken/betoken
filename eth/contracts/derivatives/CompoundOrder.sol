@@ -44,7 +44,7 @@ contract CompoundOrder is Ownable, Utils {
     address _cDAIAddr
   ) public Utils(_daiAddr, _kyberAddr)  {
     // Initialize details of short order
-    require(_compoundTokenAddr != DAI_ADDR); // TODO: replace DAI_ADDR with CDAI_ADDR
+    require(_compoundTokenAddr != address(CDAI));
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
     stake = _stake;
     collateralAmountInDAI = _collateralAmountInDAI;

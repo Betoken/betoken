@@ -135,6 +135,8 @@ module.exports = (deployer, network, accounts) ->
         await deployer.deploy(BetokenLogic)
 
         # deploy BetokenFund contract
+        compoundTokensArray = (compoundTokens[token] for token in tokenAddrs[0..tokenAddrs.length - 3])
+        compoundTokensArray.push(TestCEther.address)
         await deployer.deploy(
           BetokenFund,
           ControlToken.address,
@@ -148,7 +150,7 @@ module.exports = (deployer, network, accounts) ->
           CompoundOrderFactory.address,
           BetokenLogic.address,
           [TestDAI.address]
-          (compoundTokens[token] for token in tokenAddrs[0..tokenAddrs.length - 3])
+          compoundTokensArray
         )
         betokenFund = await BetokenFund.deployed()
 
