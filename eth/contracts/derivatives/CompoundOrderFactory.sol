@@ -62,4 +62,10 @@ contract CompoundOrderFactory {
     order.transferOwnership(msg.sender);
     return order;
   }
+
+  function getMarketCollateralFactor(address _compoundTokenAddr) public view returns (uint256) {
+    Comptroller troll = Comptroller(COMPTROLLER_ADDR);
+    (, uint256 factor) = troll.markets(_compoundTokenAddr);
+    return factor;
+  }
 }

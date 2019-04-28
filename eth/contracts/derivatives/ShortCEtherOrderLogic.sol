@@ -122,7 +122,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
     CEther market = CEther(compoundTokenAddr);
     uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
-    uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this))).mul(PRECISION).div(market.reserveFactorMantissa());
+    uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this))).mul(PRECISION).div(__getMarketCollateralFactor());
     if (supply >= borrow) {
       return (false, supply.sub(borrow));
     } else {

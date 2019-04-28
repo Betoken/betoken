@@ -1089,9 +1089,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 _stake,
     uint256 _collateralAmountInDAI
   ) internal returns (CompoundOrder) {
-    CERC20 market = CERC20(_tokenAddress);
-    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(PRECISION).mul(market.reserveFactorMantissa()).div(PRECISION);
-    CompoundOrder order = CompoundOrderFactory(compoundFactoryAddr).createOrder(
+    CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
+    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(PRECISION).mul(factory.getMarketCollateralFactor(_tokenAddress)).div(PRECISION);
+    CompoundOrder order = factory.createOrder(
       _tokenAddress,
       cycleNumber,
       _stake,

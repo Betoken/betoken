@@ -84,4 +84,9 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
     ERC20Detailed t = ERC20Detailed(underlyingToken);
     return t;
   }
+
+  function __getMarketCollateralFactor() internal view returns (uint256) {
+    (, uint256 ratio) = COMPTROLLER.markets(compoundTokenAddr);
+    return ratio;
+  }
 }

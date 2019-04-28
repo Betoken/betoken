@@ -12,7 +12,6 @@ contract TestCERC20 is CERC20 {
   uint public constant MAX_UINT = 2 ** 256 - 1;
 
   address public _underlying;
-  uint public _reserveFactorMantissa = 2 * PRECISION / 3;
   uint public _exchangeRateCurrent = PRECISION;
 
   mapping(address => uint) public _balanceOf;
@@ -68,7 +67,6 @@ contract TestCERC20 is CERC20 {
 
   function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
   function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
-  function reserveFactorMantissa() external view returns (uint) { return _reserveFactorMantissa; }
   function underlying() external view returns (address) { return _underlying; }
   function exchangeRateCurrent() external view returns (uint) { return _exchangeRateCurrent; }
 }
