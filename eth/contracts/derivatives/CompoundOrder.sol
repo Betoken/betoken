@@ -2,16 +2,20 @@ pragma solidity 0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../Utils.sol";
+import "../interfaces/Comptroller.sol";
+import "../interfaces/PriceOracle.sol";
+import "../interfaces/CERC20.sol";
 
 contract CompoundOrder is Ownable, Utils {
-  modifier isInitialized {
-    require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
-    _;
-  }
-
   // Constants
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
+
+  // Contract instances
+  Comptroller public COMPTROLLER; // The Compound comptroller
+  PriceOracle public ORACLE; // The Compound price oracle
+  CERC20 public CDAI; // The Compound DAI market token
+  address public CETH_ADDR;
 
   // Instance variables
   uint256 public stake;
@@ -19,18 +23,15 @@ contract CompoundOrder is Ownable, Utils {
   uint256 public loanAmountInDAI;
   uint256 public cycleNumber;
   uint256 public buyTime; // Timestamp for order execution
-  address public tokenAddr;
+  address public compoundTokenAddr;
   bool public isSold;
   bool public orderType; // True for shorting, false for longing
-
-  // Contract instances
-  ERC20Detailed internal token;
 
   // The contract containing the code to be executed
   address public logicContract;
 
   constructor(
-    address _tokenAddr,
+    address _compoundTokenAddr,
     uint256 _cycleNumber,
     uint256 _stake,
     uint256 _collateralAmountInDAI,
@@ -39,19 +40,26 @@ contract CompoundOrder is Ownable, Utils {
     address _logicContract,
     address _daiAddr,
     address payable _kyberAddr,
-    address _compoundAddr
-  ) public Utils(_daiAddr, _kyberAddr, _compoundAddr)  {
+    address _comptrollerAddr,
+    address _priceOracleAddr,
+    address _cDAIAddr,
+    address _cETHAddr
+  ) public Utils(_daiAddr, _kyberAddr)  {
     // Initialize details of short order
-    require(_tokenAddr != DAI_ADDR);
+    require(_compoundTokenAddr != address(CDAI));
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
     stake = _stake;
     collateralAmountInDAI = _collateralAmountInDAI;
     loanAmountInDAI = _loanAmountInDAI;
     cycleNumber = _cycleNumber;
-    tokenAddr = _tokenAddr;
+    compoundTokenAddr = _compoundTokenAddr;
     orderType = _orderType;
     logicContract = _logicContract;
-    token = ERC20Detailed(_tokenAddr);
+
+    COMPTROLLER = Comptroller(_comptrollerAddr);
+    ORACLE = PriceOracle(_priceOracleAddr);
+    CDAI = CERC20(_cDAIAddr);
+    CETH_ADDR = _cETHAddr;
   }
   
   /**
@@ -113,4 +121,6 @@ contract CompoundOrder is Ownable, Utils {
     if (!success) { revert(); }
     return abi.decode(result, (bool, uint256));
   }
+
+  function() external payable {}
 }

@@ -2,8 +2,10 @@ BetokenFund = artifacts.require "BetokenFund"
 BetokenProxy = artifacts.require "BetokenProxy"
 MiniMeToken = artifacts.require "MiniMeToken"
 MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
-LongOrderLogic = artifacts.require "LongOrderLogic"
-ShortOrderLogic = artifacts.require "ShortOrderLogic"
+LongCERC20OrderLogic = artifacts.require "LongCERC20OrderLogic"
+ShortCERC20OrderLogic = artifacts.require "ShortCERC20OrderLogic"
+LongCEtherOrderLogic = artifacts.require "LongCEtherOrderLogic"
+ShortCEtherOrderLogic = artifacts.require "ShortCEtherOrderLogic"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
 BetokenLogic = artifacts.require "BetokenLogic"
 
@@ -26,7 +28,11 @@ module.exports = (deployer, network, accounts) ->
         TestKyberNetwork = artifacts.require "TestKyberNetwork"
         TestToken = artifacts.require "TestToken"
         TestTokenFactory = artifacts.require "TestTokenFactory"
-        TestCompound = artifacts.require "TestCompound"
+        TestPriceOracle = artifacts.require "TestPriceOracle"
+        TestComptroller = artifacts.require "TestComptroller"
+        TestCERC20 = artifacts.require "TestCERC20"
+        TestCEther = artifacts.require "TestCEther"
+        TestCERC20Factory = artifacts.require "TestCERC20Factory"
 
         # deploy TestToken factory
         await deployer.deploy(TestTokenFactory)
@@ -54,18 +60,39 @@ module.exports = (deployer, network, accounts) ->
         # send ETH to TestKyberNetwork
         await web3.eth.sendTransaction({from: accounts[0], to: TestKyberNetwork.address, value: 1 * PRECISION})
 
-        # deploy TestCompound
-        await deployer.deploy(TestCompound, tokenAddrs[0..tokenAddrs.length - 2].concat([WETH_ADDR]), tokenPrices)
+        # deploy Test Compound suite of contracts
+
+        # deploy TestPriceOracle
+        await deployer.deploy(TestPriceOracle, tokenAddrs, tokenPrices)
+
+        # deploy TestComptroller
+        await deployer.deploy(TestComptroller)
+
+        # deploy TestCERC20Factory
+        await deployer.deploy(TestCERC20Factory)
+        testCERC20Factory = await TestCERC20Factory.deployed()
+
+        # deploy TestCEther
+        await deployer.deploy(TestCEther, TestComptroller.address)
+
+        # send ETH to TestCEther
+        await web3.eth.sendTransaction({from: accounts[0], to: TestCEther.address, value: 1 * PRECISION})
+
+        # deploy TestCERC20 contracts
+        compoundTokens = {}
+        for token in tokenAddrs[0..tokenAddrs.length - 2]
+          compoundTokens[token] = (await testCERC20Factory.newToken(token, TestComptroller.address)).logs[0].args.cToken
+
 
         # mint tokens for KN
         for token in tokenAddrs[0..tokenAddrs.length - 2]
           tokenObj = await TestToken.at(token)
           await tokenObj.mint(TestKyberNetwork.address, bnToString(1e12 * PRECISION)) # one trillion tokens
 
-        # mint tokens for Compound
+        # mint tokens for Compound markets
         for token in tokenAddrs[0..tokenAddrs.length - 2]
           tokenObj = await TestToken.at(token)
-          await tokenObj.mint(TestCompound.address, bnToString(1e12 * PRECISION)) # one trillion tokens
+          await tokenObj.mint(compoundTokens[token], bnToString(1e12 * PRECISION)) # one trillion tokens        
 
         # deploy Kairo and Betoken Shares contracts
         await deployer.deploy(MiniMeTokenFactory)
@@ -77,26 +104,39 @@ module.exports = (deployer, network, accounts) ->
         ControlToken = await MiniMeToken.at(controlTokenAddr)
         ShareToken = await MiniMeToken.at(shareTokenAddr)
         
-        # deploy ShortOrderLogic
-        await deployer.deploy(ShortOrderLogic)
-        
-        # deploy LongOrderLogic
-        await deployer.deploy(LongOrderLogic)
+        # deploy ShortCERC20OrderLogic
+        await deployer.deploy(ShortCERC20OrderLogic)
+
+        # deploy ShortCEtherOrderLogic
+        await deployer.deploy(ShortCEtherOrderLogic)
+
+        # deploy LongCERC20OrderLogic
+        await deployer.deploy(LongCERC20OrderLogic)
+
+        # deploy LongCEtherOrderLogic
+        await deployer.deploy(LongCEtherOrderLogic)
 
         # deploy CompoundOrderFactory
         await deployer.deploy(
           CompoundOrderFactory,
-          ShortOrderLogic.address,
-          LongOrderLogic.address,
+          ShortCERC20OrderLogic.address,
+          ShortCEtherOrderLogic.address,
+          LongCERC20OrderLogic.address,
+          LongCEtherOrderLogic.address,
           TestDAI.address,
           TestKyberNetwork.address,
-          TestCompound.address
+          TestComptroller.address,
+          TestPriceOracle.address,
+          compoundTokens[TestDAI.address],
+          TestCEther.address
         )
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic)
 
         # deploy BetokenFund contract
+        compoundTokensArray = (compoundTokens[token] for token in tokenAddrs[0..tokenAddrs.length - 3])
+        compoundTokensArray.push(TestCEther.address)
         await deployer.deploy(
           BetokenFund,
           ControlToken.address,
@@ -107,10 +147,10 @@ module.exports = (deployer, network, accounts) ->
           ZERO_ADDR,
           TestDAI.address,
           TestKyberNetwork.address,
-          TestCompound.address,
           CompoundOrderFactory.address,
           BetokenLogic.address,
           [TestDAI.address]
+          compoundTokensArray
         )
         betokenFund = await BetokenFund.deployed()
 
