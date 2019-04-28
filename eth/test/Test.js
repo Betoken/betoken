@@ -454,7 +454,7 @@
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
       prevFundDAIBlnce = BigNumber((await dai.balanceOf.call(this.fund.address)));
       // create short order
-      amount = 1 * PRECISION;
+      amount = 0.01 * PRECISION;
       await this.fund.createCompoundOrder(true, cToken.address, bnToString(amount), 0, MAX_PRICE, {
         from: account
       });
@@ -499,7 +499,7 @@
       prevFundDAIBlnce = BigNumber((await dai.balanceOf.call(this.fund.address)));
       // sell account2's long order
       longOrder = (await CO(this.fund, account2, 0));
-      await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {
+      await this.fund.sellCompoundOrder(0, 0, bnToString(ETH_PRICE * 2), {
         from: account2
       });
       // check KRO balance

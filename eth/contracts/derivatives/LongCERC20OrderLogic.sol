@@ -130,4 +130,15 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     uint256 borrow = CDAI.borrowBalanceCurrent(address(this));
     return supply.mul(PRECISION).div(borrow);
   }
+
+  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
+    CERC20 market = CERC20(compoundTokenAddr);
+    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
+    uint256 borrow = CDAI.borrowBalanceCurrent(address(this)).mul(PRECISION).div(market.reserveFactorMantissa());
+    if (supply >= borrow) {
+      return (false, supply.sub(borrow));
+    } else {
+      return (true, borrow.sub(supply));
+    }
+  }
 }

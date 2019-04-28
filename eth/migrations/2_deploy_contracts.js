@@ -92,7 +92,7 @@
           // deploy TestPriceOracle
           await deployer.deploy(TestPriceOracle, tokenAddrs, tokenPrices);
           // deploy TestComptroller
-          await deployer.deploy(TestComptroller, TestPriceOracle.address);
+          await deployer.deploy(TestComptroller);
           // deploy TestCERC20Factory
           await deployer.deploy(TestCERC20Factory);
           testCERC20Factory = (await TestCERC20Factory.deployed());

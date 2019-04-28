@@ -396,7 +396,7 @@ contract("first_cycle", (accounts) ->
     prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
 
     # create short order
-    amount = 1 * PRECISION
+    amount = 0.01 * PRECISION
     await this.fund.createCompoundOrder(true, cToken.address, bnToString(amount), 0, MAX_PRICE, {from: account})
     shortOrder = await CO(this.fund, account, 0)
 
@@ -446,7 +446,7 @@ contract("first_cycle", (accounts) ->
 
     # sell account2's long order
     longOrder = await CO(this.fund, account2, 0)
-    await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {from: account2})
+    await this.fund.sellCompoundOrder(0, 0, bnToString(ETH_PRICE * 2), {from: account2})
 
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account2)

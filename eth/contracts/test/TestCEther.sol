@@ -31,10 +31,6 @@ contract TestCEther is CEther {
 
     msg.sender.transfer(redeemAmount);
 
-    // check if there's still enough liquidity
-    (,,uint shortfall) = COMPTROLLER.getAccountLiquidity(msg.sender);
-    require(shortfall == 0);
-
     return 0;
   }
   
@@ -44,10 +40,6 @@ contract TestCEther is CEther {
 
     // transfer asset
     msg.sender.transfer(amount);
-
-    // check if there's still enough liquidity
-    (,,uint shortfall) = COMPTROLLER.getAccountLiquidity(msg.sender);
-    require(shortfall == 0);
 
     return 0;
   }

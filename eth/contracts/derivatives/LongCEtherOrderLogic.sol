@@ -8,7 +8,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     
     // Ensure token's price is between _minPrice and _maxPrice
     uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
-    tokenPrice = __tokenToDAI(address(0), tokenPrice); // Convert token price to be in DAI
+    tokenPrice = __tokenToDAI(compoundTokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
@@ -52,7 +52,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
 
     // Ensure price is within range provided by user
     uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
-    tokenPrice = __tokenToDAI(address(0), tokenPrice); // Convert token price to be in DAI
+    tokenPrice = __tokenToDAI(compoundTokenAddr, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
@@ -66,7 +66,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = __tokenToDAI(address(0), address(this).balance);
+      uint256 currentBalance = __tokenToDAI(compoundTokenAddr, address(this).balance);
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -81,7 +81,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
 
       // Withdraw all available liquidity
       (, uint256 liquidity) = getCurrentLiquidityInDAI();
-      liquidity = __daiToToken(address(0), liquidity);
+      liquidity = __daiToToken(compoundTokenAddr, liquidity);
       require(market.redeemUnderlying(liquidity) == 0);
     }
 
@@ -100,7 +100,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     require(buyTime > 0); // Ensure the order has been executed
 
     // Convert longing token to DAI
-    uint256 repayAmountInToken = __daiToToken(address(0), _repayAmountInDAI);
+    uint256 repayAmountInToken = __daiToToken(compoundTokenAddr, _repayAmountInDAI);
     (uint256 actualDAIAmount,) = __sellTokenForDAI(repayAmountInToken);
     
     // Repay loan to Compound
@@ -119,9 +119,20 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
   }
 
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
+    CEther market = CEther(compoundTokenAddr);
     uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
     uint256 borrow = CDAI.borrowBalanceCurrent(address(this));
     return supply.mul(PRECISION).div(borrow);
+  }
+
+  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
+    CEther market = CEther(compoundTokenAddr);
+    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
+    uint256 borrow = CDAI.borrowBalanceCurrent(address(this)).mul(PRECISION).div(market.reserveFactorMantissa());
+    if (supply >= borrow) {
+      return (false, supply.sub(borrow));
+    } else {
+      return (true, borrow.sub(supply));
+    }
   }
 }

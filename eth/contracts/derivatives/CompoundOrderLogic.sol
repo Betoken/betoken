@@ -16,6 +16,7 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
   Comptroller public COMPTROLLER; // The Compound comptroller
   PriceOracle public ORACLE; // The Compound price oracle
   CERC20 public CDAI; // The Compound DAI market token
+  address public CETH_ADDR;
 
   // Instance variables
   uint256 public stake;
@@ -35,14 +36,7 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
 
   function repayLoan(uint256 _repayAmountInDAI) public;
 
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    (, uint256 liquidityInETH, uint256 shortfall) = COMPTROLLER.getAccountLiquidity(address(this));
-    if (shortfall == 0) {
-      return (false, __tokenToDAI(address(0), liquidityInETH.mul(15 * 10 ** 17).div(PRECISION)));
-    } else {
-      return (true, __tokenToDAI(address(0), shortfall));
-    }
-  }
+  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount);
   
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount);
 
@@ -62,7 +56,7 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
 
   // Convert a DAI amount to the amount of a given token that's of equal value
   function __daiToToken(address _cToken, uint256 _daiAmount) internal view returns (uint256) {
-    if (_cToken == address(0)) {
+    if (_cToken == CETH_ADDR) {
       // token is ETH
       return _daiAmount.mul(ORACLE.assetPrices(DAI_ADDR)).div(PRECISION);
     }
@@ -72,7 +66,7 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
 
   // Convert a compound token amount to the amount of DAI that's of equal value
   function __tokenToDAI(address _cToken, uint256 _tokenAmount) internal view returns (uint256) {
-    if (_cToken == address(0)) {
+    if (_cToken == CETH_ADDR) {
       // token is ETH
       return _tokenAmount.mul(PRECISION).div(ORACLE.assetPrices(DAI_ADDR));
     }
@@ -81,7 +75,7 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
   }
 
   function __underlyingToken(address _cToken) internal view returns (ERC20Detailed) {
-    if (_cToken == address(0)) {
+    if (_cToken == CETH_ADDR) {
       // ETH
       return ETH_TOKEN_ADDRESS;
     }

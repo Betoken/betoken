@@ -15,6 +15,7 @@ contract CompoundOrder is Ownable, Utils {
   Comptroller public COMPTROLLER; // The Compound comptroller
   PriceOracle public ORACLE; // The Compound price oracle
   CERC20 public CDAI; // The Compound DAI market token
+  address public CETH_ADDR;
 
   // Instance variables
   uint256 public stake;
@@ -41,7 +42,8 @@ contract CompoundOrder is Ownable, Utils {
     address payable _kyberAddr,
     address _comptrollerAddr,
     address _priceOracleAddr,
-    address _cDAIAddr
+    address _cDAIAddr,
+    address _cETHAddr
   ) public Utils(_daiAddr, _kyberAddr)  {
     // Initialize details of short order
     require(_compoundTokenAddr != address(CDAI));
@@ -57,6 +59,7 @@ contract CompoundOrder is Ownable, Utils {
     COMPTROLLER = Comptroller(_comptrollerAddr);
     ORACLE = PriceOracle(_priceOracleAddr);
     CDAI = CERC20(_cDAIAddr);
+    CETH_ADDR = _cETHAddr;
   }
   
   /**

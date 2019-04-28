@@ -40,10 +40,6 @@ contract TestCERC20 is CERC20 {
     ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transfer(msg.sender, redeemAmount));
 
-    // check if there's still enough liquidity
-    (,,uint shortfall) = COMPTROLLER.getAccountLiquidity(msg.sender);
-    require(shortfall == 0);
-
     return 0;
   }
   
@@ -54,10 +50,6 @@ contract TestCERC20 is CERC20 {
     // transfer asset
     ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transfer(msg.sender, amount));
-
-    // check if there's still enough liquidity
-    (,,uint shortfall) = COMPTROLLER.getAccountLiquidity(msg.sender);
-    require(shortfall == 0);
 
     return 0;
   }
