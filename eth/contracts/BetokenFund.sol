@@ -135,7 +135,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   mapping(address => Investment[]) public userInvestments;
 
   // List of short/long orders of a manager in the current cycle.
-  mapping(address => address[]) public userCompoundOrders;
+  mapping(address => address payable[]) public userCompoundOrders;
 
   // Total commission to be paid for work done in a certain cycle (will be redeemed in the next cycle's Intermission)
   mapping(uint256 => uint256) public totalCommissionOfCycle;
@@ -148,6 +148,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // The last cycle where a manager made an investment
   mapping(address => uint256) public lastActiveCycle;
+
+  // Checks if an address points to a whitelisted Compound token. Returns false for cDAI and other stablecoin CompoundTokens.
+  mapping(address => bool) public isCompoundToken;
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -210,13 +213,13 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address payable _previousVersion,
     address _daiAddr,
     address payable _kyberAddr,
-    address _compoundAddr,
     address _compoundFactoryAddr,
     address _betokenLogic,
-    address[] memory _stableCoins
+    address[] memory _stableCoins,
+    address[] memory _compoundTokens
   )
     public
-    Utils(_daiAddr, _kyberAddr, _compoundAddr)
+    Utils(_daiAddr, _kyberAddr)
   {
     controlTokenAddr = _kroAddr;
     shareTokenAddr = _sTokenAddr;
@@ -230,6 +233,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     
     for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
       isStablecoin[_stableCoins[i]] = true;
+    }
+
+    for (uint256 i = 0; i < _compoundTokens.length; i = i.add(1)) {
+      isCompoundToken[_compoundTokens[i]] = true;
     }
 
     cToken = IMiniMeToken(_kroAddr);
@@ -708,7 +715,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Sells CompoundOrder left over due to manager not selling or KyberNetwork not having enough volume. Callable by anyone. Money goes to developer.
    * @param _orderAddress address of the CompoundOrder to be sold
    */
-  function sellLeftoverCompoundOrder(address _orderAddress)
+  function sellLeftoverCompoundOrder(address payable _orderAddress)
     public
     nonReentrant
     during(CyclePhase.Intermission)
@@ -757,11 +764,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     public
     nonReentrant
     isValidToken(_tokenAddress)
-    notStablecoin(_tokenAddress)
     during(CyclePhase.Manage)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
+    require(isCompoundToken[_tokenAddress]);
 
     // Collect stake
     require(cToken.generateTokens(address(this), _stake));
@@ -865,7 +872,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * @notice Creates a new Compound order to either short or leverage long a token.
    * @param _orderType true for a short order, false for a levarage long order
-   * @param _tokenAddress address of the token to be traded
+   * @param _tokenAddress address of the Compound token to be traded
    * @param _stake amount of Kairos to be staked
    * @param _minPrice the minimum token price for the trade
    * @param _maxPrice the maximum token price for the trade
@@ -939,7 +946,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __recordRisk(stake, order.buyTime());
 
     // Emit event
-    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.tokenAddr(), receiveKairoAmount, outputAmount);
+    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.compoundTokenAddr(), receiveKairoAmount, outputAmount);
   }
 
   /**
@@ -1082,7 +1089,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 _stake,
     uint256 _collateralAmountInDAI
   ) internal returns (CompoundOrder) {
-    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
+    CERC20 market = CERC20(_tokenAddress);
+    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(PRECISION).mul(market.reserveFactorMantissa()).div(PRECISION);
     CompoundOrder order = CompoundOrderFactory(compoundFactoryAddr).createOrder(
       _tokenAddress,
       cycleNumber,

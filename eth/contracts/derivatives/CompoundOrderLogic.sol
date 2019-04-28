@@ -2,30 +2,31 @@ pragma solidity 0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../Utils.sol";
+import "../interfaces/Comptroller.sol";
+import "../interfaces/CERC20.sol";
+import "../interfaces/CEther.sol";
+import "../interfaces/PriceOracle.sol";
 
-contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0)) {
-  modifier isInitialized {
-    require(stake > 0 && collateralAmountInDAI > 0 && loanAmountInDAI > 0); // Ensure order is initialized
-    _;
-  }
-
+contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
   // Constants
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
 
-  // Instance variables 
+  // Contract instances
+  Comptroller public COMPTROLLER; // The Compound comptroller
+  PriceOracle public ORACLE; // The Compound price oracle
+  CERC20 public CDAI; // The Compound DAI market token
+
+  // Instance variables
   uint256 public stake;
   uint256 public collateralAmountInDAI;
   uint256 public loanAmountInDAI;
   uint256 public cycleNumber;
   uint256 public buyTime; // Timestamp for order execution
-  address public tokenAddr;
+  address public compoundTokenAddr;
   bool public isSold;
   bool public orderType; // True for shorting, false for longing
 
-  // Contract instances
-  ERC20Detailed internal token;
-  
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {
     buyTime = now;
   }
@@ -35,38 +36,58 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0), address(0)
   function repayLoan(uint256 _repayAmountInDAI) public;
 
   function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    int256 liquidityInETH = compound.getAccountLiquidity(address(this));
-    if (liquidityInETH >= 0) {
-      return (false, __tokenToDAI(WETH_ADDR, uint256(liquidityInETH)));
+    (, uint256 liquidityInETH, uint256 shortfall) = COMPTROLLER.getAccountLiquidity(address(this));
+    if (shortfall == 0) {
+      return (false, __tokenToDAI(address(0), uint256(liquidityInETH)));
     } else {
-      require(-liquidityInETH > 0); // Prevent overflow
-      return (true, __tokenToDAI(WETH_ADDR, uint256(-liquidityInETH)));
+      return (true, __tokenToDAI(address(0), uint256(shortfall)));
     }
   }
-
+  
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount);
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount);
 
   function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
-    (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, token); // Sell DAI for tokens on Kyber
+    ERC20Detailed t = __underlyingToken(compoundTokenAddr);
+    (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, t); // Sell DAI for tokens on Kyber
     require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
   }
 
   function __sellTokenForDAI(uint256 _tokenAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
-    (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(token, _tokenAmount, dai); // Sell tokens for DAI on Kyber
+    ERC20Detailed t = __underlyingToken(compoundTokenAddr);
+    (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(t, _tokenAmount, dai); // Sell tokens for DAI on Kyber
     require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
   }
 
   // Convert a DAI amount to the amount of a given token that's of equal value
-  function __daiToToken(address _token, uint256 _daiAmount) internal view returns (uint256) {
-    ERC20Detailed t = ERC20Detailed(_token);
-    return _daiAmount.mul(compound.assetPrices(DAI_ADDR)).mul(10 ** uint256(t.decimals())).div(compound.assetPrices(_token).mul(PRECISION));
+  function __daiToToken(address _cToken, uint256 _daiAmount) internal view returns (uint256) {
+    if (_cToken == address(0)) {
+      // token is ETH
+      return _daiAmount.mul(ORACLE.assetPrices(DAI_ADDR)).div(PRECISION);
+    }
+    ERC20Detailed t = __underlyingToken(_cToken);
+    return _daiAmount.mul(ORACLE.assetPrices(DAI_ADDR)).mul(10 ** getDecimals(t)).div(ORACLE.assetPrices(address(t)).mul(PRECISION));
   }
 
-  // Convert a token amount to the amount of DAI that's of equal value
-  function __tokenToDAI(address _token, uint256 _tokenAmount) internal view returns (uint256) {
-    ERC20Detailed t = ERC20Detailed(_token);
-    return _tokenAmount.mul(compound.assetPrices(_token)).mul(PRECISION).div(compound.assetPrices(DAI_ADDR).mul(10 ** uint256(t.decimals())));
+  // Convert a compound token amount to the amount of DAI that's of equal value
+  function __tokenToDAI(address _cToken, uint256 _tokenAmount) internal view returns (uint256) {
+    if (_cToken == address(0)) {
+      // token is ETH
+      return _tokenAmount.mul(PRECISION).div(ORACLE.assetPrices(DAI_ADDR));
+    }
+    ERC20Detailed t = __underlyingToken(_cToken);
+    return _tokenAmount.mul(ORACLE.assetPrices(address(t))).mul(PRECISION).div(ORACLE.assetPrices(DAI_ADDR).mul(10 ** uint256(t.decimals())));
+  }
+
+  function __underlyingToken(address _cToken) internal view returns (ERC20Detailed) {
+    if (_cToken == address(0)) {
+      // ETH
+      return ETH_TOKEN_ADDRESS;
+    }
+    CERC20 ct = CERC20(_cToken);
+    address underlyingToken = ct.underlying();
+    ERC20Detailed t = ERC20Detailed(underlyingToken);
+    return t;
   }
 }

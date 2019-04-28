@@ -7,7 +7,7 @@ import "./Utils.sol";
 import "./BetokenProxy.sol";
 import "./interfaces/IMiniMeToken.sol";
 
-contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), ReentrancyGuard {
+contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard {
   enum CyclePhase { Intermission, Manage }
   enum VoteDirection { Empty, For, Against }
   enum Subchunk { Propose, Vote }
@@ -54,11 +54,12 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0), address(0)), Ree
   mapping(address => mapping(uint256 => uint256)) public riskTakenInCycle;
   mapping(address => uint256) public baseRiskStakeFallback;
   mapping(address => Investment[]) public userInvestments;
-  mapping(address => address[]) public userCompoundOrders;
+  mapping(address => address payable[]) public userCompoundOrders;
   mapping(uint256 => uint256) public totalCommissionOfCycle;
   mapping(uint256 => uint256) public managePhaseEndBlock;
   mapping(address => bool) public isStablecoin;
   mapping(address => uint256) public lastActiveCycle;
+  mapping(address => bool) public isCompoundToken;
   CyclePhase public cyclePhase;
   bool public hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
   bool public upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active

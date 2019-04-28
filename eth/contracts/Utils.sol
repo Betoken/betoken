@@ -3,7 +3,6 @@ pragma solidity 0.5.0;
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./interfaces/KyberNetwork.sol";
-import "./interfaces/Compound.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.
@@ -26,15 +25,12 @@ contract Utils {
 
   address public DAI_ADDR;
   address payable public KYBER_ADDR;
-  address public COMPOUND_ADDR;
   
-  address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   bytes public constant PERM_HINT = "PERM";
 
   ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   ERC20Detailed internal dai;
   KyberNetwork internal kyber;
-  Compound internal compound;
 
   uint constant internal PRECISION = (10**18);
   uint constant internal MAX_QTY   = (10**28); // 10B tokens
@@ -43,16 +39,13 @@ contract Utils {
 
   constructor(
     address _daiAddr,
-    address payable _kyberAddr,
-    address _compoundAddr
+    address payable _kyberAddr
   ) public {
     DAI_ADDR = _daiAddr;
     KYBER_ADDR = _kyberAddr;
-    COMPOUND_ADDR = _compoundAddr;
 
     dai = ERC20Detailed(_daiAddr);
     kyber = KyberNetwork(_kyberAddr);
-    compound = Compound(_compoundAddr);
   }
 
   /**
@@ -139,7 +132,7 @@ contract Utils {
       _srcToken,
       _srcAmount,
       _destToken,
-      address(uint160(address(this))),
+      toPayableAddr(address(this)),
       MAX_QTY,
       rate,
       address(0),
@@ -167,5 +160,9 @@ contract Utils {
         size := extcodesize(_addr)
     }
     return size>0;
+  }
+
+  function toPayableAddr(address _addr) pure internal returns (address payable) {
+    return address(uint160(_addr));
   }
 }
