@@ -11,33 +11,33 @@ contract TestCERC20 is CERC20 {
   uint public constant PRECISION = 10 ** 18;
   uint public constant MAX_UINT = 2 ** 256 - 1;
 
-  address public underlying;
-  uint public reserveFactorMantissa = 2 * PRECISION / 3;
-  uint public exchangeRateCurrent = PRECISION;
+  address public _underlying;
+  uint public _reserveFactorMantissa = 2 * PRECISION / 3;
+  uint public _exchangeRateCurrent = PRECISION;
 
-  mapping(address => uint) public balanceOf;
-  mapping(address => uint) public borrowBalanceCurrent;
+  mapping(address => uint) public _balanceOf;
+  mapping(address => uint) public _borrowBalanceCurrent;
 
   Comptroller public COMPTROLLER;
 
-  constructor(address _underlying, address _comptrollerAddr) public {
-    underlying = _underlying;
+  constructor(address __underlying, address _comptrollerAddr) public {
+    _underlying = __underlying;
     COMPTROLLER = Comptroller(_comptrollerAddr);
   }
 
   function mint(uint mintAmount) external returns (uint) {
-    ERC20Detailed token = ERC20Detailed(underlying);
+    ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transferFrom(msg.sender, address(this), mintAmount));
 
-    balanceOf[msg.sender] = balanceOf[msg.sender].add(mintAmount);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].add(mintAmount);
     
     return 0;
   }
 
   function redeemUnderlying(uint redeemAmount) external returns (uint) {
-    balanceOf[msg.sender] = balanceOf[msg.sender].sub(redeemAmount);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].sub(redeemAmount);
 
-    ERC20Detailed token = ERC20Detailed(underlying);
+    ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transfer(msg.sender, redeemAmount));
 
     // check if there's still enough liquidity
@@ -49,10 +49,10 @@ contract TestCERC20 is CERC20 {
   
   function borrow(uint amount) external returns (uint) {
     // add to borrow balance
-    borrowBalanceCurrent[msg.sender] = borrowBalanceCurrent[msg.sender].add(amount);
+    _borrowBalanceCurrent[msg.sender] = _borrowBalanceCurrent[msg.sender].add(amount);
 
     // transfer asset
-    ERC20Detailed token = ERC20Detailed(underlying);
+    ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transfer(msg.sender, amount));
 
     // check if there's still enough liquidity
@@ -64,13 +64,19 @@ contract TestCERC20 is CERC20 {
   
   function repayBorrow(uint amount) external returns (uint) {
     // accept repayment
-    ERC20Detailed token = ERC20Detailed(underlying);
-    uint256 repayAmount = amount == MAX_UINT ? borrowBalanceCurrent[msg.sender] : amount;
+    ERC20Detailed token = ERC20Detailed(_underlying);
+    uint256 repayAmount = amount == MAX_UINT ? _borrowBalanceCurrent[msg.sender] : amount;
     require(token.transferFrom(msg.sender, address(this), repayAmount));
 
     // subtract from borrow balance
-    borrowBalanceCurrent[msg.sender] = borrowBalanceCurrent[msg.sender].sub(repayAmount);
+    _borrowBalanceCurrent[msg.sender] = _borrowBalanceCurrent[msg.sender].sub(repayAmount);
 
     return 0;
   }
+
+  function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
+  function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
+  function reserveFactorMantissa() external view returns (uint) { return _reserveFactorMantissa; }
+  function underlying() external view returns (address) { return _underlying; }
+  function exchangeRateCurrent() external view returns (uint) { return _exchangeRateCurrent; }
 }

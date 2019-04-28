@@ -16,8 +16,12 @@ contract TestComptroller is Comptroller {
 
   PriceOracle public ORACLE;
 
-  constructor(address _priceOracle, address _cETHAddr) public {
+  constructor(address _priceOracle) public {
     ORACLE = PriceOracle(_priceOracle);
+  }
+
+  function initCETHAddr(address _cETHAddr) public {
+    require(CETH_ADDR == address(0));
     CETH_ADDR = _cETHAddr;
   }
 

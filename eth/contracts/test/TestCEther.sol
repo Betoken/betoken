@@ -9,11 +9,11 @@ contract TestCEther is CEther {
 
   uint public constant PRECISION = 10 ** 18;
 
-  uint public reserveFactorMantissa = 2 * PRECISION / 3;
-  uint public exchangeRateCurrent = PRECISION;
+  uint public _reserveFactorMantissa = 2 * PRECISION / 3;
+  uint public _exchangeRateCurrent = PRECISION;
 
-  mapping(address => uint) public balanceOf;
-  mapping(address => uint) public borrowBalanceCurrent;
+  mapping(address => uint) public _balanceOf;
+  mapping(address => uint) public _borrowBalanceCurrent;
 
   Comptroller public COMPTROLLER;
 
@@ -22,12 +22,12 @@ contract TestCEther is CEther {
   }
 
   function mint() external payable returns (uint) {
-    balanceOf[msg.sender] = balanceOf[msg.sender].add(msg.value);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].add(msg.value);
     return 0;
   }
 
   function redeemUnderlying(uint redeemAmount) external returns (uint) {
-    balanceOf[msg.sender] = balanceOf[msg.sender].sub(redeemAmount);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].sub(redeemAmount);
 
     msg.sender.transfer(redeemAmount);
 
@@ -40,7 +40,7 @@ contract TestCEther is CEther {
   
   function borrow(uint amount) external returns (uint) {
     // add to borrow balance
-    borrowBalanceCurrent[msg.sender] = borrowBalanceCurrent[msg.sender].add(amount);
+    _borrowBalanceCurrent[msg.sender] = _borrowBalanceCurrent[msg.sender].add(amount);
 
     // transfer asset
     msg.sender.transfer(amount);
@@ -53,9 +53,14 @@ contract TestCEther is CEther {
   }
   
   function repayBorrow() external payable returns (uint) {
-    borrowBalanceCurrent[msg.sender] = borrowBalanceCurrent[msg.sender].sub(msg.value);
+    _borrowBalanceCurrent[msg.sender] = _borrowBalanceCurrent[msg.sender].sub(msg.value);
     return 0;
   }
+
+  function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
+  function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
+  function reserveFactorMantissa() external view returns (uint) { return _reserveFactorMantissa; }
+  function exchangeRateCurrent() external view returns (uint) { return _exchangeRateCurrent; }
 
   function() external payable {}
 }
