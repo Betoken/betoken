@@ -9,7 +9,6 @@ interface CERC20 {
 
   function balanceOf(address account) external view returns (uint);
   function borrowBalanceCurrent(address account) external view returns (uint);
-  function reserveFactorMantissa() external view returns (uint);
   function underlying() external view returns (address);
   function exchangeRateCurrent() external view returns (uint);
 }
