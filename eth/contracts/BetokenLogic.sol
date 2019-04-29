@@ -40,7 +40,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
   address public controlTokenAddr;
   address public shareTokenAddr;
-  address public proxyAddr;
+  address payable public proxyAddr;
   address public compoundFactoryAddr;
   address public betokenLogic;
   address payable public devFundingAccount;
