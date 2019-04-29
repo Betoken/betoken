@@ -90,7 +90,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address public shareTokenAddr;
 
   // Address of the BetokenProxy contract.
-  address public proxyAddr;
+  address payable public proxyAddr;
 
   // Address of the CompoundOrderFactory contract.
   address public compoundFactoryAddr;
@@ -255,7 +255,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @notice Used during deployment to set the BetokenProxy contract address.
    * @param _proxyAddr the proxy's address
    */
-  function setProxy(address _proxyAddr) public onlyOwner {
+  function setProxy(address payable _proxyAddr) public onlyOwner {
     require(_proxyAddr != address(0));
     require(proxyAddr == address(0));
     proxyAddr = _proxyAddr;
