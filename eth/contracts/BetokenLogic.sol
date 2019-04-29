@@ -6,6 +6,7 @@ import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
 import "./interfaces/IMiniMeToken.sol";
+import "./interfaces/PositionToken.sol";
 
 contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard {
   enum CyclePhase { Intermission, Manage }
@@ -60,6 +61,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   mapping(address => bool) public isStablecoin;
   mapping(address => uint256) public lastActiveCycle;
   mapping(address => bool) public isCompoundToken;
+  mapping(address => bool) public isPositionToken;
   CyclePhase public cyclePhase;
   bool public hasFinalizedNextVersion; // Denotes if the address of the next smart contract version has been finalized
   bool public upgradeVotingActive; // Denotes if the vote for which contract to upgrade to is active
@@ -564,6 +566,57 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
       uint256 commissionAfterPenalty = fullCommission.mul(riskTakenProportion).div(PRECISION);
       _commission = _commission.add(commissionAfterPenalty);
       _penalty = _penalty.add(fullCommission.sub(commissionAfterPenalty));
+    }
+  }
+
+  /**
+   * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
+   * @param _investmentId the ID of the investment to be handled
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   * @param _buy whether to buy or sell the given investment
+   */
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy)
+    public
+    returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
+  {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    address token = investment.tokenAddress;
+    if (isPositionToken[token]) {
+      // Fulcrum trading
+      PositionToken pToken = PositionToken(token);
+      if (_buy) {
+        investment.buyPrice = pToken.tokenPrice();
+        require(_minPrice <= investment.buyPrice && investment.buyPrice <= _maxPrice);
+
+        _actualSrcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
+        dai.approve(token, 0);
+        dai.approve(token, _actualSrcAmount);
+        _actualDestAmount = pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount);
+        dai.approve(token, 0);
+        
+        investment.tokenAmount = _actualDestAmount;
+      } else {
+        investment.sellPrice = pToken.tokenPrice();
+        require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
+
+        _actualSrcAmount = investment.tokenAmount;
+        _actualDestAmount = pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount);
+      }
+    } else {
+      // Kyber trading
+      uint256 dInS; // price of dest token denominated in src token
+      uint256 sInD; // price of src token denominated in dest token
+      if (_buy) {
+        (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token));
+        require(_minPrice <= dInS && dInS <= _maxPrice);
+        investment.buyPrice = dInS;
+        investment.tokenAmount = _actualDestAmount;
+      } else {
+        (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(ERC20Detailed(token), investment.tokenAmount, dai);
+        require(_minPrice <= sInD && sInD <= _maxPrice);
+        investment.sellPrice = sInD;
+      }
     }
   }
 }
