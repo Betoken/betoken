@@ -38,7 +38,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var COMPOUND_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, KAIRO_ADDR, KYBER_ADDR, STABLECOINS, ShareToken, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var COMPOUND_CDAI_ADDR, COMPOUND_CETH_ADDR, COMPOUND_COMPTROLLER_ADDR, COMPOUND_CTOKENS, COMPOUND_ORACLE_ADDR, ControlToken, DAI_ADDR, DEVELOPER_ACCOUNT, FULCRUM_PTOKENS, KAIRO_ADDR, KYBER_ADDR, STABLECOINS, ShareToken, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
           // Local testnet migration
@@ -159,7 +159,7 @@
             return results;
           })();
           compoundTokensArray.push(TestCEther.address);
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, [TestDAI.address], compoundTokensArray);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, [TestDAI.address], compoundTokensArray, []);
           betokenFund = (await BetokenFund.deployed());
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
@@ -174,7 +174,6 @@
           KAIRO_ADDR = "0x0532894d50c8f6D51887f89eeF853Cc720D7ffB4";
           KYBER_ADDR = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
           DAI_ADDR = "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359";
-          COMPOUND_ADDR = "0x3FDA67f7583380E67ef93072294a7fAc882FD7E7";
           DEVELOPER_ACCOUNT = "0x332d87209f7c8296389c307eae170c2440830a47";
           STABLECOINS = [
             DAI_ADDR,
@@ -187,21 +186,36 @@
             "0x57Ab1E02fEE23774580C119740129eAC7081e9D3", // sUSD
             "0xAbdf147870235FcFC34153828c769A70B3FAe01F" // EURT
           ];
-          // deploy Betoken Shares contracts
+          // TODO: update addresses with Mainnet contracts
+          COMPOUND_COMPTROLLER_ADDR = "0x3CA5a0E85aD80305c2d2c4982B2f2756f1e747a5";
+          COMPOUND_ORACLE_ADDR = "0x4B6419F70FBeE1661946f165563C1De0d35e618C";
+          COMPOUND_CDAI_ADDR = "0xb6b09fBffBa6A5C4631e5F7B2e3Ee183aC259c0d";
+          COMPOUND_CETH_ADDR = "0xD96DbD1d1A0BfDAE6ADa7F5C1cB6eaa485c9Ab78";
+          COMPOUND_CTOKENS = [
+            COMPOUND_CETH_ADDR,
+            "0x39f91488647f5F0A6c967463f8c3c02cDC5c3F5b", // cBAT
+            "0x15De1cA698b510948a3812f041446A4ACf29BCf7", // cREP
+            "0xA085E0936F5CE33DDF963294448a3d9DCFEB2Bbf" // cZRX
+          ];
+          FULCRUM_PTOKENS = [];
+          // deploy Betoken Shares contract
           await deployer.deploy(MiniMeTokenFactory);
           minimeFactory = (await MiniMeTokenFactory.deployed());
           ShareToken = MiniMeToken.at(((await minimeFactory.createCloneToken("0x0", 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr);
-          // deploy ShortOrderLogic
-          await deployer.deploy(ShortOrderLogic);
-          
-          // deploy LongOrderLogic
-          await deployer.deploy(LongOrderLogic);
+          // deploy ShortCERC20OrderLogic
+          await deployer.deploy(ShortCERC20OrderLogic);
+          // deploy ShortCEtherOrderLogic
+          await deployer.deploy(ShortCEtherOrderLogic);
+          // deploy LongCERC20OrderLogic
+          await deployer.deploy(LongCERC20OrderLogic);
+          // deploy LongCEtherOrderLogic
+          await deployer.deploy(LongCEtherOrderLogic);
           // deploy CompoundOrderFactory
-          await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR);
+          await deployer.deploy(CompoundOrderFactory, ShortCERC20OrderLogic.address, ShortCEtherOrderLogic.address, LongCERC20OrderLogic.address, LongCEtherOrderLogic.address, DAI_ADDR, KYBER_ADDR, COMPOUND_COMPTROLLER_ADDR, COMPOUND_ORACLE_ADDR, COMPOUND_CDAI_ADDR, COMPOUND_CETH_ADDR);
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, KAIRO_ADDR, ShareToken.address, DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, COMPOUND_ADDR, CompoundOrderFactory.address, BetokenLogic.address);
+          await deployer.deploy(BetokenFund, KAIRO_ADDR, ShareToken.address, DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, CompoundOrderFactory.address, BetokenLogic.address, STABLECOINS, COMPOUND_CTOKENS, FULCRUM_PTOKENS);
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
           // set proxy address in BetokenFund

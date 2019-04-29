@@ -152,6 +152,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Checks if an address points to a whitelisted Compound token. Returns false for cDAI and other stablecoin CompoundTokens.
   mapping(address => bool) public isCompoundToken;
 
+  // Check if an address points to a whitelisted Fulcrum position token.
+  mapping(address => bool) public isPositionToken;
+
   // The current cycle phase.
   CyclePhase public cyclePhase;
 
@@ -216,7 +219,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address _compoundFactoryAddr,
     address _betokenLogic,
     address[] memory _stableCoins,
-    address[] memory _compoundTokens
+    address[] memory _compoundTokens,
+    address[] memory _positionTokens
   )
     public
     Utils(_daiAddr, _kyberAddr)
@@ -237,6 +241,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     for (uint256 i = 0; i < _compoundTokens.length; i = i.add(1)) {
       isCompoundToken[_compoundTokens[i]] = true;
+    }
+
+    for (uint256 i = 0; i < _positionTokens.length; i = i.add(1)) {
+      isPositionToken[_positionTokens[i]] = true;
     }
 
     cToken = IMiniMeToken(_kroAddr);
@@ -749,7 +757,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
 
   /**
-   * @notice Creates a new investment investment for an ERC20 token.
+   * @notice Creates a new investment for an ERC20 token.
    * @param _tokenAddress address of the ERC20 token contract
    * @param _stake amount of Kairos to be staked in support of the investment
    * @param _minPrice the minimum price for the trade
@@ -1054,7 +1062,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Handles and investment by doing the necessary trades using __kyberTrade()
+   * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
    * @param _investmentId the ID of the investment to be handled
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
@@ -1064,20 +1072,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     internal
     returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
   {
-    Investment storage investment = userInvestments[msg.sender][_investmentId];
-    uint256 dInS; // price of dest token denominated in src token
-    uint256 sInD; // price of src token denominated in dest token
-    ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
-    if (_buy) {
-      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), token);
-      require(_minPrice <= dInS && dInS <= _maxPrice);
-      investment.buyPrice = dInS;
-      investment.tokenAmount = _actualDestAmount;
-    } else {
-      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(token, investment.tokenAmount, dai);
-      require(_minPrice <= sInD && sInD <= _maxPrice);
-      investment.sellPrice = sInD;
-    }
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSignature("__handleInvestment(uint256,uint256,uint256,bool)", _investmentId, _minPrice, _maxPrice, _buy));
+    if (!success) { return (0, 0); }
+    return abi.decode(result, (uint256, uint256));
   }
 
   /**
