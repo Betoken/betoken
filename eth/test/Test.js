@@ -411,14 +411,15 @@
       }));
     });
     it("sell_investment", async function() {
-      var MAX_PRICE, account2, fundTokenBlnce, kro, kroBlnce, prevFundTokenBlnce, prevKROBlnce, stake, token, tokenAmount;
+      var MAX_PRICE, account2, fundBlnce, fundTokenBlnce, kro, kroBlnce, prevFundBlnce, prevFundTokenBlnce, prevKROBlnce, stake, token, tokenAmount;
       kro = (await KRO(this.fund));
       token = (await TK("OMG"));
       MAX_PRICE = bnToString(OMG_PRICE * 2);
       // wait for 3 days to sell investment for accounts[1]
       await timeTravel(3 * DAY);
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
-      prevFundTokenBlnce = BigNumber((await token.balanceOf(this.fund.address)));
+      prevFundTokenBlnce = BigNumber((await token.balanceOf.call(this.fund.address)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       // sell investment
       tokenAmount = BigNumber(((await this.fund.userInvestments.call(account, 0))).tokenAmount);
       await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount), 0, MAX_PRICE, {
@@ -431,6 +432,9 @@
       // check fund token balance
       fundTokenBlnce = BigNumber((await token.balanceOf(this.fund.address)));
       assert(epsilon_equal(tokenAmount, prevFundTokenBlnce.minus(fundTokenBlnce)), "fund token balance changed");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed");
       // wait for 6 more days to sell investment for account2
       account2 = accounts[2];
       await timeTravel(6 * DAY);
@@ -473,7 +477,7 @@
       }));
     });
     it("sell_compound_orders", async function() {
-      var MAX_PRICE, account2, dai, fundDAIBlnce, kro, kroBlnce, longOrder, prevFundDAIBlnce, prevKROBlnce, shortOrder, stake, token;
+      var MAX_PRICE, account2, dai, fundBlnce, fundDAIBlnce, kro, kroBlnce, longOrder, prevFundBlnce, prevFundDAIBlnce, prevKROBlnce, shortOrder, stake, token;
       kro = (await KRO(this.fund));
       token = (await TK("OMG"));
       dai = (await DAI(this.fund));
@@ -482,6 +486,7 @@
       // SHORT ORDER SELLING
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
       prevFundDAIBlnce = BigNumber((await dai.balanceOf.call(this.fund.address)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       // sell short order
       shortOrder = (await CO(this.fund, account, 0));
       await this.fund.sellCompoundOrder(0, 0, MAX_PRICE, {
@@ -494,9 +499,13 @@
       // check fund DAI balance
       fundDAIBlnce = BigNumber((await dai.balanceOf.call(this.fund.address)));
       assert(epsilon_equal((await shortOrder.collateralAmountInDAI.call()), fundDAIBlnce.minus(prevFundDAIBlnce)), "short order returned incorrect DAI amount");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed");
       // LONG ORDER SELLING
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account2)));
       prevFundDAIBlnce = BigNumber((await dai.balanceOf.call(this.fund.address)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       // sell account2's long order
       longOrder = (await CO(this.fund, account2, 0));
       await this.fund.sellCompoundOrder(0, 0, bnToString(ETH_PRICE * 2), {
@@ -508,7 +517,10 @@
       assert(epsilon_equal(stake, kroBlnce.minus(prevKROBlnce)), "account2 received Kairo amount incorrect");
       // check fund DAI balance
       fundDAIBlnce = BigNumber((await dai.balanceOf.call(this.fund.address)));
-      return assert(epsilon_equal((await longOrder.collateralAmountInDAI.call()), fundDAIBlnce.minus(prevFundDAIBlnce)), "long order returned incorrect DAI amount");
+      assert(epsilon_equal((await longOrder.collateralAmountInDAI.call()), fundDAIBlnce.minus(prevFundDAIBlnce)), "long order returned incorrect DAI amount");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      return assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed");
     });
     it("next_cycle", async function() {
       var cycleNumber, cyclePhase;
@@ -602,7 +614,7 @@
       }));
     });
     it("raise_asset_price", async function() {
-      var MAX_PRICE, cOMG, delta, investmentId, kn, kro, kroBlnce, longId, newPrice, omg, oracle, prevKROBlnce, shortId, stake, tokenAmount;
+      var MAX_PRICE, cOMG, delta, fundBlnce, investmentId, kn, kro, kroBlnce, longId, newPrice, omg, oracle, prevFundBlnce, prevKROBlnce, shortId, stake, tokenAmount;
       kn = (await KN(this.fund));
       kro = (await KRO(this.fund));
       omg = (await TK("OMG"));
@@ -643,6 +655,7 @@
       });
       // sell asset
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       tokenAmount = BigNumber(((await this.fund.userInvestments.call(account, investmentId))).tokenAmount);
       await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {
         from: account
@@ -650,25 +663,36 @@
       // check KRO reward
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
       assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO reward incorrect");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect");
       // sell short order
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       await this.fund.sellCompoundOrder(shortId, 0, MAX_PRICE, {
         from: account
       });
       // check KRO penalty
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
       assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO penalty incorrect");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect");
       // sell long order
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       await this.fund.sellCompoundOrder(longId, 0, MAX_PRICE, {
         from: account
       });
       // check KRO reward
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
-      return assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO reward incorrect");
+      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO reward incorrect");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      return assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect");
     });
     it("lower_asset_price", async function() {
-      var MAX_PRICE, cOMG, delta, investmentId, kn, kro, kroBlnce, longId, newPrice, omg, oracle, prevKROBlnce, shortId, stake, tokenAmount;
+      var MAX_PRICE, cOMG, delta, fundBlnce, investmentId, kn, kro, kroBlnce, longId, newPrice, omg, oracle, prevFundBlnce, prevKROBlnce, shortId, stake, tokenAmount;
       kn = (await KN(this.fund));
       kro = (await KRO(this.fund));
       omg = (await TK("OMG"));
@@ -709,6 +733,7 @@
       });
       // sell asset
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       tokenAmount = BigNumber(((await this.fund.userInvestments.call(account, investmentId))).tokenAmount);
       await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {
         from: account
@@ -716,22 +741,33 @@
       // check KRO penalty
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
       assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO penalty incorrect");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect");
       // sell short order
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       await this.fund.sellCompoundOrder(shortId, 0, MAX_PRICE, {
         from: account
       });
       // check KRO reward
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
       assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO reward incorrect");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect");
       // sell long order
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
+      prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       await this.fund.sellCompoundOrder(longId, 0, MAX_PRICE, {
         from: account
       });
       // check KRO penalty
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
-      return assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO penalty incorrect");
+      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO penalty incorrect");
+      // check fund balance
+      fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
+      return assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect");
     });
     return it("lower_asset_price_to_0", async function() {
       var MAX_PRICE, cOMG, delta, investmentId, kn, kro, kroBlnce, newPrice, omg, oracle, prevKROBlnce, stake, tokenAmount;

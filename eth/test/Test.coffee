@@ -360,7 +360,8 @@ contract("first_cycle", (accounts) ->
     await timeTravel(3 * DAY)
 
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
-    prevFundTokenBlnce = BigNumber await token.balanceOf(this.fund.address)
+    prevFundTokenBlnce = BigNumber await token.balanceOf.call(this.fund.address)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
 
     # sell investment
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, 0)).tokenAmount)
@@ -374,6 +375,10 @@ contract("first_cycle", (accounts) ->
     # check fund token balance
     fundTokenBlnce = BigNumber await token.balanceOf(this.fund.address)
     assert(epsilon_equal(tokenAmount, prevFundTokenBlnce.minus(fundTokenBlnce)), "fund token balance changed")
+
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed")
 
     # wait for 6 more days to sell investment for account2
     account2 = accounts[2]
@@ -425,6 +430,7 @@ contract("first_cycle", (accounts) ->
     # SHORT ORDER SELLING
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
     prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
 
     # sell short order
     shortOrder = await CO(this.fund, account, 0)
@@ -439,10 +445,15 @@ contract("first_cycle", (accounts) ->
     fundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
     assert(epsilon_equal(await shortOrder.collateralAmountInDAI.call(), fundDAIBlnce.minus(prevFundDAIBlnce)), "short order returned incorrect DAI amount")
 
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed")
+
 
     # LONG ORDER SELLING
     prevKROBlnce = BigNumber await kro.balanceOf.call(account2)
     prevFundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
 
     # sell account2's long order
     longOrder = await CO(this.fund, account2, 0)
@@ -456,6 +467,10 @@ contract("first_cycle", (accounts) ->
     # check fund DAI balance
     fundDAIBlnce = BigNumber await dai.balanceOf.call(this.fund.address)
     assert(epsilon_equal(await longOrder.collateralAmountInDAI.call(), fundDAIBlnce.minus(prevFundDAIBlnce)), "long order returned incorrect DAI amount")
+
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed")
   )
 
   it("next_cycle", () ->
@@ -578,6 +593,7 @@ contract("price_changes", (accounts) ->
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, investmentId)).tokenAmount)
     await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {from: account})
 
@@ -585,21 +601,35 @@ contract("price_changes", (accounts) ->
     kroBlnce = BigNumber await kro.balanceOf.call(account)
     assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO reward incorrect")
 
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect")
+
     # sell short order
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     await this.fund.sellCompoundOrder(shortId, 0, MAX_PRICE, {from: account})
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
     assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO penalty incorrect")
 
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect")
+
     # sell long order
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     await this.fund.sellCompoundOrder(longId, 0, MAX_PRICE, {from: account})
 
     # check KRO reward
     kroBlnce = BigNumber await kro.balanceOf.call(account)
     assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO reward incorrect")
+
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect")
   )
 
   it("lower_asset_price", () ->
@@ -634,6 +664,7 @@ contract("price_changes", (accounts) ->
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     tokenAmount = BigNumber((await this.fund.userInvestments.call(account, investmentId)).tokenAmount)
     await this.fund.sellInvestmentAsset(investmentId, tokenAmount, 0, MAX_PRICE, {from: account})
 
@@ -641,21 +672,35 @@ contract("price_changes", (accounts) ->
     kroBlnce = BigNumber await kro.balanceOf.call(account)
     assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO penalty incorrect")
 
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect")
+
     # sell short order
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     await this.fund.sellCompoundOrder(shortId, 0, MAX_PRICE, {from: account})
 
     # check KRO reward
     kroBlnce = BigNumber await kro.balanceOf.call(account)
     assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO reward incorrect")
 
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect")
+
     # sell long order
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
+    prevFundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
     await this.fund.sellCompoundOrder(longId, 0, MAX_PRICE, {from: account})
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
     assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO penalty incorrect")
+
+    # check fund balance
+    fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
+    assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect")
   )
 
   it("lower_asset_price_to_0", () ->
