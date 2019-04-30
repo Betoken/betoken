@@ -39,15 +39,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Passes if the token is not a stablecoin
-   * @param _token the token to be checked
-   */
-  modifier notStablecoin(address _token) {
-    require(!isStablecoin[_token]);
-    _;
-  }
-
-  /**
    * @notice Passes if the fund is ready for migrating to the next version
    */
   modifier readyForUpgradeMigration {
@@ -82,6 +73,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
 
   // Instance variables
+
+  // Checks if the token listing initialization has been completed.
+  bool public hasInitializedTokenListings;
 
   // Address of the Kairo token contract.
   address public controlTokenAddr;
@@ -143,11 +137,11 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The block number at which the Manage phase ended for a given cycle
   mapping(uint256 => uint256) public managePhaseEndBlock;
 
-  // For checking if a token is a stablecoin
-  mapping(address => bool) public isStablecoin;
-
   // The last cycle where a manager made an investment
   mapping(address => uint256) public lastActiveCycle;
+
+  // Checks if an address points to a whitelisted Kyber token.
+  mapping(address => bool) public isKyberToken;
 
   // Checks if an address points to a whitelisted Compound token. Returns false for cDAI and other stablecoin CompoundTokens.
   mapping(address => bool) public isCompoundToken;
@@ -217,10 +211,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     address _daiAddr,
     address payable _kyberAddr,
     address _compoundFactoryAddr,
-    address _betokenLogic,
-    address[] memory _stableCoins,
-    address[] memory _compoundTokens,
-    address[] memory _positionTokens
+    address _betokenLogic
   )
     public
     Utils(_daiAddr, _kyberAddr)
@@ -234,21 +225,35 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     compoundFactoryAddr = _compoundFactoryAddr;
     betokenLogic = _betokenLogic;
     previousVersion = _previousVersion;
-    
-    for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
-      isStablecoin[_stableCoins[i]] = true;
-    }
-
-    for (uint256 i = 0; i < _compoundTokens.length; i = i.add(1)) {
-      isCompoundToken[_compoundTokens[i]] = true;
-    }
-
-    for (uint256 i = 0; i < _positionTokens.length; i = i.add(1)) {
-      isPositionToken[_positionTokens[i]] = true;
-    }
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
+  }
+
+  function initTokenListings(
+    address[] memory _kyberTokens,
+    address[] memory _compoundTokens,
+    address[] memory _positionTokens
+  )
+    public
+    onlyOwner
+  {
+    // May only initialize once
+    require(!hasInitializedTokenListings);
+    hasInitializedTokenListings = true;
+
+    uint256 i;
+    for (i = 0; i < _kyberTokens.length; i = i.add(1)) {
+      isKyberToken[_kyberTokens[i]] = true;
+    }
+
+    for (i = 0; i < _compoundTokens.length; i = i.add(1)) {
+      isCompoundToken[_compoundTokens[i]] = true;
+    }
+
+    for (i = 0; i < _positionTokens.length; i = i.add(1)) {
+      isPositionToken[_positionTokens[i]] = true;
+    }
   }
 
   /**
@@ -452,7 +457,14 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(_newProp < devFundingRate);
     devFundingRate = _newProp;
   }
-  
+
+  /**
+   * @notice Allows managers to invest in a token. Only callable by owner.
+   * @param _token address of the token to be listed
+   */
+  function listKyberToken(address _token) public onlyOwner {
+    isKyberToken[_token] = true;
+  }
 
   /**
    * @notice Moves the fund to the next phase in the investment cycle.
@@ -774,34 +786,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     isValidToken(_tokenAddress)
     during(CyclePhase.Manage)
   {
-    require(_minPrice <= _maxPrice);
-    require(_stake > 0);
-
-    // Collect stake
-    require(cToken.generateTokens(address(this), _stake));
-    require(cToken.destroyTokens(msg.sender, _stake));
-
-    // Add investment to list
-    userInvestments[msg.sender].push(Investment({
-      tokenAddress: _tokenAddress,
-      cycleNumber: cycleNumber,
-      stake: _stake,
-      tokenAmount: 0,
-      buyPrice: 0,
-      sellPrice: 0,
-      buyTime: now,
-      isSold: false
-    }));
-
-    // Invest
-    uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
-
-    // Update last active cycle
-    lastActiveCycle[msg.sender] = cycleNumber;
-
-    // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createInvestment.selector, _tokenAddress, _stake, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -824,56 +810,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Manage)
     nonReentrant
   {
-    Investment storage investment = userInvestments[msg.sender][_investmentId];
-    require(investment.buyPrice > 0 && investment.cycleNumber == cycleNumber && !investment.isSold);
-    require(_tokenAmount > 0 && _tokenAmount <= investment.tokenAmount);
-    require(_minPrice <= _maxPrice);
-
-    // Create new investment for leftover tokens
-    bool isPartialSell = false;
-    uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
-    if (_tokenAmount != investment.tokenAmount) {
-      isPartialSell = true;
-      userInvestments[msg.sender].push(Investment({
-        tokenAddress: investment.tokenAddress,
-        cycleNumber: cycleNumber,
-        stake: investment.stake.sub(stakeOfSoldTokens),
-        tokenAmount: investment.tokenAmount.sub(_tokenAmount),
-        buyPrice: investment.buyPrice,
-        sellPrice: 0,
-        buyTime: investment.buyTime,
-        isSold: false
-      }));
-      investment.tokenAmount = _tokenAmount;
-      investment.stake = stakeOfSoldTokens;
-    }
-    
-    // Update investment info
-    investment.isSold = true;
-
-    // Sell asset
-    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
-    if (isPartialSell) {
-      // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
-      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(actualSrcAmount));
-    }
-
-    // Return staked Kairo
-    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice).div(investment.buyPrice);
-    __returnStake(receiveKairoAmount, stakeOfSoldTokens);
-
-    // Record risk taken in investment
-    __recordRisk(investment.stake, investment.buyTime);
-    
-    // Emit event
-    if (isPartialSell) {
-      Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
-      emit CreatedInvestment(
-        cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
-        newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
-        newInvestment.buyPrice.mul(newInvestment.tokenAmount).div(10 ** getDecimals(ERC20Detailed(newInvestment.tokenAddress))));
-    }
-    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellInvestmentAsset.selector, _investmentId, _tokenAmount, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -895,7 +833,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     nonReentrant
     during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
-    notStablecoin(_tokenAddress)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);

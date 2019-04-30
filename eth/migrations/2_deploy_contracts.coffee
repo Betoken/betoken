@@ -148,12 +148,14 @@ module.exports = (deployer, network, accounts) ->
           TestDAI.address,
           TestKyberNetwork.address,
           CompoundOrderFactory.address,
-          BetokenLogic.address,
-          [TestDAI.address],
+          BetokenLogic.address
+        )
+        betokenFund = await BetokenFund.deployed()
+        await betokenFund.initTokenListings(
+          tokenAddrs[0..tokenAddrs.length - 3].concat([ETH_ADDR]),
           compoundTokensArray,
           []
         )
-        betokenFund = await BetokenFund.deployed()
 
         # deploy BetokenProxy contract
         await deployer.deploy(
@@ -173,34 +175,7 @@ module.exports = (deployer, network, accounts) ->
 
         PRECISION = 1e18
 
-        KAIRO_ADDR = "0x0532894d50c8f6D51887f89eeF853Cc720D7ffB4"
-        KYBER_ADDR = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755"
-        DAI_ADDR = "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
-        DEVELOPER_ACCOUNT = "0x332d87209f7c8296389c307eae170c2440830a47"
-        STABLECOINS = [
-          DAI_ADDR,
-          "0x0000000000085d4780B73119b644AE5ecd22b376", # TUSD
-          "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
-          "0xdB25f211AB05b1c97D595516F45794528a807ad8", # EURS
-          "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
-          "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd", # GUSD
-          "0x8E870D67F660D95d5be530380D0eC0bd388289E1", # PAX
-          "0x57Ab1E02fEE23774580C119740129eAC7081e9D3", # sUSD
-          "0xAbdf147870235FcFC34153828c769A70B3FAe01F" # EURT
-        ]
-
-        # TODO: update addresses with Mainnet contracts
-        COMPOUND_COMPTROLLER_ADDR = "0x3CA5a0E85aD80305c2d2c4982B2f2756f1e747a5"
-        COMPOUND_ORACLE_ADDR = "0x4B6419F70FBeE1661946f165563C1De0d35e618C"
-        COMPOUND_CDAI_ADDR = "0xb6b09fBffBa6A5C4631e5F7B2e3Ee183aC259c0d"
-        COMPOUND_CETH_ADDR = "0xD96DbD1d1A0BfDAE6ADa7F5C1cB6eaa485c9Ab78"
-        COMPOUND_CTOKENS = [
-          COMPOUND_CETH_ADDR,
-          "0x39f91488647f5F0A6c967463f8c3c02cDC5c3F5b", # cBAT
-          "0x15De1cA698b510948a3812f041446A4ACf29BCf7", # cREP
-          "0xA085E0936F5CE33DDF963294448a3d9DCFEB2Bbf" # cZRX
-        ]
-        FULCRUM_PTOKENS = []
+        KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
         # deploy Betoken Shares contract
         await deployer.deploy(MiniMeTokenFactory)
@@ -227,12 +202,12 @@ module.exports = (deployer, network, accounts) ->
           ShortCEtherOrderLogic.address,
           LongCERC20OrderLogic.address,
           LongCEtherOrderLogic.address,
-          DAI_ADDR,
-          KYBER_ADDR,
-          COMPOUND_COMPTROLLER_ADDR,
-          COMPOUND_ORACLE_ADDR,
-          COMPOUND_CDAI_ADDR,
-          COMPOUND_CETH_ADDR
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
         )
 
         # deploy BetokenLogic
@@ -241,19 +216,22 @@ module.exports = (deployer, network, accounts) ->
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,
-          KAIRO_ADDR,
+          config.KAIRO_ADDR,
           ShareToken.address,
-          DEVELOPER_ACCOUNT
+          config.DEVELOPER_ACCOUNT
           config.phaseLengths,
           bnToString(config.devFundingRate),
           ZERO_ADDR,
-          DAI_ADDR,
-          KYBER_ADDR,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
           CompoundOrderFactory.address,
-          BetokenLogic.address,
-          STABLECOINS,
-          COMPOUND_CTOKENS,
-          FULCRUM_PTOKENS
+          BetokenLogic.address
+        )
+        betokenFund = await BetokenFund.deployed()
+        await betokenFund.initTokenListings(
+          config.KYBER_TOKENS,
+          config.COMPOUND_CTOKENS,
+          config.FULCRUM_PTOKENS
         )
 
         # deploy BetokenProxy contract
@@ -270,6 +248,6 @@ module.exports = (deployer, network, accounts) ->
 
         # transfer fund ownership to developer multisig
         fund = await BetokenFund.deployed()
-        await fund.transferOwnership(DEVELOPER_ACCOUNT)
+        await fund.transferOwnership(config.DEVELOPER_ACCOUNT)
 
         # IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract

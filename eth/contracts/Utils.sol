@@ -117,9 +117,13 @@ contract Utils {
     )
   {
     require(_srcToken != _destToken);
+
+    // Get current rate & ensure token is listed on Kyber
+    (, uint256 rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
+    require(rate > 0);
+
     uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
     uint256 msgValue;
-    uint256 rate;
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       msgValue = 0;
       _srcToken.approve(KYBER_ADDR, 0);
@@ -127,7 +131,6 @@ contract Utils {
     } else {
       msgValue = _srcAmount;
     }
-    (,rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
     _actualDestAmount = kyber.tradeWithHint.value(msgValue)(
       _srcToken,
       _srcAmount,
