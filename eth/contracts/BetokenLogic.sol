@@ -38,6 +38,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   uint256 public constant CYCLES_TILL_MATURITY = 3;
   uint256 public constant QUORUM = 10 * (10 ** 16); // 10% quorum
   uint256 public constant VOTE_SUCCESS_THRESHOLD = 75 * (10 ** 16); // Votes on upgrade candidates need >75% voting weight to pass
+  bool public hasInitializedTokenListings;
   address public controlTokenAddr;
   address public shareTokenAddr;
   address payable public proxyAddr;
@@ -58,8 +59,8 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   mapping(address => address payable[]) public userCompoundOrders;
   mapping(uint256 => uint256) public totalCommissionOfCycle;
   mapping(uint256 => uint256) public managePhaseEndBlock;
-  mapping(address => bool) public isStablecoin;
   mapping(address => uint256) public lastActiveCycle;
+  mapping(address => bool) public isKyberToken;
   mapping(address => bool) public isCompoundToken;
   mapping(address => bool) public isPositionToken;
   CyclePhase public cyclePhase;
@@ -570,6 +571,130 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   }
 
   /**
+   * @notice Returns the length of the user's investments array.
+   * @return length of the user's investments array
+   */
+  function investmentsCount(address _userAddr) public view returns(uint256 _count) {
+    return userInvestments[_userAddr].length;
+  }
+
+  /**
+   * @notice Creates a new investment for an ERC20 token.
+   * @param _tokenAddress address of the ERC20 token contract
+   * @param _stake amount of Kairos to be staked in support of the investment
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   */
+  function createInvestment(
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+  {
+    require(_minPrice <= _maxPrice);
+    require(_stake > 0);
+    require(isKyberToken[_tokenAddress] || isPositionToken[_tokenAddress]);
+
+    // Collect stake
+    require(cToken.generateTokens(address(this), _stake));
+    require(cToken.destroyTokens(msg.sender, _stake));
+
+    // Add investment to list
+    userInvestments[msg.sender].push(Investment({
+      tokenAddress: _tokenAddress,
+      cycleNumber: cycleNumber,
+      stake: _stake,
+      tokenAmount: 0,
+      buyPrice: 0,
+      sellPrice: 0,
+      buyTime: now,
+      isSold: false
+    }));
+
+    // Invest
+    uint256 investmentId = investmentsCount(msg.sender).sub(1);
+    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
+
+    // Update last active cycle
+    lastActiveCycle[msg.sender] = cycleNumber;
+
+    // Emit event
+    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
+  }
+
+  /**
+   * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
+   *         The user can sell only part of the investment by changing _tokenAmount.
+   * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
+   *   the original buy price and however much tokens that are not sold.
+   * @param _investmentId the ID of the investment
+   * @param _tokenAmount the amount of tokens to be sold.
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   */
+  function sellInvestmentAsset(
+    uint256 _investmentId,
+    uint256 _tokenAmount,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+  {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    require(investment.buyPrice > 0 && investment.cycleNumber == cycleNumber && !investment.isSold);
+    require(_tokenAmount > 0 && _tokenAmount <= investment.tokenAmount);
+    require(_minPrice <= _maxPrice);
+
+    // Create new investment for leftover tokens
+    bool isPartialSell = false;
+    uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
+    if (_tokenAmount != investment.tokenAmount) {
+      isPartialSell = true;
+      userInvestments[msg.sender].push(Investment({
+        tokenAddress: investment.tokenAddress,
+        cycleNumber: cycleNumber,
+        stake: investment.stake.sub(stakeOfSoldTokens),
+        tokenAmount: investment.tokenAmount.sub(_tokenAmount),
+        buyPrice: investment.buyPrice,
+        sellPrice: 0,
+        buyTime: investment.buyTime,
+        isSold: false
+      }));
+      investment.tokenAmount = _tokenAmount;
+      investment.stake = stakeOfSoldTokens;
+    }
+    
+    // Update investment info
+    investment.isSold = true;
+
+    // Sell asset
+    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
+    if (isPartialSell) {
+      // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
+      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(actualSrcAmount));
+    }
+
+    // Return staked Kairo
+    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice).div(investment.buyPrice);
+    __returnStake(receiveKairoAmount, stakeOfSoldTokens);
+
+    // Record risk taken in investment
+    __recordRisk(investment.stake, investment.buyTime);
+    
+    // Emit event
+    if (isPartialSell) {
+      Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
+      emit CreatedInvestment(
+        cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
+        newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
+        newInvestment.buyPrice.mul(newInvestment.tokenAmount).div(10 ** getDecimals(ERC20Detailed(newInvestment.tokenAddress))));
+    }
+    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
+  }
+
+  /**
    * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
    * @param _investmentId the ID of the investment to be handled
    * @param _minPrice the minimum price for the trade
@@ -618,5 +743,20 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
         investment.sellPrice = sInD;
       }
     }
+  }
+
+  /**
+   * @notice Returns stake to manager after investment is sold, including reward/penalty based on performance
+   */
+  function __returnStake(uint256 _receiveKairoAmount, uint256 _stake) internal {
+    cToken.destroyTokens(address(this), _stake);
+    cToken.generateTokens(msg.sender, _receiveKairoAmount);
+  }
+
+  /**
+   * @notice Records risk taken in a trade based on stake and time of investment
+   */
+  function __recordRisk(uint256 _stake, uint256 _buyTime) internal {
+    riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
   }
 }
