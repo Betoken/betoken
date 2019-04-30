@@ -26,6 +26,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 buyPrice; // token buy price in 18 decimals in DAI
     uint256 sellPrice; // token sell price in 18 decimals in DAI
     uint256 buyTime;
+    uint256 buyCostInDAI;
     bool isSold;
   }
 
@@ -172,7 +173,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // Events
 
-  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
+  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp, uint256 _totalFundsInDAI);
 
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
@@ -184,7 +185,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event SoldCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order,  bool _orderType, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
   event RepaidCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
 
-  event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
@@ -889,6 +889,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Record risk taken
     __recordRisk(stake, order.buyTime());
+
+    // Update total funds
+    totalFundsInDAI = totalFundsInDAI.sub(inputAmount).add(outputAmount);
 
     // Emit event
     emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.compoundTokenAddr(), receiveKairoAmount, outputAmount);

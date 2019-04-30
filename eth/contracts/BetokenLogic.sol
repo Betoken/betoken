@@ -21,6 +21,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
     uint256 buyPrice; // token buy price in 18 decimals in DAI
     uint256 sellPrice; // token sell price in 18 decimals in DAI
     uint256 buyTime;
+    uint256 buyCostInDAI;
     bool isSold;
   }
 
@@ -79,7 +80,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   IMiniMeToken internal sToken;
   BetokenProxy internal proxy;
 
-  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
+  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp, uint256 _totalFundsInDAI);
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
   event CreatedInvestment(uint256 indexed _cycleNumber, address indexed _sender, uint256 _id, address _tokenAddress, uint256 _stakeInWeis, uint256 _buyPrice, uint256 _costDAIAmount);
@@ -87,7 +88,6 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   event CreatedCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, bool _orderType, address _tokenAddress, uint256 _stakeInWeis, uint256 _costDAIAmount);
   event SoldCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order,  bool _orderType, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
   event RepaidCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
-  event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
   event Register(address indexed _manager, uint256 indexed _block, uint256 _donationInDAI);
@@ -378,11 +378,8 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
       uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
       totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(commissionThisCycle); // account for penalties
       totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
-      uint256 newTotalFunds = getBalance(dai, address(this)).sub(totalCommissionLeft);
 
-      // Update values
-      emit ROI(cycleNumber, totalFundsInDAI, newTotalFunds);
-      totalFundsInDAI = newTotalFunds;
+      totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
 
       // Give the developer Betoken shares inflation funding
       uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
@@ -422,7 +419,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
     // Reward caller
     cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD);
 
-    emit ChangedPhase(cycleNumber, uint(cyclePhase), now);
+    emit ChangedPhase(cycleNumber, uint(cyclePhase), now, totalFundsInDAI);
   }
 
 
@@ -539,8 +536,13 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
     // Set risk fallback base stake
     baseRiskStakeFallback[msg.sender] = kroAmount;
 
-    // transfer DAI to devFundingAccount
-    require(dai.transfer(devFundingAccount, _donationInDAI));
+    if (cyclePhase == CyclePhase.Intermission) {
+      // transfer DAI to devFundingAccount
+      require(dai.transfer(devFundingAccount, _donationInDAI));
+    } else {
+      // keep DAI in the fund
+      totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
+    }
     
     // emit events
     emit Register(msg.sender, block.number, _donationInDAI);
@@ -610,6 +612,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
       buyPrice: 0,
       sellPrice: 0,
       buyTime: now,
+      buyCostInDAI: 0,
       isSold: false
     }));
 
@@ -652,6 +655,10 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
     uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
     if (_tokenAmount != investment.tokenAmount) {
       isPartialSell = true;
+
+      // calculate the part of original DAI cost attributed to the sold tokens
+      uint256 soldBuyCostInDAI = investment.buyCostInDAI.mul(_tokenAmount).div(investment.tokenAmount);
+
       userInvestments[msg.sender].push(Investment({
         tokenAddress: investment.tokenAddress,
         cycleNumber: cycleNumber,
@@ -660,10 +667,14 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
         buyPrice: investment.buyPrice,
         sellPrice: 0,
         buyTime: investment.buyTime,
+        buyCostInDAI: investment.buyCostInDAI.sub(soldBuyCostInDAI),
         isSold: false
       }));
+
+      // update the investment object being sold
       investment.tokenAmount = _tokenAmount;
       investment.stake = stakeOfSoldTokens;
+      investment.buyCostInDAI = soldBuyCostInDAI;
     }
     
     // Update investment info
@@ -682,6 +693,9 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
 
     // Record risk taken in investment
     __recordRisk(investment.stake, investment.buyTime);
+
+    // Update total funds
+    totalFundsInDAI = totalFundsInDAI.sub(investment.buyCostInDAI).add(actualDestAmount);
     
     // Emit event
     if (isPartialSell) {
@@ -689,7 +703,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
       emit CreatedInvestment(
         cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
         newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
-        newInvestment.buyPrice.mul(newInvestment.tokenAmount).div(10 ** getDecimals(ERC20Detailed(newInvestment.tokenAddress))));
+        newInvestment.buyCostInDAI);
     }
     emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
   }
@@ -721,6 +735,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
         dai.approve(token, 0);
         
         investment.tokenAmount = _actualDestAmount;
+        investment.buyCostInDAI = _actualSrcAmount;
       } else {
         investment.sellPrice = pToken.tokenPrice();
         require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
@@ -737,6 +752,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
         require(_minPrice <= dInS && dInS <= _maxPrice);
         investment.buyPrice = dInS;
         investment.tokenAmount = _actualDestAmount;
+        investment.buyCostInDAI = _actualSrcAmount;
       } else {
         (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(ERC20Detailed(token), investment.tokenAmount, dai);
         require(_minPrice <= sInD && sInD <= _maxPrice);
