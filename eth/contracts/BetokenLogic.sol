@@ -7,6 +7,7 @@ import "./Utils.sol";
 import "./BetokenProxy.sol";
 import "./interfaces/IMiniMeToken.sol";
 import "./interfaces/PositionToken.sol";
+import "./derivatives/CompoundOrderFactory.sol";
 
 contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard {
   enum CyclePhase { Intermission, Manage }
@@ -54,6 +55,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   uint256 public totalCommissionLeft;
   uint256[2] public phaseLengths;
   mapping(address => uint256) public lastCommissionRedemption;
+  mapping(address => mapping(uint256 => bool)) public hasRedeemedCommissionForCycle;
   mapping(address => mapping(uint256 => uint256)) public riskTakenInCycle;
   mapping(address => uint256) public baseRiskStakeFallback;
   mapping(address => Investment[]) public userInvestments;
@@ -548,30 +550,6 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
     emit Register(msg.sender, block.number, _donationInDAI);
   }
 
-
-  /**
-   * @notice Returns the commission balance of `_manager`
-   * @return the commission balance, denoted in DAI
-   */
-  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
-    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
-    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
-    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
-      // take risk into account
-      uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle.sub(1)]);
-      uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
-      if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { continue; }
-      uint256 riskTakenProportion = riskTakenInCycle[_manager][cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
-      riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
-
-      uint256 fullCommission = totalCommissionOfCycle[cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[cycle]))
-        .div(cToken.totalSupplyAt(managePhaseEndBlock[cycle]));
-      uint256 commissionAfterPenalty = fullCommission.mul(riskTakenProportion).div(PRECISION);
-      _commission = _commission.add(commissionAfterPenalty);
-      _penalty = _penalty.add(fullCommission.sub(commissionAfterPenalty));
-    }
-  }
-
   /**
    * @notice Returns the length of the user's investments array.
    * @return length of the user's investments array
@@ -709,6 +687,102 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   }
 
   /**
+   * @notice Creates a new Compound order to either short or leverage long a token.
+   * @param _orderType true for a short order, false for a levarage long order
+   * @param _tokenAddress address of the Compound token to be traded
+   * @param _stake amount of Kairos to be staked
+   * @param _minPrice the minimum token price for the trade
+   * @param _maxPrice the maximum token price for the trade
+   */
+  function createCompoundOrder(
+    bool _orderType,
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+  {
+    require(_minPrice <= _maxPrice);
+    require(_stake > 0);
+    require(isCompoundToken[_tokenAddress]);
+
+    // Collect stake
+    require(cToken.generateTokens(address(this), _stake));
+    require(cToken.destroyTokens(msg.sender, _stake));
+
+    // Create compound order and execute
+    uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
+    CompoundOrder order = __createCompoundOrder(_orderType, _tokenAddress, _stake, collateralAmountInDAI);
+    require(dai.approve(address(order), 0));
+    require(dai.approve(address(order), collateralAmountInDAI));
+    order.executeOrder(_minPrice, _maxPrice);
+
+    // Add order to list
+    userCompoundOrders[msg.sender].push(address(order));
+
+    // Update last active cycle
+    lastActiveCycle[msg.sender] = cycleNumber;
+
+    // Emit event
+    emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
+  }
+
+  /**
+   * @notice Sells a compound order
+   * @param _orderId the ID of the order to be sold (index in userCompoundOrders[msg.sender])
+   * @param _minPrice the minimum token price for the trade
+   * @param _maxPrice the maximum token price for the trade
+   */
+  function sellCompoundOrder(
+    uint256 _orderId,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+  {
+    // Load order info
+    require(userCompoundOrders[msg.sender][_orderId] != address(0));
+    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
+    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
+
+    // Sell order
+    (uint256 inputAmount, uint256 outputAmount) = order.sellOrder(_minPrice, _maxPrice);
+
+    // Return staked Kairo
+    uint256 stake = order.stake();
+    uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
+    __returnStake(receiveKairoAmount, stake);
+
+    // Record risk taken
+    __recordRisk(stake, order.buyTime());
+
+    // Update total funds
+    totalFundsInDAI = totalFundsInDAI.sub(inputAmount).add(outputAmount);
+
+    // Emit event
+    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.compoundTokenAddr(), receiveKairoAmount, outputAmount);
+  }
+
+  /**
+   * @notice Repys debt for a Compound order to prevent the collateral ratio from dropping below threshold.
+   * @param _orderId the ID of the Compound order
+   * @param _repayAmountInDAI amount of DAI to use for repaying debt
+   */
+  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public {
+    // Load order info
+    require(userCompoundOrders[msg.sender][_orderId] != address(0));
+    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
+    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
+
+    // Repay loan
+    order.repayLoan(_repayAmountInDAI);
+
+    // Emit event
+    emit RepaidCompoundOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
+  }
+
+  /**
    * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
    * @param _investmentId the ID of the investment to be handled
    * @param _minPrice the minimum price for the trade
@@ -759,6 +833,28 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
         investment.sellPrice = sInD;
       }
     }
+  }
+
+  /**
+   * @notice Separated from createCompoundOrder() to avoid stack too deep error
+   */
+  function __createCompoundOrder(
+    bool _orderType, // True for shorting, false for longing
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _collateralAmountInDAI
+  ) internal returns (CompoundOrder) {
+    CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
+    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(PRECISION).mul(factory.getMarketCollateralFactor(_tokenAddress)).div(PRECISION);
+    CompoundOrder order = factory.createOrder(
+      _tokenAddress,
+      cycleNumber,
+      _stake,
+      _collateralAmountInDAI,
+      loanAmountInDAI,
+      _orderType
+    );
+    return order;
   }
 
   /**

@@ -6,7 +6,6 @@ import "./interfaces/IMiniMeToken.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
-import "./derivatives/CompoundOrderFactory.sol";
 import "./BetokenLogic.sol";
 
 /**
@@ -117,13 +116,16 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Stores the lengths of each cycle phase in seconds.
   uint256[2] public phaseLengths;
 
-  // The last cycle where a user redeemed commission.
+  // The last cycle where a user redeemed all of their remaining commission.
   mapping(address => uint256) public lastCommissionRedemption;
+
+  // Marks whether a manager has redeemed their commission for a certain cycle
+  mapping(address => mapping(uint256 => bool)) public hasRedeemedCommissionForCycle;
 
   // The stake-time measured risk that a manager has taken in a cycle
   mapping(address => mapping(uint256 => uint256)) public riskTakenInCycle;
 
-  // In case a manager joined the fund during the current, set the fallback base stake for risk threshold calculation
+  // In case a manager joined the fund during the current cycle, set the fallback base stake for risk threshold calculation
   mapping(address => uint256) public baseRiskStakeFallback;
 
   // List of investments of a manager in the current cycle.
@@ -378,12 +380,38 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   /**
    * @notice Returns the commission balance of `_manager`
-   * @return the commission balance, denoted in DAI
+   * @return the commission balance and the received penalty, denoted in DAI
    */
-  function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
-    if (!success) { return (0, 0); }
-    return abi.decode(result, (uint256, uint256));
+  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
+    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
+    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
+    uint256 cycleCommission;
+    uint256 cyclePenalty;
+    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
+      (cycleCommission, cyclePenalty) = commissionOfAt(_manager, cycle);
+      _commission = _commission.add(cycleCommission);
+      _penalty = _penalty.add(cyclePenalty);
+    }
+  }
+
+  /**
+   * @notice Returns the commission amount received by `_manager` in the `_cycle`th cycle
+   * @return the commission amount and the received penalty, denoted in DAI
+   */
+  function commissionOfAt(address _manager, uint256 _cycle) public view returns (uint256 _commission, uint256 _penalty) {
+    if (hasRedeemedCommissionForCycle[_manager][_cycle]) { return (0, 0); }
+    // take risk into account
+    uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[_cycle.sub(1)]);
+    uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
+    if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { return (0, 0); }
+    uint256 riskTakenProportion = riskTakenInCycle[_manager][_cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
+    riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
+
+    uint256 fullCommission = totalCommissionOfCycle[_cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[_cycle]))
+      .div(cToken.totalSupplyAt(managePhaseEndBlock[_cycle]));
+
+    _commission = fullCommission.mul(riskTakenProportion).div(PRECISION);
+    _penalty = fullCommission.sub(_commission);
   }
 
   /**
@@ -688,32 +716,50 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * @notice Redeems commission.
    */
-  function redeemCommission()
+  function redeemCommission(bool _inShares)
     public
     during(CyclePhase.Intermission)
     nonReentrant
   {
     uint256 commission = __redeemCommission();
 
-    // Transfer the commission in DAI
-    dai.transfer(msg.sender, commission);
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.transfer(msg.sender, commission);
+    }
   }
 
   /**
-   * @notice Redeems commission in Betoken shares.
+   * @notice Redeems commission for a particular cycle.
+   * @param _inShares true to redeem in Betoken Shares, false to redeem in DAI
+   * @param _cycle the cycle for which the commission will be redeemed.
+   *        Commissions for a cycle will be redeemed during the Intermission phase of the next cycle, so _cycle must < cycleNumber.
    */
-  function redeemCommissionInShares()
+  function redeemCommissionForCycle(bool _inShares, uint256 _cycle)
     public
     during(CyclePhase.Intermission)
     nonReentrant
   {
-    uint256 commission = __redeemCommission();    
+    require(_cycle < cycleNumber);
 
-    // Deposit commission into fund
-    __deposit(commission);
+    uint256 commission = __redeemCommissionForCycle(_cycle);
 
-    // Emit deposit event
-    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.transfer(msg.sender, commission);
+    }
   }
 
   /**
@@ -834,29 +880,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
   {
-    require(_minPrice <= _maxPrice);
-    require(_stake > 0);
-    require(isCompoundToken[_tokenAddress]);
-
-    // Collect stake
-    require(cToken.generateTokens(address(this), _stake));
-    require(cToken.destroyTokens(msg.sender, _stake));
-
-    // Create compound order and execute
-    uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
-    CompoundOrder order = __createCompoundOrder(_orderType, _tokenAddress, _stake, collateralAmountInDAI);
-    require(dai.approve(address(order), 0));
-    require(dai.approve(address(order), collateralAmountInDAI));
-    order.executeOrder(_minPrice, _maxPrice);
-
-    // Add order to list
-    userCompoundOrders[msg.sender].push(address(order));
-
-    // Update last active cycle
-    lastActiveCycle[msg.sender] = cycleNumber;
-
-    // Emit event
-    emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createCompoundOrder.selector, _orderType, _tokenAddress, _stake, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -874,27 +899,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Manage)
     nonReentrant
   {
-    // Load order info
-    require(userCompoundOrders[msg.sender][_orderId] != address(0));
-    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
-    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
-
-    // Sell order
-    (uint256 inputAmount, uint256 outputAmount) = order.sellOrder(_minPrice, _maxPrice);
-
-    // Return staked Kairo
-    uint256 stake = order.stake();
-    uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
-    __returnStake(receiveKairoAmount, stake);
-
-    // Record risk taken
-    __recordRisk(stake, order.buyTime());
-
-    // Update total funds
-    totalFundsInDAI = totalFundsInDAI.sub(inputAmount).add(outputAmount);
-
-    // Emit event
-    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.compoundTokenAddr(), receiveKairoAmount, outputAmount);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellCompoundOrder.selector, _orderId, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -903,16 +909,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _repayAmountInDAI amount of DAI to use for repaying debt
    */
   function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
-    // Load order info
-    require(userCompoundOrders[msg.sender][_orderId] != address(0));
-    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
-    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
-
-    // Repay loan
-    order.repayLoan(_repayAmountInDAI);
-
-    // Emit event
-    emit RepaidCompoundOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.repayCompoundOrder.selector, _orderId, _repayAmountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -979,7 +977,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Handles commission redemptions. Updates the related variables.
+   * @notice Redeems the commission for all previous cycles. Updates the related variables.
    * @return the amount of commission to be redeemed
    */
   function __redeemCommission() internal returns (uint256 _commission) {
@@ -988,8 +986,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 penalty; // penalty received for not taking enough risk
     (_commission, penalty) = commissionBalanceOf(msg.sender);
 
-    // record the latest commission redemption to prevent double-redemption
+    // record the redemption to prevent double-redemption
+    for (uint256 i = lastCommissionRedemption[msg.sender]; i < cycleNumber; i = i.add(1)) {
+      hasRedeemedCommissionForCycle[msg.sender][i] = true;
+    }
     lastCommissionRedemption[msg.sender] = cycleNumber;
+
     // record the decrease in commission pool
     totalCommissionLeft = totalCommissionLeft.sub(_commission);
     // include commission penalty to this cycle's total commission pool
@@ -999,6 +1001,30 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     delete userCompoundOrders[msg.sender];
 
     emit CommissionPaid(cycleNumber, msg.sender, _commission);
+  }
+
+  /**
+   * @notice Redeems commission for a particular cycle. Updates the related variables.
+   * @param _cycle the cycle for which the commission will be redeemed
+   * @return the amount of commission to be redeemed
+   */
+  function __redeemCommissionForCycle(uint256 _cycle) internal returns (uint256 _commission) {
+    require(!hasRedeemedCommissionForCycle[msg.sender][_cycle]);
+
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionOfAt(msg.sender, _cycle);
+
+    hasRedeemedCommissionForCycle[msg.sender][_cycle] = true;
+
+    // record the decrease in commission pool
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(penalty);
+    // clear investment arrays to save space
+    delete userInvestments[msg.sender];
+    delete userCompoundOrders[msg.sender];
+
+    emit CommissionPaid(_cycle, msg.sender, _commission);
   }
 
   /**
@@ -1015,28 +1041,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSignature("__handleInvestment(uint256,uint256,uint256,bool)", _investmentId, _minPrice, _maxPrice, _buy));
     if (!success) { return (0, 0); }
     return abi.decode(result, (uint256, uint256));
-  }
-
-  /**
-   * @notice Separated from createCompoundOrder() to avoid stack too deep error
-   */
-  function __createCompoundOrder(
-    bool _orderType, // True for shorting, false for longing
-    address _tokenAddress,
-    uint256 _stake,
-    uint256 _collateralAmountInDAI
-  ) internal returns (CompoundOrder) {
-    CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
-    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(PRECISION).mul(factory.getMarketCollateralFactor(_tokenAddress)).div(PRECISION);
-    CompoundOrder order = factory.createOrder(
-      _tokenAddress,
-      cycleNumber,
-      _stake,
-      _collateralAmountInDAI,
-      loanAmountInDAI,
-      _orderType
-    );
-    return order;
   }
 
   /**

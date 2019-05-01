@@ -147,7 +147,7 @@
     return kroAmount * kairoPrice / tokenPrice;
   };
 
-  contract("first_cycle", function(accounts) {
+  contract("simulation", function(accounts) {
     var account, owner;
     owner = accounts[0];
     account = accounts[1];
@@ -542,9 +542,16 @@
       // get commission amount
       commissionAmount = (await this.fund.commissionBalanceOf.call(account));
       // redeem commission
-      await this.fund.redeemCommission({
+      await this.fund.redeemCommission(false, {
         from: account
       });
+      try {
+        // make sure can't redeem again
+        await this.fund.redeemCommission(false, {
+          from: account
+        });
+        assert.fail();
+      } catch (error) {}
       // check DAI balance
       daiBlnce = BigNumber((await dai.balanceOf.call(account)));
       assert(epsilon_equal(daiBlnce.minus(prevDAIBlnce), commissionAmount._commission), "didn't receive correct commission");
@@ -560,9 +567,29 @@
       // get commission amount
       commissionAmount = (await this.fund.commissionBalanceOf.call(account2));
       // redeem commission
-      await this.fund.redeemCommissionInShares({
+      await this.fund.redeemCommissionForCycle(true, 1, {
         from: account2
       });
+      try {
+        // make sure can't redeem again
+        await this.fund.redeemCommissionForCycle(true, 1, {
+          from: account2
+        });
+        assert.fail();
+      } catch (error) {}
+      try {
+        // ensure can't redeem for invalid cycles
+        await this.fund.redeemCommissionForCycle(true, 0, {
+          from: account2
+        });
+        assert.fail();
+      } catch (error) {}
+      try {
+        await this.fund.redeemCommissionForCycle(true, 2, {
+          from: account2
+        });
+        assert.fail();
+      } catch (error) {}
       // check Share balance
       shareBlnce = BigNumber((await st.balanceOf.call(account2)));
       assert(shareBlnce.minus(prevShareBlnce).gt(0), "didn't receive corrent commission");

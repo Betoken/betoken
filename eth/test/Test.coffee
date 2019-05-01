@@ -95,7 +95,7 @@ calcRegisterPayAmount = (fund, kroAmount, tokenPrice) ->
   kairoPrice = BigNumber await fund.kairoPrice.call()
   return kroAmount * kairoPrice / tokenPrice
 
-contract("first_cycle", (accounts) ->
+contract("simulation", (accounts) ->
   owner = accounts[0]
   account = accounts[1]
 
@@ -495,7 +495,12 @@ contract("first_cycle", (accounts) ->
     commissionAmount = await this.fund.commissionBalanceOf.call(account)
 
     # redeem commission
-    await this.fund.redeemCommission({from: account})
+    await this.fund.redeemCommission(false, {from: account})
+
+    # make sure can't redeem again
+    try
+      await this.fund.redeemCommission(false, {from: account})
+      assert.fail()
 
     # check DAI balance
     daiBlnce = BigNumber await dai.balanceOf.call(account)
@@ -516,7 +521,20 @@ contract("first_cycle", (accounts) ->
     commissionAmount = await this.fund.commissionBalanceOf.call(account2)
 
     # redeem commission
-    await this.fund.redeemCommissionInShares({from: account2})
+    await this.fund.redeemCommissionForCycle(true, 1, {from: account2})
+
+    # make sure can't redeem again
+    try
+      await this.fund.redeemCommissionForCycle(true, 1, {from: account2})
+      assert.fail()
+
+    # ensure can't redeem for invalid cycles
+    try
+      await this.fund.redeemCommissionForCycle(true, 0, {from: account2})
+      assert.fail()
+    try
+      await this.fund.redeemCommissionForCycle(true, 2, {from: account2})
+      assert.fail()
 
     # check Share balance
     shareBlnce = BigNumber await st.balanceOf.call(account2)
