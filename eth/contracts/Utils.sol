@@ -3,7 +3,6 @@ pragma solidity 0.5.0;
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./interfaces/KyberNetwork.sol";
-import "./interfaces/Compound.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.
@@ -26,15 +25,12 @@ contract Utils {
 
   address public DAI_ADDR;
   address payable public KYBER_ADDR;
-  address public COMPOUND_ADDR;
   
-  address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   bytes public constant PERM_HINT = "PERM";
 
   ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   ERC20Detailed internal dai;
   KyberNetwork internal kyber;
-  Compound internal compound;
 
   uint constant internal PRECISION = (10**18);
   uint constant internal MAX_QTY   = (10**28); // 10B tokens
@@ -43,16 +39,13 @@ contract Utils {
 
   constructor(
     address _daiAddr,
-    address payable _kyberAddr,
-    address _compoundAddr
+    address payable _kyberAddr
   ) public {
     DAI_ADDR = _daiAddr;
     KYBER_ADDR = _kyberAddr;
-    COMPOUND_ADDR = _compoundAddr;
 
     dai = ERC20Detailed(_daiAddr);
     kyber = KyberNetwork(_kyberAddr);
-    compound = Compound(_compoundAddr);
   }
 
   /**
@@ -115,7 +108,7 @@ contract Utils {
    *         _actualSrcAmount actual amount of src token traded
    */
   function __kyberTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken)
-    internal 
+    internal
     returns(
       uint256 _destPriceInSrc,
       uint256 _srcPriceInDest,
@@ -124,10 +117,13 @@ contract Utils {
     )
   {
     require(_srcToken != _destToken);
+
+    // Get current rate & ensure token is listed on Kyber
+    (, uint256 rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
+    require(rate > 0);
+
     uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
     uint256 msgValue;
-    uint256 rate;
-
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       msgValue = 0;
       _srcToken.approve(KYBER_ADDR, 0);
@@ -135,12 +131,11 @@ contract Utils {
     } else {
       msgValue = _srcAmount;
     }
-    (,rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
     _actualDestAmount = kyber.tradeWithHint.value(msgValue)(
       _srcToken,
       _srcAmount,
       _destToken,
-      address(uint160(address(this))),
+      toPayableAddr(address(this)),
       MAX_QTY,
       rate,
       address(0),
@@ -168,5 +163,9 @@ contract Utils {
         size := extcodesize(_addr)
     }
     return size>0;
+  }
+
+  function toPayableAddr(address _addr) pure internal returns (address payable) {
+    return address(uint160(_addr));
   }
 }

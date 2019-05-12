@@ -6,7 +6,6 @@ import "./interfaces/IMiniMeToken.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxy.sol";
-import "./derivatives/CompoundOrderFactory.sol";
 import "./BetokenLogic.sol";
 
 /**
@@ -26,6 +25,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 buyPrice; // token buy price in 18 decimals in DAI
     uint256 sellPrice; // token sell price in 18 decimals in DAI
     uint256 buyTime;
+    uint256 buyCostInDAI;
     bool isSold;
   }
 
@@ -35,15 +35,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   modifier during(CyclePhase phase) {
     require(cyclePhase == phase);
-    _;
-  }
-
-  /**
-   * @notice Passes if the token is not a stablecoin
-   * @param _token the token to be checked
-   */
-  modifier notStablecoin(address _token) {
-    require(!isStablecoin[_token]);
     _;
   }
 
@@ -73,6 +64,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   uint256 public constant MIN_KRO_PRICE = 25 * (10 ** 17); // 1 KRO >= 2.5 DAI
   uint256 public constant COLLATERAL_RATIO_MODIFIER = 75 * (10 ** 16); // Modifies Compound's collateral ratio, gets 2:1 ratio from current 1.5:1 ratio
   uint256 public constant MIN_RISK_TIME = 9 days; // Mininum risk taken to get full commissions is 9 days * kairoBalance
+  uint256 public constant INACTIVE_THRESHOLD = 6; // Number of inactive cycles after which a manager's Kairo balance can be burned
   // Upgrade constants
   uint256 public constant CHUNK_SIZE = 3 days;
   uint256 public constant PROPOSE_SUBCHUNK_SIZE = 1 days;
@@ -82,6 +74,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // Instance variables
 
+  // Checks if the token listing initialization has been completed.
+  bool public hasInitializedTokenListings;
+
   // Address of the Kairo token contract.
   address public controlTokenAddr;
 
@@ -89,7 +84,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   address public shareTokenAddr;
 
   // Address of the BetokenProxy contract.
-  address public proxyAddr;
+  address payable public proxyAddr;
 
   // Address of the CompoundOrderFactory contract.
   address public compoundFactoryAddr;
@@ -97,8 +92,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Address of the BetokenLogic contract.
   address public betokenLogic;
 
-  // Address to which the developer fees will be paid.
-  address payable public developerFeeAccount;
+  // Address to which the development team funding will be sent.
+  address payable public devFundingAccount;
 
   // Address of the previous version of BetokenFund.
   address payable public previousVersion;
@@ -112,11 +107,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
 
-  // The proportion of contract balance that goes the the devs every cycle. Fixed point decimal.
-  uint256 public developerFeeRate;
-
-  // The proportion of funds that goes the the devs during withdrawals. Fixed point decimal.
-  uint256 public exitFeeRate;
+  // The proportion of Betoken Shares total supply to mint and use for funding the development team. Fixed point decimal.
+  uint256 public devFundingRate;
 
   // Total amount of commission unclaimed by managers
   uint256 public totalCommissionLeft;
@@ -124,20 +116,23 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Stores the lengths of each cycle phase in seconds.
   uint256[2] public phaseLengths;
 
-  // The last cycle where a user redeemed commission.
+  // The last cycle where a user redeemed all of their remaining commission.
   mapping(address => uint256) public lastCommissionRedemption;
+
+  // Marks whether a manager has redeemed their commission for a certain cycle
+  mapping(address => mapping(uint256 => bool)) public hasRedeemedCommissionForCycle;
 
   // The stake-time measured risk that a manager has taken in a cycle
   mapping(address => mapping(uint256 => uint256)) public riskTakenInCycle;
 
-  // In case a manager joined the fund during the current, set the fallback base stake for risk threshold calculation
+  // In case a manager joined the fund during the current cycle, set the fallback base stake for risk threshold calculation
   mapping(address => uint256) public baseRiskStakeFallback;
 
   // List of investments of a manager in the current cycle.
   mapping(address => Investment[]) public userInvestments;
 
   // List of short/long orders of a manager in the current cycle.
-  mapping(address => address[]) public userCompoundOrders;
+  mapping(address => address payable[]) public userCompoundOrders;
 
   // Total commission to be paid for work done in a certain cycle (will be redeemed in the next cycle's Intermission)
   mapping(uint256 => uint256) public totalCommissionOfCycle;
@@ -145,8 +140,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // The block number at which the Manage phase ended for a given cycle
   mapping(uint256 => uint256) public managePhaseEndBlock;
 
-  // For checking if a token is a stablecoin
-  mapping(address => bool) public isStablecoin;
+  // The last cycle where a manager made an investment
+  mapping(address => uint256) public lastActiveCycle;
+
+  // Checks if an address points to a whitelisted Kyber token.
+  mapping(address => bool) public isKyberToken;
+
+  // Checks if an address points to a whitelisted Compound token. Returns false for cDAI and other stablecoin CompoundTokens.
+  mapping(address => bool) public isCompoundToken;
+
+  // Check if an address points to a whitelisted Fulcrum position token.
+  mapping(address => bool) public isPositionToken;
 
   // The current cycle phase.
   CyclePhase public cyclePhase;
@@ -171,7 +175,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   // Events
 
-  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp);
+  event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp, uint256 _totalFundsInDAI);
 
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
   event Withdraw(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);
@@ -183,7 +187,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   event SoldCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order,  bool _orderType, address _tokenAddress, uint256 _receivedKairo, uint256 _earnedDAIAmount);
   event RepaidCompoundOrder(uint256 indexed _cycleNumber, address indexed _sender, address _order, uint256 _repaidDAIAmount);
 
-  event ROI(uint256 indexed _cycleNumber, uint256 _beforeTotalFunds, uint256 _afterTotalFunds);
   event CommissionPaid(uint256 indexed _cycleNumber, address indexed _sender, uint256 _commission);
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
@@ -203,45 +206,63 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   constructor(
     address payable _kroAddr,
     address payable _sTokenAddr,
-    address payable _developerFeeAccount,
+    address payable _devFundingAccount,
     uint256[2] memory _phaseLengths,
-    uint256 _developerFeeRate,
-    uint256 _exitFeeRate,
+    uint256 _devFundingRate,
     address payable _previousVersion,
     address _daiAddr,
     address payable _kyberAddr,
-    address _compoundAddr,
     address _compoundFactoryAddr,
-    address _betokenLogic,
-    address[] memory _stableCoins
+    address _betokenLogic
   )
     public
-    Utils(_daiAddr, _kyberAddr, _compoundAddr)
+    Utils(_daiAddr, _kyberAddr)
   {
     controlTokenAddr = _kroAddr;
     shareTokenAddr = _sTokenAddr;
-    developerFeeAccount = _developerFeeAccount;
+    devFundingAccount = _devFundingAccount;
     phaseLengths = _phaseLengths;
-    developerFeeRate = _developerFeeRate;
-    exitFeeRate = _exitFeeRate;
+    devFundingRate = _devFundingRate;
     cyclePhase = CyclePhase.Manage;
     compoundFactoryAddr = _compoundFactoryAddr;
     betokenLogic = _betokenLogic;
     previousVersion = _previousVersion;
-    
-    for (uint256 i = 0; i < _stableCoins.length; i = i.add(1)) {
-      isStablecoin[_stableCoins[i]] = true;
-    }
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
+  }
+
+  function initTokenListings(
+    address[] memory _kyberTokens,
+    address[] memory _compoundTokens,
+    address[] memory _positionTokens
+  )
+    public
+    onlyOwner
+  {
+    // May only initialize once
+    require(!hasInitializedTokenListings);
+    hasInitializedTokenListings = true;
+
+    uint256 i;
+    for (i = 0; i < _kyberTokens.length; i = i.add(1)) {
+      isKyberToken[_kyberTokens[i]] = true;
+    }
+
+    for (i = 0; i < _compoundTokens.length; i = i.add(1)) {
+      isCompoundToken[_compoundTokens[i]] = true;
+    }
+
+    for (i = 0; i < _positionTokens.length; i = i.add(1)) {
+      isPositionToken[_positionTokens[i]] = true;
+    }
   }
 
   /**
    * @notice Used during deployment to set the BetokenProxy contract address.
    * @param _proxyAddr the proxy's address
    */
-  function setProxy(address _proxyAddr) public onlyOwner {
+  function setProxy(address payable _proxyAddr) public onlyOwner {
     require(_proxyAddr != address(0));
     require(proxyAddr == address(0));
     proxyAddr = _proxyAddr;
@@ -359,12 +380,38 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
   /**
    * @notice Returns the commission balance of `_manager`
-   * @return the commission balance, denoted in DAI
+   * @return the commission balance and the received penalty, denoted in DAI
    */
-  function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
-    if (!success) { return (0, 0); }
-    return abi.decode(result, (uint256, uint256));
+  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
+    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
+    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
+    uint256 cycleCommission;
+    uint256 cyclePenalty;
+    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
+      (cycleCommission, cyclePenalty) = commissionOfAt(_manager, cycle);
+      _commission = _commission.add(cycleCommission);
+      _penalty = _penalty.add(cyclePenalty);
+    }
+  }
+
+  /**
+   * @notice Returns the commission amount received by `_manager` in the `_cycle`th cycle
+   * @return the commission amount and the received penalty, denoted in DAI
+   */
+  function commissionOfAt(address _manager, uint256 _cycle) public view returns (uint256 _commission, uint256 _penalty) {
+    if (hasRedeemedCommissionForCycle[_manager][_cycle]) { return (0, 0); }
+    // take risk into account
+    uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[_cycle.sub(1)]);
+    uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
+    if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { return (0, 0); }
+    uint256 riskTakenProportion = riskTakenInCycle[_manager][_cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
+    riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
+
+    uint256 fullCommission = totalCommissionOfCycle[_cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[_cycle]))
+      .div(cToken.totalSupplyAt(managePhaseEndBlock[_cycle]));
+
+    _commission = fullCommission.mul(riskTakenProportion).div(PRECISION);
+    _penalty = fullCommission.sub(_commission);
   }
 
   /**
@@ -426,7 +473,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function changeDeveloperFeeAccount(address payable _newAddr) public onlyOwner {
     require(_newAddr != address(0) && _newAddr != address(this));
-    developerFeeAccount = _newAddr;
+    devFundingAccount = _newAddr;
   }
 
   /**
@@ -435,21 +482,17 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    */
   function changeDeveloperFeeRate(uint256 _newProp) public onlyOwner {
     require(_newProp < PRECISION);
-    require(_newProp < developerFeeRate);
-    developerFeeRate = _newProp;
+    require(_newProp < devFundingRate);
+    devFundingRate = _newProp;
   }
 
   /**
-   * @notice Changes exit fee rate. May only decrease. Only callable by owner.
-   * @param _newProp the new proportion, fixed point decimal
+   * @notice Allows managers to invest in a token. Only callable by owner.
+   * @param _token address of the token to be listed
    */
-  function changeExitFeeRate(uint256 _newProp) public onlyOwner {
-    require(_newProp < PRECISION);
-    require(_newProp < exitFeeRate);
-    exitFeeRate = _newProp;
+  function listKyberToken(address _token) public onlyOwner {
+    isKyberToken[_token] = true;
   }
-
-  
 
   /**
    * @notice Moves the fund to the next phase in the investment cycle.
@@ -617,10 +660,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __withdraw(actualDAIWithdrawn);
 
     // Transfer Ether to user
-    uint256 exitFee = actualETHWithdrawn.mul(exitFeeRate).div(PRECISION);
-    developerFeeAccount.transfer(exitFee);
-    actualETHWithdrawn = actualETHWithdrawn.sub(exitFee);
-
     msg.sender.transfer(actualETHWithdrawn);
 
     // Emit event
@@ -639,13 +678,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __withdraw(_amountInDAI);
 
     // Transfer DAI to user
-    uint256 exitFee = _amountInDAI.mul(exitFeeRate).div(PRECISION);
-    dai.transfer(developerFeeAccount, exitFee);
-    uint256 actualDAIWithdrawn = _amountInDAI.sub(exitFee);
-    dai.transfer(msg.sender, actualDAIWithdrawn);
+    dai.transfer(msg.sender, _amountInDAI);
 
     // Emit event
-    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, actualDAIWithdrawn, actualDAIWithdrawn, now);
+    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
   }
 
   /**
@@ -671,10 +707,6 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     __withdraw(actualDAIWithdrawn);
 
     // Transfer tokens to user
-    uint256 exitFee = actualTokenWithdrawn.mul(exitFeeRate).div(PRECISION);
-    token.transfer(developerFeeAccount, exitFee);
-    actualTokenWithdrawn = actualTokenWithdrawn.sub(exitFee);
-    
     token.transfer(msg.sender, actualTokenWithdrawn);
 
     // Emit event
@@ -684,32 +716,50 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   /**
    * @notice Redeems commission.
    */
-  function redeemCommission()
+  function redeemCommission(bool _inShares)
     public
     during(CyclePhase.Intermission)
     nonReentrant
   {
     uint256 commission = __redeemCommission();
 
-    // Transfer the commission in DAI
-    dai.transfer(msg.sender, commission);
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.transfer(msg.sender, commission);
+    }
   }
 
   /**
-   * @notice Redeems commission in Betoken shares.
+   * @notice Redeems commission for a particular cycle.
+   * @param _inShares true to redeem in Betoken Shares, false to redeem in DAI
+   * @param _cycle the cycle for which the commission will be redeemed.
+   *        Commissions for a cycle will be redeemed during the Intermission phase of the next cycle, so _cycle must < cycleNumber.
    */
-  function redeemCommissionInShares()
+  function redeemCommissionForCycle(bool _inShares, uint256 _cycle)
     public
     during(CyclePhase.Intermission)
     nonReentrant
   {
-    uint256 commission = __redeemCommission();    
+    require(_cycle < cycleNumber);
 
-    // Deposit commission into fund
-    __deposit(commission);
+    uint256 commission = __redeemCommissionForCycle(_cycle);
 
-    // Emit deposit event
-    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.transfer(msg.sender, commission);
+    }
   }
 
   /**
@@ -724,14 +774,14 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
     (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, address(this)), dai);
-    dai.transfer(developerFeeAccount, actualDAIReceived);
+    dai.transfer(devFundingAccount, actualDAIReceived);
   }
 
   /**
    * @notice Sells CompoundOrder left over due to manager not selling or KyberNetwork not having enough volume. Callable by anyone. Money goes to developer.
    * @param _orderAddress address of the CompoundOrder to be sold
    */
-  function sellLeftoverCompoundOrder(address _orderAddress)
+  function sellLeftoverCompoundOrder(address payable _orderAddress)
     public
     nonReentrant
     during(CyclePhase.Intermission)
@@ -743,15 +793,29 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
 
     // Sell short order
     (, uint256 outputAmount) = order.sellOrder(0, MAX_QTY);
-    dai.transfer(developerFeeAccount, outputAmount);
-}
+    dai.transfer(devFundingAccount, outputAmount);
+  }
+
+  /**
+   * @notice Burns the Kairo balance of a manager who has been inactive for a certain number of cycles
+   * @param _deadman the manager whose Kairo balance will be burned
+   */
+  function burnDeadman(address _deadman)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    require(_deadman != address(this));
+    require(cycleNumber.sub(lastActiveCycle[_deadman]) >= INACTIVE_THRESHOLD);
+    cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman));
+  }
 
   /**
    * Manage phase functions
    */
 
   /**
-   * @notice Creates a new investment investment for an ERC20 token.
+   * @notice Creates a new investment for an ERC20 token.
    * @param _tokenAddress address of the ERC20 token contract
    * @param _stake amount of Kairos to be staked in support of the investment
    * @param _minPrice the minimum price for the trade
@@ -766,34 +830,10 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     public
     nonReentrant
     isValidToken(_tokenAddress)
-    notStablecoin(_tokenAddress)
     during(CyclePhase.Manage)
   {
-    require(_minPrice <= _maxPrice);
-    require(_stake > 0);
-
-    // Collect stake
-    require(cToken.generateTokens(address(this), _stake));
-    require(cToken.destroyTokens(msg.sender, _stake));
-
-    // Add investment to list
-    userInvestments[msg.sender].push(Investment({
-      tokenAddress: _tokenAddress,
-      cycleNumber: cycleNumber,
-      stake: _stake,
-      tokenAmount: 0,
-      buyPrice: 0,
-      sellPrice: 0,
-      buyTime: now,
-      isSold: false
-    }));
-
-    // Invest
-    uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
-
-    // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createInvestment.selector, _tokenAddress, _stake, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -816,62 +856,14 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Manage)
     nonReentrant
   {
-    Investment storage investment = userInvestments[msg.sender][_investmentId];
-    require(investment.buyPrice > 0 && investment.cycleNumber == cycleNumber && !investment.isSold);
-    require(_tokenAmount > 0 && _tokenAmount <= investment.tokenAmount);
-    require(_minPrice <= _maxPrice);
-
-    // Create new investment for leftover tokens
-    bool isPartialSell = false;
-    uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
-    if (_tokenAmount != investment.tokenAmount) {
-      isPartialSell = true;
-      userInvestments[msg.sender].push(Investment({
-        tokenAddress: investment.tokenAddress,
-        cycleNumber: cycleNumber,
-        stake: investment.stake.sub(stakeOfSoldTokens),
-        tokenAmount: investment.tokenAmount.sub(_tokenAmount),
-        buyPrice: investment.buyPrice,
-        sellPrice: 0,
-        buyTime: investment.buyTime,
-        isSold: false
-      }));
-      investment.tokenAmount = _tokenAmount;
-      investment.stake = stakeOfSoldTokens;
-    }
-    
-    // Update investment info
-    investment.isSold = true;
-
-    // Sell asset
-    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
-    if (isPartialSell) {
-      // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
-      userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(actualSrcAmount));
-    }
-
-    // Return staked Kairo
-    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice).div(investment.buyPrice);
-    __returnStake(receiveKairoAmount, stakeOfSoldTokens);
-
-    // Record risk taken in investment
-    __recordRisk(investment.stake, investment.buyTime);
-    
-    // Emit event
-    if (isPartialSell) {
-      Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
-      emit CreatedInvestment(
-        cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
-        newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
-        newInvestment.buyPrice.mul(newInvestment.tokenAmount).div(10 ** getDecimals(ERC20Detailed(newInvestment.tokenAddress))));
-    }
-    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellInvestmentAsset.selector, _investmentId, _tokenAmount, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
    * @notice Creates a new Compound order to either short or leverage long a token.
    * @param _orderType true for a short order, false for a levarage long order
-   * @param _tokenAddress address of the token to be traded
+   * @param _tokenAddress address of the Compound token to be traded
    * @param _stake amount of Kairos to be staked
    * @param _minPrice the minimum token price for the trade
    * @param _maxPrice the maximum token price for the trade
@@ -887,27 +879,9 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     nonReentrant
     during(CyclePhase.Manage)
     isValidToken(_tokenAddress)
-    notStablecoin(_tokenAddress)
   {
-    require(_minPrice <= _maxPrice);
-    require(_stake > 0);
-
-    // Collect stake
-    require(cToken.generateTokens(address(this), _stake));
-    require(cToken.destroyTokens(msg.sender, _stake));
-
-    // Create compound order and execute
-    uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
-    CompoundOrder order = __createCompoundOrder(_orderType, _tokenAddress, _stake, collateralAmountInDAI);
-    require(dai.approve(address(order), 0));
-    require(dai.approve(address(order), collateralAmountInDAI));
-    order.executeOrder(_minPrice, _maxPrice);
-
-    // Add order to list
-    userCompoundOrders[msg.sender].push(address(order));
-
-    // Emit event
-    emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createCompoundOrder.selector, _orderType, _tokenAddress, _stake, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -925,24 +899,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     during(CyclePhase.Manage)
     nonReentrant
   {
-    // Load order info
-    require(userCompoundOrders[msg.sender][_orderId] != address(0));
-    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
-    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
-
-    // Sell order
-    (uint256 inputAmount, uint256 outputAmount) = order.sellOrder(_minPrice, _maxPrice);
-
-    // Return staked Kairo
-    uint256 stake = order.stake();
-    uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
-    __returnStake(receiveKairoAmount, stake);
-
-    // Record risk taken
-    __recordRisk(stake, order.buyTime());
-
-    // Emit event
-    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.tokenAddr(), receiveKairoAmount, outputAmount);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellCompoundOrder.selector, _orderId, _minPrice, _maxPrice));
+    if (!success) { revert(); }
   }
 
   /**
@@ -951,16 +909,8 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
    * @param _repayAmountInDAI amount of DAI to use for repaying debt
    */
   function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
-    // Load order info
-    require(userCompoundOrders[msg.sender][_orderId] != address(0));
-    CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
-    require(order.isSold() == false && order.cycleNumber() == cycleNumber);
-
-    // Repay loan
-    order.repayLoan(_repayAmountInDAI);
-
-    // Emit event
-    emit RepaidCompoundOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.repayCompoundOrder.selector, _orderId, _repayAmountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -1027,7 +977,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Handles commission redemptions. Updates the related variables.
+   * @notice Redeems the commission for all previous cycles. Updates the related variables.
    * @return the amount of commission to be redeemed
    */
   function __redeemCommission() internal returns (uint256 _commission) {
@@ -1036,8 +986,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     uint256 penalty; // penalty received for not taking enough risk
     (_commission, penalty) = commissionBalanceOf(msg.sender);
 
-    // record the latest commission redemption to prevent double-redemption
+    // record the redemption to prevent double-redemption
+    for (uint256 i = lastCommissionRedemption[msg.sender]; i < cycleNumber; i = i.add(1)) {
+      hasRedeemedCommissionForCycle[msg.sender][i] = true;
+    }
     lastCommissionRedemption[msg.sender] = cycleNumber;
+
     // record the decrease in commission pool
     totalCommissionLeft = totalCommissionLeft.sub(_commission);
     // include commission penalty to this cycle's total commission pool
@@ -1050,51 +1004,43 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   }
 
   /**
-   * @notice Handles and investment by doing the necessary trades using __kyberTrade()
+   * @notice Redeems commission for a particular cycle. Updates the related variables.
+   * @param _cycle the cycle for which the commission will be redeemed
+   * @return the amount of commission to be redeemed
+   */
+  function __redeemCommissionForCycle(uint256 _cycle) internal returns (uint256 _commission) {
+    require(!hasRedeemedCommissionForCycle[msg.sender][_cycle]);
+
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionOfAt(msg.sender, _cycle);
+
+    hasRedeemedCommissionForCycle[msg.sender][_cycle] = true;
+
+    // record the decrease in commission pool
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(penalty);
+    // clear investment arrays to save space
+    delete userInvestments[msg.sender];
+    delete userCompoundOrders[msg.sender];
+
+    emit CommissionPaid(_cycle, msg.sender, _commission);
+  }
+
+  /**
+   * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
    * @param _investmentId the ID of the investment to be handled
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
    * @param _buy whether to buy or sell the given investment
    */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy) 
-    internal 
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy)
+    internal
     returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
   {
-    Investment storage investment = userInvestments[msg.sender][_investmentId];
-    uint256 dInS;
-    uint256 sInD;
-    ERC20Detailed token = ERC20Detailed(investment.tokenAddress);
-    if (_buy) {
-      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), token);
-      require(_minPrice <= dInS && dInS <= _maxPrice);
-      investment.buyPrice = dInS;
-      investment.tokenAmount = _actualDestAmount;
-    } else {
-      (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(token, investment.tokenAmount, dai);
-      require(_minPrice <= sInD && sInD <= _maxPrice);
-      investment.sellPrice = sInD;
-    }
-  }
-
-  /**
-   * @notice Separated from createCompoundOrder() to avoid stack too deep error
-   */
-  function __createCompoundOrder(
-    bool _orderType, // True for shorting, false for longing
-    address _tokenAddress,
-    uint256 _stake,
-    uint256 _collateralAmountInDAI
-  ) internal returns (CompoundOrder) {
-    uint256 loanAmountInDAI = _collateralAmountInDAI.mul(COLLATERAL_RATIO_MODIFIER).div(compound.collateralRatio());
-    CompoundOrder order = CompoundOrderFactory(compoundFactoryAddr).createOrder(
-      _tokenAddress,
-      cycleNumber,
-      _stake,
-      _collateralAmountInDAI,
-      loanAmountInDAI,
-      _orderType
-    );
-    return order;
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSignature("__handleInvestment(uint256,uint256,uint256,bool)", _investmentId, _minPrice, _maxPrice, _buy));
+    if (!success) { return (0, 0); }
+    return abi.decode(result, (uint256, uint256));
   }
 
   /**
@@ -1112,9 +1058,5 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
   }
 
-  function() external payable {
-    if (msg.sender != KYBER_ADDR || msg.sender != previousVersion) {
-      revert();
-    }
-  }
+  function() external payable {}
 }
