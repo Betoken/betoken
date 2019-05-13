@@ -172,63 +172,101 @@ module.exports = (deployer, network, accounts) ->
       when "ropsten"
         # Local testnet migration
         config = require "../deployment_configs/ropsten.json"
+        BAT_ADDR = config.KYBER_TOKENS[4]
 
-        KYBER_ADDR = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755"
-        DAI_ADDR = "0xaD6D458402F60fD3Bd25163575031ACDce07538D"
-
-        TestCompoundRopsten = artifacts.require "TestCompoundRopsten"
+        TestKyberNetwork = artifacts.require "TestKyberNetwork"
+        TestPriceOracleRopsten = artifacts.require "TestPriceOracleRopsten"
+        TestComptroller = artifacts.require "TestComptroller"
+        TestCERC20 = artifacts.require "TestCERC20"
+        TestCEther = artifacts.require "TestCEther"
+        TestCERC20Factory = artifacts.require "TestCERC20Factory"
   
-        # deploy TestCompound
-        supportedTokens = [DAI_ADDR, "0xDb0040451F373949A4Be60dcd7b6B8D6E42658B6"]
-        await deployer.deploy(TestCompoundRopsten, supportedTokens)
+        # deploy Test Compound suite of contracts
+
+        # deploy TestPriceOracle
+        await deployer.deploy(TestPriceOracleRopsten)
+
+        # deploy TestComptroller
+        await deployer.deploy(TestComptroller)
+
+        # deploy TestCERC20Factory
+        await deployer.deploy(TestCERC20Factory)
+        testCERC20Factory = await TestCERC20Factory.deployed()
+
+        # deploy TestCEther
+        await deployer.deploy(TestCEther, TestComptroller.address)
+
+        # send ETH to TestCEther
+        await web3.eth.sendTransaction({from: accounts[0], to: TestCEther.address, value: 0.01 * PRECISION})
+
+        # deploy TestCERC20 contracts
+        compoundTokens = {}
+        tokenAddrs = [config.DAI_ADDR]
+        for token in tokenAddrs
+          compoundTokens[token] = (await testCERC20Factory.newToken(token, TestComptroller.address)).logs[0].args.cToken
 
         # deploy Kairo and Betoken Shares contracts
         await deployer.deploy(MiniMeTokenFactory)
         minimeFactory = await MiniMeTokenFactory.deployed()
         controlTokenAddr = (await minimeFactory.createCloneToken(
-            ZERO_ADDR, 0, "Kairo", 18, "KRO", true)).logs[0].args.addr
+            ZERO_ADDR, 0, "Kairo", 18, "KRO", false)).logs[0].args.addr
         shareTokenAddr = (await minimeFactory.createCloneToken(
             ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true)).logs[0].args.addr
         ControlToken = await MiniMeToken.at(controlTokenAddr)
         ShareToken = await MiniMeToken.at(shareTokenAddr)
         
-        # deploy ShortOrderLogic
-        await deployer.deploy(ShortOrderLogic)
-        
-        # deploy LongOrderLogic
-        await deployer.deploy(LongOrderLogic)
+        # deploy ShortCERC20OrderLogic
+        await deployer.deploy(ShortCERC20OrderLogic)
+
+        # deploy ShortCEtherOrderLogic
+        await deployer.deploy(ShortCEtherOrderLogic)
+
+        # deploy LongCERC20OrderLogic
+        await deployer.deploy(LongCERC20OrderLogic)
+
+        # deploy LongCEtherOrderLogic
+        await deployer.deploy(LongCEtherOrderLogic)
 
         # deploy CompoundOrderFactory
         await deployer.deploy(
           CompoundOrderFactory,
-          ShortOrderLogic.address,
-          LongOrderLogic.address,
-          DAI_ADDR,
-          KYBER_ADDR,
-          TestCompoundRopsten.address
+          ShortCERC20OrderLogic.address,
+          ShortCEtherOrderLogic.address,
+          LongCERC20OrderLogic.address,
+          LongCEtherOrderLogic.address,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          TestComptroller.address,
+          TestPriceOracleRopsten.address,
+          compoundTokens[config.DAI_ADDR],
+          TestCEther.address
         )
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic)
 
         # deploy BetokenFund contract
+        compoundTokensArray = (compoundTokens[token] for token in tokenAddrs)
+        compoundTokensArray.push(TestCEther.address)
         await deployer.deploy(
           BetokenFund,
           ControlToken.address,
           ShareToken.address,
-          accounts[0], #developerFeeAccount
+          accounts[0], #devFundingAccount
           config.phaseLengths,
-          bnToString(config.developerFeeRate),
-          bnToString(config.exitFeeRate),
+          bnToString(config.devFundingRate),
           ZERO_ADDR,
-          DAI_ADDR,
-          KYBER_ADDR,
-          TestCompoundRopsten.address,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
           CompoundOrderFactory.address,
-          BetokenLogic.address,
-          [DAI_ADDR]
+          BetokenLogic.address
         )
         betokenFund = await BetokenFund.deployed()
+        await betokenFund.initTokenListings(
+          config.KYBER_TOKENS,
+          compoundTokensArray,
+          []
+        )
 
         # deploy BetokenProxy contract
         await deployer.deploy(

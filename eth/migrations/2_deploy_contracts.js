@@ -38,7 +38,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ControlToken, KYBER_TOKENS, ShareToken, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var BAT_ADDR, ControlToken, KYBER_TOKENS, ShareToken, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestPriceOracleRopsten, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, fund, i, j, k, l, len, len1, len2, len3, len4, m, minimeFactory, n, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
           // Local testnet migration
@@ -171,33 +171,72 @@
         case "ropsten":
           // Local testnet migration
           config = require("../deployment_configs/ropsten.json");
-          KYBER_ADDR = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
-          DAI_ADDR = "0xaD6D458402F60fD3Bd25163575031ACDce07538D";
-          TestCompoundRopsten = artifacts.require("TestCompoundRopsten");
+          BAT_ADDR = config.KYBER_TOKENS[4];
+          TestKyberNetwork = artifacts.require("TestKyberNetwork");
+          TestPriceOracleRopsten = artifacts.require("TestPriceOracleRopsten");
+          TestComptroller = artifacts.require("TestComptroller");
+          TestCERC20 = artifacts.require("TestCERC20");
+          TestCEther = artifacts.require("TestCEther");
+          TestCERC20Factory = artifacts.require("TestCERC20Factory");
           
-          // deploy TestCompound
-          supportedTokens = [DAI_ADDR, "0xDb0040451F373949A4Be60dcd7b6B8D6E42658B6"];
-          await deployer.deploy(TestCompoundRopsten, supportedTokens);
+          // deploy Test Compound suite of contracts
+
+          // deploy TestPriceOracle
+          await deployer.deploy(TestPriceOracleRopsten);
+          // deploy TestComptroller
+          await deployer.deploy(TestComptroller);
+          // deploy TestCERC20Factory
+          await deployer.deploy(TestCERC20Factory);
+          testCERC20Factory = (await TestCERC20Factory.deployed());
+          // deploy TestCEther
+          await deployer.deploy(TestCEther, TestComptroller.address);
+          // send ETH to TestCEther
+          await web3.eth.sendTransaction({
+            from: accounts[0],
+            to: TestCEther.address,
+            value: 0.01 * PRECISION
+          });
+          // deploy TestCERC20 contracts
+          compoundTokens = {};
+          tokenAddrs = [config.DAI_ADDR];
+          for (n = 0, len4 = tokenAddrs.length; n < len4; n++) {
+            token = tokenAddrs[n];
+            compoundTokens[token] = ((await testCERC20Factory.newToken(token, TestComptroller.address))).logs[0].args.cToken;
+          }
           // deploy Kairo and Betoken Shares contracts
           await deployer.deploy(MiniMeTokenFactory);
           minimeFactory = (await MiniMeTokenFactory.deployed());
-          controlTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Kairo", 18, "KRO", true))).logs[0].args.addr;
+          controlTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Kairo", 18, "KRO", false))).logs[0].args.addr;
           shareTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr;
           ControlToken = (await MiniMeToken.at(controlTokenAddr));
           ShareToken = (await MiniMeToken.at(shareTokenAddr));
           
-          // deploy ShortOrderLogic
-          await deployer.deploy(ShortOrderLogic);
-          
-          // deploy LongOrderLogic
-          await deployer.deploy(LongOrderLogic);
+          // deploy ShortCERC20OrderLogic
+          await deployer.deploy(ShortCERC20OrderLogic);
+          // deploy ShortCEtherOrderLogic
+          await deployer.deploy(ShortCEtherOrderLogic);
+          // deploy LongCERC20OrderLogic
+          await deployer.deploy(LongCERC20OrderLogic);
+          // deploy LongCEtherOrderLogic
+          await deployer.deploy(LongCEtherOrderLogic);
           // deploy CompoundOrderFactory
-          await deployer.deploy(CompoundOrderFactory, ShortOrderLogic.address, LongOrderLogic.address, DAI_ADDR, KYBER_ADDR, TestCompoundRopsten.address);
+          await deployer.deploy(CompoundOrderFactory, ShortCERC20OrderLogic.address, ShortCEtherOrderLogic.address, LongCERC20OrderLogic.address, LongCEtherOrderLogic.address, config.DAI_ADDR, config.KYBER_ADDR, TestComptroller.address, TestPriceOracleRopsten.address, compoundTokens[config.DAI_ADDR], TestCEther.address);
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic);
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.developerFeeRate), bnToString(config.exitFeeRate), ZERO_ADDR, DAI_ADDR, KYBER_ADDR, TestCompoundRopsten.address, CompoundOrderFactory.address, BetokenLogic.address, [DAI_ADDR]);
+          compoundTokensArray = (function() {
+            var len5, o, results;
+            results = [];
+            for (o = 0, len5 = tokenAddrs.length; o < len5; o++) {
+              token = tokenAddrs[o];
+              results.push(compoundTokens[token]);
+            }
+            return results;
+          })();
+          compoundTokensArray.push(TestCEther.address);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, config.DAI_ADDR, config.KYBER_ADDR, CompoundOrderFactory.address, BetokenLogic.address);
           betokenFund = (await BetokenFund.deployed());
+          await betokenFund.initTokenListings(config.KYBER_TOKENS, compoundTokensArray, []);
           // deploy BetokenProxy contract
           await deployer.deploy(BetokenProxy, BetokenFund.address);
           // set proxy address in BetokenFund
