@@ -4,7 +4,7 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
-import "./BetokenProxy.sol";
+import "./BetokenProxyInterface.sol";
 import "./interfaces/IMiniMeToken.sol";
 import "./interfaces/PositionToken.sol";
 import "./derivatives/CompoundOrderFactory.sol";
@@ -80,7 +80,7 @@ contract BetokenLogic is Ownable, Utils(address(0), address(0)), ReentrancyGuard
   mapping(uint256 => mapping(address => bool)) public upgradeSignal; // Maps manager address to whether they support initiating an upgrade
   IMiniMeToken internal cToken;
   IMiniMeToken internal sToken;
-  BetokenProxy internal proxy;
+  BetokenProxyInterface internal proxy;
 
   event ChangedPhase(uint256 indexed _cycleNumber, uint256 indexed _newPhase, uint256 _timestamp, uint256 _totalFundsInDAI);
   event Deposit(uint256 indexed _cycleNumber, address indexed _sender, address _tokenAddress, uint256 _tokenAmount, uint256 _daiAmount, uint256 _timestamp);

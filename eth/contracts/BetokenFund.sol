@@ -5,7 +5,7 @@ import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IMiniMeToken.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
-import "./BetokenProxy.sol";
+import "./BetokenProxyInterface.sol";
 import "./BetokenLogic.sol";
 
 /**
@@ -171,7 +171,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   // Contract instances
   IMiniMeToken internal cToken;
   IMiniMeToken internal sToken;
-  BetokenProxy internal proxy;
+  BetokenProxyInterface internal proxy;
 
   // Events
 
@@ -266,7 +266,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(_proxyAddr != address(0));
     require(proxyAddr == address(0));
     proxyAddr = _proxyAddr;
-    proxy = BetokenProxy(_proxyAddr);
+    proxy = BetokenProxyInterface(_proxyAddr);
   }
 
   /**
