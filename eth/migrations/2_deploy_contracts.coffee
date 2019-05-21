@@ -98,7 +98,7 @@ module.exports = (deployer, network, accounts) ->
         await deployer.deploy(MiniMeTokenFactory)
         minimeFactory = await MiniMeTokenFactory.deployed()
         controlTokenAddr = (await minimeFactory.createCloneToken(
-            ZERO_ADDR, 0, "Kairo", 18, "KRO", true)).logs[0].args.addr
+            ZERO_ADDR, 0, "Kairo", 18, "KRO", false)).logs[0].args.addr
         shareTokenAddr = (await minimeFactory.createCloneToken(
             ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true)).logs[0].args.addr
         ControlToken = await MiniMeToken.at(controlTokenAddr)
