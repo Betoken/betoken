@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.8;
 
 // Compound finance ERC20 market interface
 interface CERC20 {
