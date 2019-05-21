@@ -28,7 +28,7 @@ contract Utils {
   
   bytes public constant PERM_HINT = "PERM";
 
-  ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+  ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   ERC20Detailed internal dai;
   KyberNetwork internal kyber;
 
