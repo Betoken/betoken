@@ -189,7 +189,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       nextVersion.transfer(address(this).balance);
     } else {
       ERC20Detailed token = ERC20Detailed(_assetAddress);
-      token.transfer(nextVersion, token.balanceOf(address(this)));
+      require(token.transfer(nextVersion, token.balanceOf(address(this))));
     }
   }
 
@@ -513,7 +513,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     __withdraw(_amountInDAI);
 
     // Transfer DAI to user
-    dai.transfer(msg.sender, _amountInDAI);
+    require(dai.transfer(msg.sender, _amountInDAI));
 
     // Emit event
     emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
@@ -542,7 +542,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     __withdraw(actualDAIWithdrawn);
 
     // Transfer tokens to user
-    token.transfer(msg.sender, actualTokenWithdrawn);
+    require(token.transfer(msg.sender, actualTokenWithdrawn));
 
     // Emit event
     emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
@@ -566,7 +566,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
     } else {
       // Transfer the commission in DAI
-      dai.transfer(msg.sender, commission);
+      require(dai.transfer(msg.sender, commission));
     }
   }
 
@@ -593,7 +593,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
     } else {
       // Transfer the commission in DAI
-      dai.transfer(msg.sender, commission);
+      require(dai.transfer(msg.sender, commission));
     }
   }
 
@@ -646,7 +646,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   {
     require(_deadman != address(this));
     require(cycleNumber.sub(lastActiveCycle[_deadman]) >= INACTIVE_THRESHOLD);
-    cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman));
+    require(cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman)));
   }
 
   /**
@@ -798,9 +798,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   function __deposit(uint256 _depositDAIAmount) internal {
     // Register investment and give shares
     if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      sToken.generateTokens(msg.sender, _depositDAIAmount);
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount));
     } else {
-      sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI));
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
     }
     totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
   }
@@ -811,7 +811,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function __withdraw(uint256 _withdrawDAIAmount) internal {
     // Burn Shares
-    sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI));
+    require(sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
     totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
   }
 

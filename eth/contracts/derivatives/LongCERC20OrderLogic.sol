@@ -23,7 +23,8 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     address[] memory markets = new address[](2);
     markets[0] = compoundTokenAddr;
     markets[1] = address(CDAI);
-    COMPTROLLER.enterMarkets(markets);
+    uint[] memory errors = COMPTROLLER.enterMarkets(markets);
+    require(errors[0] == 0 && errors[1] == 0);
 
     // Get loan from Compound in DAI
     ERC20Detailed token = __underlyingToken(compoundTokenAddr);

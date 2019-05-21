@@ -8,7 +8,7 @@ import "./derivatives/CompoundOrderFactory.sol";
  * @title Part of the functions for BetokenFund
  * @author Zefram Lou (Zebang Liu)
  */
-contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {  
+contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   /**
    * Upgrading functions
    */
@@ -293,7 +293,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
       // Give the developer Betoken shares inflation funding
       uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
-      sToken.generateTokens(devFundingAccount, devFunding);
+      require(sToken.generateTokens(devFundingAccount, devFunding));
 
       // Emit event
       emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle[cycleNumber]);
@@ -327,7 +327,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     startTimeOfCyclePhase = now;
 
     // Reward caller
-    cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD);
+    require(cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD));
 
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now, totalFundsInDAI);
   }
@@ -711,10 +711,10 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         require(_minPrice <= investment.buyPrice && investment.buyPrice <= _maxPrice);
 
         _actualSrcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
-        dai.approve(token, 0);
-        dai.approve(token, _actualSrcAmount);
+        require(dai.approve(token, 0));
+        require(dai.approve(token, _actualSrcAmount));
         _actualDestAmount = pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount);
-        dai.approve(token, 0);
+        require(dai.approve(token, 0));
         
         investment.tokenAmount = _actualDestAmount;
         investment.buyCostInDAI = _actualSrcAmount;
@@ -769,8 +769,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @notice Returns stake to manager after investment is sold, including reward/penalty based on performance
    */
   function __returnStake(uint256 _receiveKairoAmount, uint256 _stake) internal {
-    cToken.destroyTokens(address(this), _stake);
-    cToken.generateTokens(msg.sender, _receiveKairoAmount);
+    require(cToken.destroyTokens(address(this), _stake));
+    require(cToken.generateTokens(msg.sender, _receiveKairoAmount));
   }
 
   /**

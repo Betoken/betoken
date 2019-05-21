@@ -501,7 +501,7 @@ contract MiniMeToken is Ownable {
 
     MiniMeToken token = MiniMeToken(_token);
     uint balance = token.balanceOf(address(this));
-    token.transfer(owner(), balance);
+    require(token.transfer(owner(), balance));
     emit ClaimedTokens(_token, owner(), balance);
   }
 
