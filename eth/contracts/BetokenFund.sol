@@ -1027,36 +1027,5 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     emit CommissionPaid(_cycle, msg.sender, _commission);
   }
 
-  /**
-   * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
-   * @param _investmentId the ID of the investment to be handled
-   * @param _minPrice the minimum price for the trade
-   * @param _maxPrice the maximum price for the trade
-   * @param _buy whether to buy or sell the given investment
-   */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy)
-    internal
-    returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
-  {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSignature("__handleInvestment(uint256,uint256,uint256,bool)", _investmentId, _minPrice, _maxPrice, _buy));
-    if (!success) { return (0, 0); }
-    return abi.decode(result, (uint256, uint256));
-  }
-
-  /**
-   * @notice Returns stake to manager after investment is sold, including reward/penalty based on performance
-   */
-  function __returnStake(uint256 _receiveKairoAmount, uint256 _stake) internal {
-    cToken.destroyTokens(address(this), _stake);
-    cToken.generateTokens(msg.sender, _receiveKairoAmount);
-  }
-
-  /**
-   * @notice Records risk taken in a trade based on stake and time of investment
-   */
-  function __recordRisk(uint256 _stake, uint256 _buyTime) internal {
-    riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
-  }
-
   function() external payable {}
 }
