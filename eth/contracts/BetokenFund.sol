@@ -774,7 +774,7 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
   {
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
     (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, address(this)), dai);
-    dai.transfer(devFundingAccount, actualDAIReceived);
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
   }
 
   /**
@@ -792,8 +792,12 @@ contract BetokenFund is Ownable, Utils, ReentrancyGuard, TokenController {
     require(order.isSold() == false && order.cycleNumber() < cycleNumber);
 
     // Sell short order
-    (, uint256 outputAmount) = order.sellOrder(0, MAX_QTY);
-    dai.transfer(devFundingAccount, outputAmount);
+    // Not using outputAmount returned by order.sellOrder() because _orderAddress could point to a malicious contract
+    uint256 beforeDAIBalance = dai.balanceOf(address(this));
+    order.sellOrder(0, MAX_QTY);
+    uint256 actualDAIReceived = dai.balanceOf(address(this)).sub(beforeDAIBalance);
+
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
   }
 
   /**
