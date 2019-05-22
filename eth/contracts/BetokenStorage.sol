@@ -1,5 +1,6 @@
 pragma solidity 0.5.8;
 
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IMiniMeToken.sol";
@@ -12,6 +13,8 @@ import "./BetokenProxyInterface.sol";
  * @author Zefram Lou (Zebang Liu)
  */
 contract BetokenStorage is Ownable, ReentrancyGuard {
+  using SafeMath for uint256;
+
   enum CyclePhase { Intermission, Manage }
   enum VoteDirection { Empty, For, Against }
   enum Subchunk { Propose, Vote }
@@ -171,4 +174,72 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   event ProposedCandidate(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, address _candidate);
   event Voted(uint256 indexed _cycleNumber, uint256 indexed _voteID, address indexed _sender, bool _inSupport, uint256 _weight);
   event FinalizedNextVersion(uint256 indexed _cycleNumber, address _nextVersion);
+
+  /*
+  Helper functions shared by both BetokenLogic & BetokenFund
+  */
+
+  /**
+   * @notice The manage phase is divided into 9 3-day chunks. Determines which chunk the fund's in right now.
+   * @return The index of the current chunk (starts from 0). Returns 0 if not in Manage phase.
+   */
+  function currentChunk() public view returns (uint) {
+    if (cyclePhase != CyclePhase.Manage) {
+      return 0;
+    }
+    return (now - startTimeOfCyclePhase) / CHUNK_SIZE;
+  }
+
+  /**
+   * @notice There are two subchunks in each chunk: propose (1 day) and vote (2 days).
+   *         Determines which subchunk the fund is in right now.
+   * @return The Subchunk the fund is in right now
+   */
+  function currentSubchunk() public view returns (Subchunk _subchunk) {
+    if (cyclePhase != CyclePhase.Manage) {
+      return Subchunk.Vote;
+    }
+    uint256 timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
+    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
+  }
+
+  /**
+   * @notice Calculates an account's voting weight based on their Kairo balance
+   *         3 cycles ago
+   * @param _of the account to be queried
+   * @return The account's voting weight
+   */
+  function getVotingWeight(address _of) public view returns (uint256 _weight) {
+    if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
+      return 0;
+    }
+    return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+  }
+
+  /**
+   * @notice Calculates the total voting weight based on the total Kairo supply
+   *         3 cycles ago. The weights of proposers are deducted.
+   * @return The total voting weight right now
+   */
+  function getTotalVotingWeight() public view returns (uint256 _weight) {
+    if (cycleNumber <= CYCLES_TILL_MATURITY) {
+      return 0;
+    }
+    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]).sub(proposersVotingWeight);
+  }
+
+  /**
+   * @notice Calculates the current price of Kairo. The price is equal to the amount of DAI each Kairo
+   *         can control, and it's kept above MIN_KRO_PRICE.
+   * @return Kairo's current price
+   */
+  function kairoPrice() public view returns (uint256 _kairoPrice) {
+    if (cToken.totalSupply() == 0) { return MIN_KRO_PRICE; }
+    uint256 controlPerKairo = totalFundsInDAI.mul(10 ** 18).div(cToken.totalSupply());
+    if (controlPerKairo < MIN_KRO_PRICE) {
+      // keep price above minimum price
+      return MIN_KRO_PRICE;
+    }
+    return controlPerKairo;
+  }
 }

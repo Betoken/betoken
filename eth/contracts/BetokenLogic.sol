@@ -205,55 +205,6 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
       && forVotes[voteID].add(againstVotes[voteID]) > getTotalVotingWeight().mul(QUORUM).div(PRECISION);
   }
 
-  /**
-   * @notice The manage phase is divided into 9 3-day chunks. Determines which chunk the fund's in right now.
-   * @return The index of the current chunk (starts from 0). Returns 0 if not in Manage phase.
-   */
-  function currentChunk() public view returns (uint) {
-    if (cyclePhase != CyclePhase.Manage) {
-      return 0;
-    }
-    return (now - startTimeOfCyclePhase) / CHUNK_SIZE;
-  }
-
-  /**
-   * @notice There are two subchunks in each chunk: propose (1 day) and vote (2 days).
-   *         Determines which subchunk the fund is in right now.
-   * @return The Subchunk the fund is in right now
-   */
-  function currentSubchunk() public view returns (Subchunk _subchunk) {
-    if (cyclePhase != CyclePhase.Manage) {
-      return Subchunk.Vote;
-    }
-    uint256 timeIntoCurrChunk = (now - startTimeOfCyclePhase) % CHUNK_SIZE;
-    return timeIntoCurrChunk < PROPOSE_SUBCHUNK_SIZE ? Subchunk.Propose : Subchunk.Vote;
-  }
-
-  /**
-   * @notice Calculates an account's voting weight based on their Kairo balance
-   *         3 cycles ago
-   * @param _of the account to be queried
-   * @return The account's voting weight
-   */
-  function getVotingWeight(address _of) public view returns (uint256 _weight) {
-    if (!__isMature() || _of == address(0)) {
-      return 0;
-    }
-    return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
-  }
-
-  /**
-   * @notice Calculates the total voting weight based on the total Kairo supply
-   *         3 cycles ago. The weights of proposers are deducted.
-   * @return The total voting weight right now
-   */
-  function getTotalVotingWeight() public view returns (uint256 _weight) {
-    if (!__isMature()) {
-      return 0;
-    }
-    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]).sub(proposersVotingWeight);
-  }
-
 
   /**
    * Next phase transition handler
@@ -336,21 +287,6 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   /**
    * Manager registration
    */
-
-  /**
-   * @notice Calculates the current price of Kairo. The price is equal to the amount of DAI each Kairo
-   *         can control, and it's kept above MIN_KRO_PRICE.
-   * @return Kairo's current price
-   */
-  function kairoPrice() public view returns (uint256 _kairoPrice) {
-    if (cToken.totalSupply() == 0) {return 0;}
-    uint256 controlPerKairo = totalFundsInDAI.mul(PRECISION).div(cToken.totalSupply());
-    if (controlPerKairo < MIN_KRO_PRICE) {
-      // keep price above minimum price
-      return MIN_KRO_PRICE;
-    }
-    return controlPerKairo;
-  }
   
   /**
    * @notice Calculates the max amount a new manager can pay for an account. Equivalent to 1% of Kairo total supply.
