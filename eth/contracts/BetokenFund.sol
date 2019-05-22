@@ -206,6 +206,14 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   }
 
   /**
+   * @notice Returns the length of the user's compound orders array.
+   * @return length of the user's compound orders array
+   */
+  function compoundOrdersCount(address _userAddr) public view returns(uint256 _count) {
+    return userCompoundOrders[_userAddr].length;
+  }
+
+  /**
    * @notice Returns the phaseLengths array.
    * @return the phaseLengths array
    */
