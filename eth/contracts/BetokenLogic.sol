@@ -91,7 +91,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     if (senderWeight > currProposerWeight || (senderWeight == currProposerWeight && msg.sender > proposers[voteID]) || msg.sender == proposers[voteID]) {
       proposers[voteID] = msg.sender;
       candidates[voteID] = _candidate;
-      proposersVotingWeight = proposersVotingWeight.add(senderWeight).sub(currProposerWeight); // remove proposer weight to prevent insufficient quorum
+      proposersVotingWeight = proposersVotingWeight.add(senderWeight).sub(currProposerWeight);
       emit ProposedCandidate(cycleNumber, _chunkNumber, msg.sender, _candidate);
       return true;
     }

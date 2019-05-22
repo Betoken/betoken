@@ -136,7 +136,7 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   address payable[5] public candidates; // Candidates for a chunk
   uint256[5] public forVotes; // For votes for a chunk
   uint256[5] public againstVotes; // Against votes for a chunk
-  uint256 public proposersVotingWeight; // Total voting weight of previous and current proposers
+  uint256 public proposersVotingWeight; // Total voting weight of previous and current proposers. This is used for excluding the voting weight of proposers.
   mapping(uint256 => mapping(address => VoteDirection[5])) public managerVotes; // Records each manager's vote
   mapping(uint256 => uint256) public upgradeSignalStrength; // Denotes the amount of Kairo that's signalling in support of beginning the upgrade process during a cycle
   mapping(uint256 => mapping(address => bool)) public upgradeSignal; // Maps manager address to whether they support initiating an upgrade
