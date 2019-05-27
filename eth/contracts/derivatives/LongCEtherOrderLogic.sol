@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.8;
 
 import "./CompoundOrderLogic.sol";
 
@@ -22,7 +22,9 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     address[] memory markets = new address[](2);
     markets[0] = compoundTokenAddr;
     markets[1] = address(CDAI);
-    COMPTROLLER.enterMarkets(markets);
+    uint[] memory errors = COMPTROLLER.enterMarkets(markets);
+    require(errors[0] == 0 && errors[1] == 0);
+    
     // Get loan from Compound in DAI
     require(market.mint.value(actualTokenAmount)() == 0); // Transfer tokens into Compound as supply
     require(CDAI.borrow(loanAmountInDAI) == 0);// Take out loan in DAI

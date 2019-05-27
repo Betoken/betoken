@@ -130,7 +130,7 @@
           // deploy Kairo and Betoken Shares contracts
           await deployer.deploy(MiniMeTokenFactory);
           minimeFactory = (await MiniMeTokenFactory.deployed());
-          controlTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Kairo", 18, "KRO", true))).logs[0].args.addr;
+          controlTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Kairo", 18, "KRO", false))).logs[0].args.addr;
           shareTokenAddr = ((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true))).logs[0].args.addr;
           ControlToken = (await MiniMeToken.at(controlTokenAddr));
           ShareToken = (await MiniMeToken.at(shareTokenAddr));
