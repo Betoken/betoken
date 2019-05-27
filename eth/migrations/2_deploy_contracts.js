@@ -203,6 +203,7 @@
             token = tokenAddrs[n];
             compoundTokens[token] = ((await testCERC20Factory.newToken(token, TestComptroller.address))).logs[0].args.cToken;
           }
+          console.log(compoundTokens);
           // deploy Kairo and Betoken Shares contracts
           await deployer.deploy(MiniMeTokenFactory);
           minimeFactory = (await MiniMeTokenFactory.deployed());

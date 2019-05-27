@@ -204,6 +204,7 @@ module.exports = (deployer, network, accounts) ->
         tokenAddrs = [config.DAI_ADDR]
         for token in tokenAddrs
           compoundTokens[token] = (await testCERC20Factory.newToken(token, TestComptroller.address)).logs[0].args.cToken
+        console.log compoundTokens
 
         # deploy Kairo and Betoken Shares contracts
         await deployer.deploy(MiniMeTokenFactory)
