@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.8;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
@@ -126,8 +126,8 @@ contract Utils {
     uint256 msgValue;
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       msgValue = 0;
-      _srcToken.approve(KYBER_ADDR, 0);
-      _srcToken.approve(KYBER_ADDR, _srcAmount);
+      require(_srcToken.approve(KYBER_ADDR, 0));
+      require(_srcToken.approve(KYBER_ADDR, _srcAmount));
     } else {
       msgValue = _srcAmount;
     }
@@ -143,7 +143,7 @@ contract Utils {
     );
     require(_actualDestAmount > 0);
     if (_srcToken != ETH_TOKEN_ADDRESS) {
-      _srcToken.approve(KYBER_ADDR, 0);
+      require(_srcToken.approve(KYBER_ADDR, 0));
     }
 
     _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, address(this)));

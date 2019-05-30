@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.8;
 
 /*
     Copyright 2016, Jordi Baylina
@@ -501,7 +501,7 @@ contract MiniMeToken is Ownable {
 
     MiniMeToken token = MiniMeToken(_token);
     uint balance = token.balanceOf(address(this));
-    token.transfer(owner(), balance);
+    require(token.transfer(owner(), balance));
     emit ClaimedTokens(_token, owner(), balance);
   }
 

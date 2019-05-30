@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.8;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../Utils.sol";
@@ -46,7 +46,7 @@ contract CompoundOrder is Ownable, Utils {
     address _cETHAddr
   ) public Utils(_daiAddr, _kyberAddr)  {
     // Initialize details of short order
-    require(_compoundTokenAddr != address(CDAI));
+    require(_compoundTokenAddr != _cDAIAddr);
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
     stake = _stake;
     collateralAmountInDAI = _collateralAmountInDAI;

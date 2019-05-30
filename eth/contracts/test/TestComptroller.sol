@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.8;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "../interfaces/Comptroller.sol";
@@ -16,9 +16,12 @@ contract TestComptroller is Comptroller {
   constructor() public {}
 
   function enterMarkets(address[] calldata cTokens) external returns (uint[] memory) {
+    uint[] memory errors = new uint[](cTokens.length);
     for (uint256 i = 0; i < cTokens.length; i = i.add(1)) {
       getAssetsIn[msg.sender].push(cTokens[i]);
+      errors[i] = 0;
     }
+    return errors;
   }
 
   function markets(address cToken) external view returns (bool isListed, uint256 collateralFactorMantissa) {
