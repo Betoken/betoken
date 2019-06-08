@@ -122,5 +122,11 @@ contract CompoundOrder is Ownable, Utils {
     return abi.decode(result, (bool, uint256));
   }
 
+  function getMarketCollateralFactor() public returns (uint256) {
+    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getMarketCollateralFactor.selector));
+    if (!success) { revert(); }
+    return abi.decode(result, (uint256));
+  }
+
   function() external payable {}
 }

@@ -42,6 +42,8 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount);
 
+  function getMarketCollateralFactor() public view returns (uint256);
+
   function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
     ERC20Detailed t = __underlyingToken(compoundTokenAddr);
     (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, t); // Sell DAI for tokens on Kyber
@@ -83,10 +85,5 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
     address underlyingToken = ct.underlying();
     ERC20Detailed t = ERC20Detailed(underlyingToken);
     return t;
-  }
-
-  function __getMarketCollateralFactor() internal view returns (uint256) {
-    (, uint256 ratio) = COMPTROLLER.markets(compoundTokenAddr);
-    return ratio;
   }
 }
