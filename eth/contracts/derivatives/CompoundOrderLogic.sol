@@ -1,33 +1,9 @@
 pragma solidity 0.5.8;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "../Utils.sol";
-import "../interfaces/Comptroller.sol";
-import "../interfaces/CERC20.sol";
+import "./CompoundOrderStorage.sol";
 import "../interfaces/CEther.sol";
-import "../interfaces/PriceOracle.sol";
 
-contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
-  // Constants
-  uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
-  uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
-
-  // Contract instances
-  Comptroller public COMPTROLLER; // The Compound comptroller
-  PriceOracle public ORACLE; // The Compound price oracle
-  CERC20 public CDAI; // The Compound DAI market token
-  address public CETH_ADDR;
-
-  // Instance variables
-  uint256 public stake;
-  uint256 public collateralAmountInDAI;
-  uint256 public loanAmountInDAI;
-  uint256 public cycleNumber;
-  uint256 public buyTime; // Timestamp for order execution
-  address public compoundTokenAddr;
-  bool public isSold;
-  bool public orderType; // True for shorting, false for longing
-
+contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0)) {
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {
     buyTime = now;
   }

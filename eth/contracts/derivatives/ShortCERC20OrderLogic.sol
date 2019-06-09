@@ -92,6 +92,7 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
+    outputAmount = _outputAmount;
     require(dai.transfer(owner(), dai.balanceOf(address(this))));
   }
 
