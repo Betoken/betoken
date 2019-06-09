@@ -60,14 +60,14 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     // Repeat to ensure debt is exhausted
     CEther market = CEther(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
+      uint256 currentDebt = getCurrentBorrowInDAI();
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = dai.balanceOf(address(this));
+      uint256 currentBalance = getCurrentCashInDAI();
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt

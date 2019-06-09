@@ -66,14 +66,14 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     CERC20 market = CERC20(compoundTokenAddr);
     ERC20Detailed token = __underlyingToken(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = CDAI.borrowBalanceCurrent(address(this));
+      uint256 currentDebt = getCurrentBorrowInDAI();
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = __tokenToDAI(compoundTokenAddr, token.balanceOf(address(this)));
+      uint256 currentBalance = getCurrentCashInDAI();
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
