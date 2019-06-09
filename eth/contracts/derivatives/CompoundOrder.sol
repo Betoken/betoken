@@ -102,5 +102,23 @@ contract CompoundOrder is CompoundOrderStorage, Utils {
     return abi.decode(result, (uint256));
   }
 
+  function getCurrentCollateralInDAI() public returns (uint256 _amount) {
+    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentCollateralInDAI.selector));
+    if (!success) { revert(); }
+    return abi.decode(result, (uint256));
+  }
+
+  function getCurrentBorrowInDAI() public returns (uint256 _amount) {
+    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentBorrowInDAI.selector));
+    if (!success) { revert(); }
+    return abi.decode(result, (uint256));
+  }
+
+  function getCurrentCashInDAI() public returns (uint256 _amount) {
+    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentCashInDAI.selector));
+    if (!success) { revert(); }
+    return abi.decode(result, (uint256));
+  }
+
   function() external payable {}
 }
