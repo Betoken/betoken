@@ -119,11 +119,29 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    uint256 borrowBalance = CDAI.borrowBalanceCurrent(address(this));
-    if (loanAmountInDAI >= borrowBalance) {
-      return (false, loanAmountInDAI.sub(borrowBalance));
+    uint256 l;
+    uint256 r;
+    if (isSold) {
+      l = outputAmount;
+      r = collateralAmountInDAI;
     } else {
-      return (true, borrowBalance.sub(loanAmountInDAI));
+      CEther market = CEther(compoundTokenAddr);
+      uint256 cash = __tokenToDAI(compoundTokenAddr, address(this).balance);
+      uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
+      uint256 borrow = CDAI.borrowBalanceCurrent(address(this));
+      if (cash >= borrow) {
+        l = supply.add(cash);
+        r = borrow.add(collateralAmountInDAI);
+      } else {
+        l = cash.mul(PRECISION).div(getMarketCollateralFactor());
+        r = collateralAmountInDAI;
+      }
+    }
+    
+    if (l >= r) {
+      return (false, l.sub(r));
+    } else {
+      return (true, r.sub(l));
     }
   }
 

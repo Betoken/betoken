@@ -118,12 +118,29 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
   }
 
   function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
-    uint256 borrowBalance = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
-    if (loanAmountInDAI >= borrowBalance) {
-      return (false, loanAmountInDAI.sub(borrowBalance));
+    uint256 l;
+    uint256 r;
+    if (isSold) {
+      l = outputAmount;
+      r = collateralAmountInDAI;
     } else {
-      return (true, borrowBalance.sub(loanAmountInDAI));
+      CERC20 market = CERC20(compoundTokenAddr);
+      uint256 cash = dai.balanceOf(address(this));
+      uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
+      uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
+      if (cash >= borrow) {
+        l = supply.add(cash);
+        r = borrow.add(collateralAmountInDAI);
+      } else {
+        l = cash.mul(PRECISION).div(getMarketCollateralFactor());
+        r = collateralAmountInDAI;
+      }
+    }
+    
+    if (l >= r) {
+      return (false, l.sub(r));
+    } else {
+      return (true, r.sub(l));
     }
   }
 
