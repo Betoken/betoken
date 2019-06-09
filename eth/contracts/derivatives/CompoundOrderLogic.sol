@@ -50,6 +50,9 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
   function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
     uint256 supply = getCurrentCollateralInDAI();
     uint256 borrow = getCurrentBorrowInDAI();
+    if (borrow == 0) {
+      return uint256(-1);
+    }
     return supply.mul(PRECISION).div(borrow);
   }
 
