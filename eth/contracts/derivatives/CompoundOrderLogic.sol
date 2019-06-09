@@ -2,6 +2,7 @@ pragma solidity 0.5.8;
 
 import "./CompoundOrderStorage.sol";
 import "../interfaces/CEther.sol";
+import "../Utils.sol";
 
 contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0)) {
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {

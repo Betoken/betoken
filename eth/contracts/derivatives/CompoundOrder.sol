@@ -1,6 +1,7 @@
 pragma solidity 0.5.8;
 
 import "./CompoundOrderStorage.sol";
+import "../Utils.sol";
 
 contract CompoundOrder is CompoundOrderStorage, Utils {
   constructor(
