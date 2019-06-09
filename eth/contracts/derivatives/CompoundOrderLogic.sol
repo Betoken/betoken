@@ -11,15 +11,57 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
 
   function sellOrder(uint256 _minPrice, uint256 _maxPrice) public returns (uint256 _inputAmount, uint256 _outputAmount);
 
-  function repayLoan(uint256 _repayAmountInDAI) public;
-
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount);
-  
-  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount);
-
-  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount);
+  function repayLoan(uint256 _repayAmountInDAI) public;  
 
   function getMarketCollateralFactor() public view returns (uint256);
+
+  function getCurrentCollateralInDAI() public view returns (uint256 _amount);
+
+  function getCurrentBorrowInDAI() public view returns (uint256 _amount);
+
+  function getCurrentCashInDAI() public view returns (uint256 _amount);
+
+  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
+    uint256 l;
+    uint256 r;
+    if (isSold) {
+      l = outputAmount;
+      r = collateralAmountInDAI;
+    } else {
+      uint256 cash = getCurrentCashInDAI();
+      uint256 supply = getCurrentCollateralInDAI();
+      uint256 borrow = getCurrentBorrowInDAI();
+      if (cash >= borrow) {
+        l = supply.add(cash);
+        r = borrow.add(collateralAmountInDAI);
+      } else {
+        l = cash.mul(PRECISION).div(getMarketCollateralFactor());
+        r = collateralAmountInDAI;
+      }
+    }
+    
+    if (l >= r) {
+      return (false, l.sub(r));
+    } else {
+      return (true, r.sub(l));
+    }
+  }
+
+  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
+    uint256 supply = getCurrentCollateralInDAI();
+    uint256 borrow = getCurrentBorrowInDAI();
+    return supply.mul(PRECISION).div(borrow);
+  }
+
+  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
+    uint256 supply = getCurrentCollateralInDAI();
+    uint256 borrow = getCurrentBorrowInDAI().mul(PRECISION).div(getMarketCollateralFactor());
+    if (supply >= borrow) {
+      return (false, supply.sub(borrow));
+    } else {
+      return (true, borrow.sub(supply));
+    }
+  }
 
   function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
     ERC20Detailed t = __underlyingToken(compoundTokenAddr);

@@ -123,54 +123,25 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     require(CDAI.repayBorrow(actualDAIAmount) == 0);
   }
 
-  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    uint256 l;
-    uint256 r;
-    if (isSold) {
-      l = outputAmount;
-      r = collateralAmountInDAI;
-    } else {
-      CERC20 market = CERC20(compoundTokenAddr);
-      ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-      uint256 cash = __tokenToDAI(compoundTokenAddr, token.balanceOf(address(this)));
-      uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
-      uint256 borrow = CDAI.borrowBalanceCurrent(address(this));
-      if (cash >= borrow) {
-        l = supply.add(cash);
-        r = borrow.add(collateralAmountInDAI);
-      } else {
-        l = cash.mul(PRECISION).div(getMarketCollateralFactor());
-        r = collateralAmountInDAI;
-      }
-    }
-    
-    if (l >= r) {
-      return (false, l.sub(r));
-    } else {
-      return (true, r.sub(l));
-    }
-  }
-
-  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
-    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
-    uint256 borrow = CDAI.borrowBalanceCurrent(address(this));
-    return supply.mul(PRECISION).div(borrow);
-  }
-
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
-    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
-    uint256 borrow = CDAI.borrowBalanceCurrent(address(this)).mul(PRECISION).div(getMarketCollateralFactor());
-    if (supply >= borrow) {
-      return (false, supply.sub(borrow));
-    } else {
-      return (true, borrow.sub(supply));
-    }
-  }
-
   function getMarketCollateralFactor() public view returns (uint256) {
     (, uint256 ratio) = COMPTROLLER.markets(address(CDAI));
     return ratio;
+  }
+
+  function getCurrentCollateralInDAI() public view returns (uint256 _amount) {
+    CERC20 market = CERC20(compoundTokenAddr);
+    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
+    return supply;
+  }
+
+  function getCurrentBorrowInDAI() public view returns (uint256 _amount) {
+    uint256 borrow = CDAI.borrowBalanceCurrent(address(this));
+    return borrow;
+  }
+
+  function getCurrentCashInDAI() public view returns (uint256 _amount) {
+    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
+    uint256 cash = __tokenToDAI(compoundTokenAddr, getBalance(token, address(this)));
+    return cash;
   }
 }
