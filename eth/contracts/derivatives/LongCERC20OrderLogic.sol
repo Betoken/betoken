@@ -110,6 +110,12 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     uint256 repayAmountInToken = __daiToToken(compoundTokenAddr, _repayAmountInDAI);
     (uint256 actualDAIAmount,) = __sellTokenForDAI(repayAmountInToken);
     
+    // Check if amount is greater than borrow balance
+    uint256 currentDebt = CDAI.borrowBalanceCurrent(address(this));
+    if (actualDAIAmount > currentDebt) {
+      actualDAIAmount = currentDebt;
+    }
+    
     // Repay loan to Compound
     require(dai.approve(address(CDAI), 0));
     require(dai.approve(address(CDAI), actualDAIAmount));

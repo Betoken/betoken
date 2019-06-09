@@ -102,9 +102,15 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     // Convert DAI to shorting token
     (,uint256 actualTokenAmount) = __sellDAIForToken(_repayAmountInDAI);
 
+    // Check if amount is greater than borrow balance
+    CERC20 market = CERC20(compoundTokenAddr);
+    uint256 currentDebt = market.borrowBalanceCurrent(address(this));
+    if (actualTokenAmount > currentDebt) {
+      actualTokenAmount = currentDebt;
+    }
+
     // Repay loan to Compound
     ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-    CERC20 market = CERC20(compoundTokenAddr);
     require(token.approve(compoundTokenAddr, 0));
     require(token.approve(compoundTokenAddr, actualTokenAmount));
     require(market.repayBorrow(actualTokenAmount) == 0);

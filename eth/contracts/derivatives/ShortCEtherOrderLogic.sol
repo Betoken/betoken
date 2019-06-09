@@ -98,8 +98,14 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     // Convert DAI to shorting token
     (,uint256 actualTokenAmount) = __sellDAIForToken(_repayAmountInDAI);
 
-    // Repay loan to Compound
+    // Check if amount is greater than borrow balance
     CEther market = CEther(compoundTokenAddr);
+    uint256 currentDebt = market.borrowBalanceCurrent(address(this));
+    if (actualTokenAmount > currentDebt) {
+      actualTokenAmount = currentDebt;
+    }
+
+    // Repay loan to Compound
     require(market.repayBorrow.value(actualTokenAmount)() == 0);
   }
 
