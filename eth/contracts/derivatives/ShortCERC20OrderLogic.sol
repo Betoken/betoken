@@ -64,14 +64,14 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     // Repeat to ensure debt is exhausted
     CERC20 market = CERC20(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
+      uint256 currentDebt = getCurrentBorrowInDAI();
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = dai.balanceOf(address(this));
+      uint256 currentBalance = getCurrentCashInDAI();
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -92,6 +92,7 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
+    outputAmount = _outputAmount;
     require(dai.transfer(owner(), dai.balanceOf(address(this))));
   }
 
@@ -102,39 +103,38 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     // Convert DAI to shorting token
     (,uint256 actualTokenAmount) = __sellDAIForToken(_repayAmountInDAI);
 
+    // Check if amount is greater than borrow balance
+    CERC20 market = CERC20(compoundTokenAddr);
+    uint256 currentDebt = market.borrowBalanceCurrent(address(this));
+    if (actualTokenAmount > currentDebt) {
+      actualTokenAmount = currentDebt;
+    }
+
     // Repay loan to Compound
     ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-    CERC20 market = CERC20(compoundTokenAddr);
     require(token.approve(compoundTokenAddr, 0));
     require(token.approve(compoundTokenAddr, actualTokenAmount));
     require(market.repayBorrow(actualTokenAmount) == 0);
   }
 
-  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
-    uint256 borrowBalance = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
-    if (loanAmountInDAI >= borrowBalance) {
-      return (false, loanAmountInDAI.sub(borrowBalance));
-    } else {
-      return (true, borrowBalance.sub(loanAmountInDAI));
-    }
+  function getMarketCollateralFactor() public view returns (uint256) {
+    (, uint256 ratio) = COMPTROLLER.markets(address(compoundTokenAddr));
+    return ratio;
   }
 
-  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
+  function getCurrentCollateralInDAI() public view returns (uint256 _amount) {
     uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
+    return supply;
+  }
+
+  function getCurrentBorrowInDAI() public view returns (uint256 _amount) {
+    CERC20 market = CERC20(compoundTokenAddr);
     uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
-    return supply.mul(PRECISION).div(borrow);
+    return borrow;
   }
 
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
-    uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
-    uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this))).mul(PRECISION).div(__getMarketCollateralFactor());
-    if (supply >= borrow) {
-      return (false, supply.sub(borrow));
-    } else {
-      return (true, borrow.sub(supply));
-    }
+  function getCurrentCashInDAI() public view returns (uint256 _amount) {
+    uint256 cash = getBalance(dai, address(this));
+    return cash;
   }
 }

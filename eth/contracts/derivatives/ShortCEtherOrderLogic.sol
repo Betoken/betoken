@@ -60,14 +60,14 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     // Repeat to ensure debt is exhausted
     CEther market = CEther(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
-      uint256 currentDebt = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
+      uint256 currentDebt = getCurrentBorrowInDAI();
       if (currentDebt <= NEGLIGIBLE_DEBT) {
         // Current debt negligible, exit
         break;
       }
 
       // Determine amount to be repayed this step
-      uint256 currentBalance = dai.balanceOf(address(this));
+      uint256 currentBalance = getCurrentCashInDAI();
       uint256 repayAmount = 0; // amount to be repaid in DAI
       if (currentDebt <= currentBalance) {
         // Has enough money, repay all debt
@@ -88,6 +88,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
+    outputAmount = _outputAmount;
     require(dai.transfer(owner(), dai.balanceOf(address(this))));
   }
 
@@ -98,36 +99,35 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     // Convert DAI to shorting token
     (,uint256 actualTokenAmount) = __sellDAIForToken(_repayAmountInDAI);
 
-    // Repay loan to Compound
+    // Check if amount is greater than borrow balance
     CEther market = CEther(compoundTokenAddr);
+    uint256 currentDebt = market.borrowBalanceCurrent(address(this));
+    if (actualTokenAmount > currentDebt) {
+      actualTokenAmount = currentDebt;
+    }
+
+    // Repay loan to Compound
     require(market.repayBorrow.value(actualTokenAmount)() == 0);
   }
 
-  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    CEther market = CEther(compoundTokenAddr);
-    uint256 borrowBalance = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
-    if (loanAmountInDAI >= borrowBalance) {
-      return (false, loanAmountInDAI.sub(borrowBalance));
-    } else {
-      return (true, borrowBalance.sub(loanAmountInDAI));
-    }
+  function getMarketCollateralFactor() public view returns (uint256) {
+    (, uint256 ratio) = COMPTROLLER.markets(address(compoundTokenAddr));
+    return ratio;
   }
 
-  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
-    CEther market = CEther(compoundTokenAddr);
+  function getCurrentCollateralInDAI() public view returns (uint256 _amount) {
     uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
+    return supply;
+  }
+
+  function getCurrentBorrowInDAI() public view returns (uint256 _amount) {
+    CEther market = CEther(compoundTokenAddr);
     uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
-    return supply.mul(PRECISION).div(borrow);
+    return borrow;
   }
 
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
-    CEther market = CEther(compoundTokenAddr);
-    uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
-    uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this))).mul(PRECISION).div(__getMarketCollateralFactor());
-    if (supply >= borrow) {
-      return (false, supply.sub(borrow));
-    } else {
-      return (true, borrow.sub(supply));
-    }
+  function getCurrentCashInDAI() public view returns (uint256 _amount) {
+    uint256 cash = getBalance(dai, address(this));
+    return cash;
   }
 }
