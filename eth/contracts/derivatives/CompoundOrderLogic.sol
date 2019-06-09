@@ -1,46 +1,67 @@
 pragma solidity 0.5.8;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "../Utils.sol";
-import "../interfaces/Comptroller.sol";
-import "../interfaces/CERC20.sol";
+import "./CompoundOrderStorage.sol";
 import "../interfaces/CEther.sol";
-import "../interfaces/PriceOracle.sol";
+import "../Utils.sol";
 
-contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
-  // Constants
-  uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
-  uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
-
-  // Contract instances
-  Comptroller public COMPTROLLER; // The Compound comptroller
-  PriceOracle public ORACLE; // The Compound price oracle
-  CERC20 public CDAI; // The Compound DAI market token
-  address public CETH_ADDR;
-
-  // Instance variables
-  uint256 public stake;
-  uint256 public collateralAmountInDAI;
-  uint256 public loanAmountInDAI;
-  uint256 public cycleNumber;
-  uint256 public buyTime; // Timestamp for order execution
-  address public compoundTokenAddr;
-  bool public isSold;
-  bool public orderType; // True for shorting, false for longing
-
+contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0)) {
   function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {
     buyTime = now;
   }
 
   function sellOrder(uint256 _minPrice, uint256 _maxPrice) public returns (uint256 _inputAmount, uint256 _outputAmount);
 
-  function repayLoan(uint256 _repayAmountInDAI) public;
+  function repayLoan(uint256 _repayAmountInDAI) public;  
 
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount);
-  
-  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount);
+  function getMarketCollateralFactor() public view returns (uint256);
 
-  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount);
+  function getCurrentCollateralInDAI() public view returns (uint256 _amount);
+
+  function getCurrentBorrowInDAI() public view returns (uint256 _amount);
+
+  function getCurrentCashInDAI() public view returns (uint256 _amount);
+
+  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
+    uint256 l;
+    uint256 r;
+    if (isSold) {
+      l = outputAmount;
+      r = collateralAmountInDAI;
+    } else {
+      uint256 cash = getCurrentCashInDAI();
+      uint256 supply = getCurrentCollateralInDAI();
+      uint256 borrow = getCurrentBorrowInDAI();
+      if (cash >= borrow) {
+        l = supply.add(cash);
+        r = borrow.add(collateralAmountInDAI);
+      } else {
+        l = cash.mul(PRECISION).div(getMarketCollateralFactor());
+        r = collateralAmountInDAI;
+      }
+    }
+    
+    if (l >= r) {
+      return (false, l.sub(r));
+    } else {
+      return (true, r.sub(l));
+    }
+  }
+
+  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
+    uint256 supply = getCurrentCollateralInDAI();
+    uint256 borrow = getCurrentBorrowInDAI();
+    return supply.mul(PRECISION).div(borrow);
+  }
+
+  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
+    uint256 supply = getCurrentCollateralInDAI();
+    uint256 borrow = getCurrentBorrowInDAI().mul(PRECISION).div(getMarketCollateralFactor());
+    if (supply >= borrow) {
+      return (false, supply.sub(borrow));
+    } else {
+      return (true, borrow.sub(supply));
+    }
+  }
 
   function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
     ERC20Detailed t = __underlyingToken(compoundTokenAddr);
@@ -83,10 +104,5 @@ contract CompoundOrderLogic is Ownable, Utils(address(0), address(0)) {
     address underlyingToken = ct.underlying();
     ERC20Detailed t = ERC20Detailed(underlyingToken);
     return t;
-  }
-
-  function __getMarketCollateralFactor() internal view returns (uint256) {
-    (, uint256 ratio) = COMPTROLLER.markets(compoundTokenAddr);
-    return ratio;
   }
 }
