@@ -35,8 +35,8 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
         l = supply.add(cash);
         r = borrow.add(collateralAmountInDAI);
       } else {
-        l = cash.mul(PRECISION).div(getMarketCollateralFactor());
-        r = collateralAmountInDAI;
+        l = supply;
+        r = borrow.sub(cash).mul(PRECISION).div(getMarketCollateralFactor()).add(collateralAmountInDAI);
       }
     }
     
