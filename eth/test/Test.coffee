@@ -14,7 +14,7 @@ TestCERC20Factory = artifacts.require "TestCERC20Factory"
 
 BigNumber = require "bignumber.js"
 
-epsilon = 1e-4
+epsilon = 1e-3
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 ETH_ADDR = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
@@ -462,6 +462,8 @@ contract("simulation", (accounts) ->
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account2)
     stake = BigNumber await longOrder.stake.call()
+    console.log(stake.toString());
+    console.log(kroBlnce.minus(prevKROBlnce).toString());
     assert(epsilon_equal(stake, kroBlnce.minus(prevKROBlnce)), "account2 received Kairo amount incorrect")
 
     # check fund DAI balance
