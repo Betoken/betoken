@@ -21,12 +21,12 @@ contract TestCEther is CEther {
   }
 
   function mint() external payable returns (uint) {
-    _balanceOf[msg.sender] = _balanceOf[msg.sender].add(msg.value);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].add(msg.value.mul(10 ** this.decimals()).div(PRECISION));
     return 0;
   }
 
   function redeemUnderlying(uint redeemAmount) external returns (uint) {
-    _balanceOf[msg.sender] = _balanceOf[msg.sender].sub(redeemAmount);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].sub(redeemAmount.mul(10 ** this.decimals()).div(PRECISION));
 
     msg.sender.transfer(redeemAmount);
 
@@ -51,6 +51,7 @@ contract TestCEther is CEther {
   function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
   function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
   function exchangeRateCurrent() external view returns (uint) { return _exchangeRateCurrent; }
+  function decimals() external view returns (uint) { return 8; }
 
   function() external payable {}
 }

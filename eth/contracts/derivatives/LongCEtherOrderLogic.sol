@@ -125,7 +125,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
 
   function getCurrentCollateralInDAI() public view returns (uint256 _amount) {
     CEther market = CEther(compoundTokenAddr);
-    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
+    uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(10 ** market.decimals()));
     return supply;
   }
 
