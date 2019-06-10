@@ -28,13 +28,13 @@ contract TestCERC20 is CERC20 {
     ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transferFrom(msg.sender, address(this), mintAmount));
 
-    _balanceOf[msg.sender] = _balanceOf[msg.sender].add(mintAmount);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].add(mintAmount.mul(10 ** this.decimals()).div(PRECISION));
     
     return 0;
   }
 
   function redeemUnderlying(uint redeemAmount) external returns (uint) {
-    _balanceOf[msg.sender] = _balanceOf[msg.sender].sub(redeemAmount);
+    _balanceOf[msg.sender] = _balanceOf[msg.sender].sub(redeemAmount.mul(10 ** this.decimals()).div(PRECISION));
 
     ERC20Detailed token = ERC20Detailed(_underlying);
     require(token.transfer(msg.sender, redeemAmount));
@@ -69,4 +69,5 @@ contract TestCERC20 is CERC20 {
   function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
   function underlying() external view returns (address) { return _underlying; }
   function exchangeRateCurrent() external view returns (uint) { return _exchangeRateCurrent; }
+  function decimals() external view returns (uint) { return 8; }
 }
