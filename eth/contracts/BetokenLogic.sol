@@ -277,8 +277,10 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
     startTimeOfCyclePhase = now;
 
-    // Reward caller
-    require(cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD));
+    // Reward caller if they're a manager
+    if (cToken.balanceOf(msg.sender) > 0) {
+      require(cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD));
+    }
 
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now, totalFundsInDAI);
   }
