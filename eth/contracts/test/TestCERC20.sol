@@ -12,7 +12,7 @@ contract TestCERC20 is CERC20 {
   uint public constant MAX_UINT = 2 ** 256 - 1;
 
   address public _underlying;
-  uint public _exchangeRateCurrent = PRECISION;
+  uint public _exchangeRateCurrent = 10 ** (18 - 8) * PRECISION;
 
   mapping(address => uint) public _balanceOf;
   mapping(address => uint) public _borrowBalanceCurrent;
@@ -66,7 +66,7 @@ contract TestCERC20 is CERC20 {
   }
 
   function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
-  function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
+  function borrowBalanceCurrent(address account) external returns (uint) { return _borrowBalanceCurrent[account]; }
   function underlying() external view returns (address) { return _underlying; }
   function exchangeRateCurrent() external returns (uint) { return _exchangeRateCurrent; }
   function decimals() external view returns (uint) { return 8; }

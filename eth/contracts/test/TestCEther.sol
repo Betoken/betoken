@@ -9,7 +9,7 @@ contract TestCEther is CEther {
 
   uint public constant PRECISION = 10 ** 18;
 
-  uint public _exchangeRateCurrent = PRECISION;
+  uint public _exchangeRateCurrent = 10 ** (18 - 8) * PRECISION;
 
   mapping(address => uint) public _balanceOf;
   mapping(address => uint) public _borrowBalanceCurrent;
@@ -49,7 +49,7 @@ contract TestCEther is CEther {
   }
 
   function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
-  function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
+  function borrowBalanceCurrent(address account) external returns (uint) { return _borrowBalanceCurrent[account]; }
   function exchangeRateCurrent() external returns (uint) { return _exchangeRateCurrent; }
   function decimals() external view returns (uint) { return 8; }
 

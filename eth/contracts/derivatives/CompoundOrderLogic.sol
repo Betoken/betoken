@@ -17,7 +17,7 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
 
   function getCurrentCollateralInDAI() public returns (uint256 _amount);
 
-  function getCurrentBorrowInDAI() public view returns (uint256 _amount);
+  function getCurrentBorrowInDAI() public returns (uint256 _amount);
 
   function getCurrentCashInDAI() public view returns (uint256 _amount);
 

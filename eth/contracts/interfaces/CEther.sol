@@ -6,9 +6,9 @@ interface CEther {
   function redeemUnderlying(uint redeemAmount) external returns (uint);
   function borrow(uint borrowAmount) external returns (uint);
   function repayBorrow() external payable returns (uint);
+  function borrowBalanceCurrent(address account) external returns (uint);
+  function exchangeRateCurrent() external returns (uint);
 
   function balanceOf(address account) external view returns (uint);
   function decimals() external view returns (uint);
-  function borrowBalanceCurrent(address account) external view returns (uint);
-  function exchangeRateCurrent() external returns (uint);
 }

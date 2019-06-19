@@ -85,8 +85,10 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
       repayLoan(repayAmount);
 
       // Withdraw all available liquidity
-      (, uint256 liquidity) = getCurrentLiquidityInDAI();
-      require(CDAI.redeemUnderlying(liquidity) == 0);
+      (bool isNeg, uint256 liquidity) = getCurrentLiquidityInDAI();
+      if (!isNeg) {
+        require(CDAI.redeemUnderlying(liquidity) == 0);
+      }
     }
 
     // Send DAI back to BetokenFund and return
@@ -123,11 +125,11 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
   }
 
   function getCurrentCollateralInDAI() public returns (uint256 _amount) {
-    uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(10 ** CDAI.decimals());
+    uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(PRECISION);
     return supply;
   }
 
-  function getCurrentBorrowInDAI() public view returns (uint256 _amount) {
+  function getCurrentBorrowInDAI() public returns (uint256 _amount) {
     CERC20 market = CERC20(compoundTokenAddr);
     uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
     return borrow;
