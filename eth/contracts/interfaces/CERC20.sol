@@ -11,5 +11,5 @@ interface CERC20 {
   function decimals() external view returns (uint);
   function borrowBalanceCurrent(address account) external view returns (uint);
   function underlying() external view returns (address);
-  function exchangeRateCurrent() external view returns (uint);
+  function exchangeRateCurrent() external returns (uint);
 }

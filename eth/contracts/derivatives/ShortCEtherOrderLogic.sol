@@ -115,7 +115,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     return ratio;
   }
 
-  function getCurrentCollateralInDAI() public view returns (uint256 _amount) {
+  function getCurrentCollateralInDAI() public returns (uint256 _amount) {
     uint256 supply = CDAI.balanceOf(address(this)).mul(CDAI.exchangeRateCurrent()).div(10 ** CDAI.decimals());
     return supply;
   }

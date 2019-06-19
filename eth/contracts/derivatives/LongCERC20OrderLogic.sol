@@ -128,7 +128,7 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     return ratio;
   }
 
-  function getCurrentCollateralInDAI() public view returns (uint256 _amount) {
+  function getCurrentCollateralInDAI() public returns (uint256 _amount) {
     CERC20 market = CERC20(compoundTokenAddr);
     uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(10 ** market.decimals()));
     return supply;

@@ -13,7 +13,6 @@ BigNumber = require "bignumber.js"
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 ETH_ADDR = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
-WETH_ADDR = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 PRECISION = 1e18
 
 bnToString = (bn) -> BigNumber(bn).toFixed(0)
@@ -171,29 +170,32 @@ module.exports = (deployer, network, accounts) ->
 
       when "mainnet"
         # Mainnet Migration
-        config = require "../deployment_configs/mainnet.json"
+        config = require "../deployment_configs/mainnet_test.json"
 
         PRECISION = 1e18
 
         KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
-        # deploy Betoken Shares contract
-        await deployer.deploy(MiniMeTokenFactory)
-        minimeFactory = await MiniMeTokenFactory.deployed()
-        ShareToken = MiniMeToken.at((await minimeFactory.createCloneToken(
-            "0x0", 0, "Betoken Shares", 18, "BTKS", true)).logs[0].args.addr)
+        # deploy Betoken Shares contract and Kairo contract
+        minimeFactory = await MiniMeTokenFactory.at("0x49A4a2C8a1A14EC83034E253E89D33DA217dfFFc")
+        console.log "Deploying Betoken Shares..."
+        ShareToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
+            ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true, {gas: 2e6, gasPrice: 6e9})).logs[0].args.addr)
+        console.log "Deploying Kairo..."
+        ControlToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
+            "0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9", 7988057, "Kairo", 18, "KRO", false, {gas: 2e6, gasPrice: 6e9})).logs[0].args.addr)
 
         # deploy ShortCERC20OrderLogic
-        await deployer.deploy(ShortCERC20OrderLogic)
+        await deployer.deploy(ShortCERC20OrderLogic, {gas: 2.72e6, gasPrice: 6e9})
 
         # deploy ShortCEtherOrderLogic
-        await deployer.deploy(ShortCEtherOrderLogic)
+        await deployer.deploy(ShortCEtherOrderLogic, {gas: 2.42e6, gasPrice: 6e9})
 
         # deploy LongCERC20OrderLogic
-        await deployer.deploy(LongCERC20OrderLogic)
+        await deployer.deploy(LongCERC20OrderLogic, {gas: 2.84e6, gasPrice: 6e9})
 
         # deploy LongCEtherOrderLogic
-        await deployer.deploy(LongCEtherOrderLogic)
+        await deployer.deploy(LongCEtherOrderLogic, {gas: 2.59e6, gasPrice: 6e9})
 
         # deploy CompoundOrderFactory
         await deployer.deploy(
@@ -207,16 +209,17 @@ module.exports = (deployer, network, accounts) ->
           config.COMPOUND_COMPTROLLER_ADDR,
           config.COMPOUND_ORACLE_ADDR,
           config.COMPOUND_CDAI_ADDR,
-          config.COMPOUND_CETH_ADDR
+          config.COMPOUND_CETH_ADDR,
+          {gas: 1.78e6, gasPrice: 6e9}
         )
 
         # deploy BetokenLogic
-        await deployer.deploy(BetokenLogic)
+        await deployer.deploy(BetokenLogic, {gas: 5.9e6, gasPrice: 6e9})
 
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,
-          config.KAIRO_ADDR,
+          ControlToken.address,
           ShareToken.address,
           config.DEVELOPER_ACCOUNT
           config.phaseLengths,
@@ -225,29 +228,36 @@ module.exports = (deployer, network, accounts) ->
           config.DAI_ADDR,
           config.KYBER_ADDR,
           CompoundOrderFactory.address,
-          BetokenLogic.address
+          BetokenLogic.address,
+          {gas: 6.47e6, gasPrice: 6e9}
         )
         betokenFund = await BetokenFund.deployed()
+        console.log "Initializing token listings..."
         await betokenFund.initTokenListings(
           config.KYBER_TOKENS,
           config.COMPOUND_CTOKENS,
-          config.FULCRUM_PTOKENS
+          config.FULCRUM_PTOKENS,
+          {gas: 2.72e6, gasPrice: 6e9}
         )
 
         # deploy BetokenProxy contract
         await deployer.deploy(
           BetokenProxy,
           BetokenFund.address
+          {gas: 2.2e5, gasPrice: 6e9}
         )
 
         # set proxy address in BetokenFund
-        await betokenFund.setProxy(BetokenProxy.address)
+        console.log "Setting Betoken Proxy..."
+        await betokenFund.setProxy(BetokenProxy.address, {gas: 1e6, gasPrice: 6e9})
 
         # transfer ShareToken ownership to BetokenFund
-        await ShareToken.transferOwnership(BetokenFund.address)
+        console.log "Transferring Kairo ownership..."
+        await ControlToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 6e9})
+        console.log "Transferring Betoken Shares ownership..."
+        await ShareToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 6e9})
 
         # transfer fund ownership to developer multisig
-        fund = await BetokenFund.deployed()
-        await fund.transferOwnership(config.DEVELOPER_ACCOUNT)
+        #await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT)
 
         # IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract

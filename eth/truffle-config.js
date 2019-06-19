@@ -13,21 +13,15 @@ module.exports = {
     mainnet: {
       provider: function() {
         const mnemonic = require("./secret.json");
-        return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/3057a4979e92452bae6afaabed67a724")
+        return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199", 2)
       },
-      host: "localhost",
-      port: 8545,
-      gas: 8000000,
-      gasPrice: 8 * Math.pow(10, 9),
       network_id: 1
     },
     rinkeby: {
       provider: function() {
         const mnemonic = require("./secret.json");
-        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724")
+        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199")
       },
-      host: "localhost",
-      port: 8545,
       gas: 8000000,
       gasPrice: 4 * Math.pow(10, 9),
       network_id: 4
@@ -39,7 +33,7 @@ module.exports = {
       settings: {
         optimizer: {
           enabled: true,
-          runs: 10   // Optimize for how many times you intend to run the code
+          runs: 200   // Optimize for how many times you intend to run the code
         }
       }
     }

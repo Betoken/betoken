@@ -50,7 +50,7 @@ contract TestCEther is CEther {
 
   function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }
   function borrowBalanceCurrent(address account) external view returns (uint) { return _borrowBalanceCurrent[account]; }
-  function exchangeRateCurrent() external view returns (uint) { return _exchangeRateCurrent; }
+  function exchangeRateCurrent() external returns (uint) { return _exchangeRateCurrent; }
   function decimals() external view returns (uint) { return 8; }
 
   function() external payable {}

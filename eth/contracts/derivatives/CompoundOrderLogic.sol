@@ -15,13 +15,13 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
 
   function getMarketCollateralFactor() public view returns (uint256);
 
-  function getCurrentCollateralInDAI() public view returns (uint256 _amount);
+  function getCurrentCollateralInDAI() public returns (uint256 _amount);
 
   function getCurrentBorrowInDAI() public view returns (uint256 _amount);
 
   function getCurrentCashInDAI() public view returns (uint256 _amount);
 
-  function getCurrentProfitInDAI() public view returns (bool _isNegative, uint256 _amount) {
+  function getCurrentProfitInDAI() public returns (bool _isNegative, uint256 _amount) {
     uint256 l;
     uint256 r;
     if (isSold) {
@@ -47,7 +47,7 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
     }
   }
 
-  function getCurrentCollateralRatioInDAI() public view returns (uint256 _amount) {
+  function getCurrentCollateralRatioInDAI() public returns (uint256 _amount) {
     uint256 supply = getCurrentCollateralInDAI();
     uint256 borrow = getCurrentBorrowInDAI();
     if (borrow == 0) {
@@ -56,7 +56,7 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
     return supply.mul(PRECISION).div(borrow);
   }
 
-  function getCurrentLiquidityInDAI() public view returns (bool _isNegative, uint256 _amount) {
+  function getCurrentLiquidityInDAI() public returns (bool _isNegative, uint256 _amount) {
     uint256 supply = getCurrentCollateralInDAI();
     uint256 borrow = getCurrentBorrowInDAI().mul(PRECISION).div(getMarketCollateralFactor());
     if (supply >= borrow) {
