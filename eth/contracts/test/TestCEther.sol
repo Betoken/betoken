@@ -20,9 +20,8 @@ contract TestCEther is CEther {
     COMPTROLLER = Comptroller(_comptrollerAddr);
   }
 
-  function mint() external payable returns (uint) {
+  function mint() external payable {
     _balanceOf[msg.sender] = _balanceOf[msg.sender].add(msg.value.mul(10 ** this.decimals()).div(PRECISION));
-    return 0;
   }
 
   function redeemUnderlying(uint redeemAmount) external returns (uint) {
@@ -43,9 +42,8 @@ contract TestCEther is CEther {
     return 0;
   }
   
-  function repayBorrow() external payable returns (uint) {
+  function repayBorrow() external payable {
     _borrowBalanceCurrent[msg.sender] = _borrowBalanceCurrent[msg.sender].sub(msg.value);
-    return 0;
   }
 
   function balanceOf(address account) external view returns (uint) { return _balanceOf[account]; }

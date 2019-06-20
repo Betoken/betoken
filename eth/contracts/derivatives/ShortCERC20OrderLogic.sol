@@ -9,7 +9,7 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     // Ensure token's price is between _minPrice and _maxPrice
     uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the shorting token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound
-    tokenPrice = __tokenToDAI(compoundTokenAddr, tokenPrice); // Convert token price to be in DAI
+    tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
@@ -57,7 +57,7 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
 
     // Ensure price is within range provided by user
     uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the shorting token's price in ETH
-    tokenPrice = __tokenToDAI(compoundTokenAddr, tokenPrice); // Convert token price to be in DAI
+    tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral

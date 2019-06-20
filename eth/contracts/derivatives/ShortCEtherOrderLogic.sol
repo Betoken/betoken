@@ -38,7 +38,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     // Repay leftover tokens to avoid complications
     if (address(this).balance > 0) {
       uint256 repayAmount = address(this).balance;
-      require(market.repayBorrow.value(repayAmount)() == 0);
+      market.repayBorrow.value(repayAmount)();
     }
   }
 
@@ -109,7 +109,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     }
 
     // Repay loan to Compound
-    require(market.repayBorrow.value(actualTokenAmount)() == 0);
+    market.repayBorrow.value(actualTokenAmount)();
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {

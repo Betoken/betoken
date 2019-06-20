@@ -462,8 +462,6 @@ contract("simulation", (accounts) ->
     # check KRO balance
     kroBlnce = BigNumber await kro.balanceOf.call(account2)
     stake = BigNumber await longOrder.stake.call()
-    console.log(stake.toString());
-    console.log(kroBlnce.minus(prevKROBlnce).toString());
     assert(epsilon_equal(stake, kroBlnce.minus(prevKROBlnce)), "account2 received Kairo amount incorrect")
 
     # check fund DAI balance

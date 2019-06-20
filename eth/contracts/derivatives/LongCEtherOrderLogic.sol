@@ -26,7 +26,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     require(errors[0] == 0 && errors[1] == 0);
     
     // Get loan from Compound in DAI
-    require(market.mint.value(actualTokenAmount)() == 0); // Transfer tokens into Compound as supply
+    market.mint.value(actualTokenAmount)(); // Transfer tokens into Compound as supply
     require(CDAI.borrow(loanAmountInDAI) == 0);// Take out loan in DAI
     (bool negLiquidity, ) = getCurrentLiquidityInDAI();
     require(!negLiquidity); // Ensure account liquidity is positive
