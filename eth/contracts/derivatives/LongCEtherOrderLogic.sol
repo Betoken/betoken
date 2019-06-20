@@ -8,7 +8,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     
     // Ensure token's price is between _minPrice and _maxPrice
     uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
-    tokenPrice = __tokenToDAI(compoundTokenAddr, tokenPrice); // Convert token price to be in DAI
+    tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
 
     // Get funds in DAI from BetokenFund
