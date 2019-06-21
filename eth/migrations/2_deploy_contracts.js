@@ -187,22 +187,22 @@
           }))).logs[0].args.addr));
           // deploy ShortCERC20OrderLogic
           await deployer.deploy(ShortCERC20OrderLogic, {
-            gas: 2.72e6,
+            gas: 2.9e6,
             gasPrice: 2e9
           });
           // deploy ShortCEtherOrderLogic
           await deployer.deploy(ShortCEtherOrderLogic, {
-            gas: 2.42e6,
+            gas: 2.5e6,
             gasPrice: 2e9
           });
           // deploy LongCERC20OrderLogic
           await deployer.deploy(LongCERC20OrderLogic, {
-            gas: 2.84e6,
+            gas: 3.0e6,
             gasPrice: 2e9
           });
           // deploy LongCEtherOrderLogic
           await deployer.deploy(LongCEtherOrderLogic, {
-            gas: 2.6e6,
+            gas: 2.7e6,
             gasPrice: 2e9
           });
           // deploy CompoundOrderFactory
@@ -212,7 +212,7 @@
           });
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic, {
-            gas: 5.9e6,
+            gas: 6.0e6,
             gasPrice: 2e9
           });
           // deploy BetokenFund contract

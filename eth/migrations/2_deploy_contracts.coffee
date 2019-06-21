@@ -186,16 +186,16 @@ module.exports = (deployer, network, accounts) ->
             "0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9", 7988057, "Kairo", 18, "KRO", false, {gas: 2e6, gasPrice: 2e9})).logs[0].args.addr)
 
         # deploy ShortCERC20OrderLogic
-        await deployer.deploy(ShortCERC20OrderLogic, {gas: 2.72e6, gasPrice: 2e9})
+        await deployer.deploy(ShortCERC20OrderLogic, {gas: 2.9e6, gasPrice: 2e9})
 
         # deploy ShortCEtherOrderLogic
-        await deployer.deploy(ShortCEtherOrderLogic, {gas: 2.42e6, gasPrice: 2e9})
+        await deployer.deploy(ShortCEtherOrderLogic, {gas: 2.5e6, gasPrice: 2e9})
 
         # deploy LongCERC20OrderLogic
-        await deployer.deploy(LongCERC20OrderLogic, {gas: 2.84e6, gasPrice: 2e9})
+        await deployer.deploy(LongCERC20OrderLogic, {gas: 3.0e6, gasPrice: 2e9})
 
         # deploy LongCEtherOrderLogic
-        await deployer.deploy(LongCEtherOrderLogic, {gas: 2.6e6, gasPrice: 2e9})
+        await deployer.deploy(LongCEtherOrderLogic, {gas: 2.7e6, gasPrice: 2e9})
 
         # deploy CompoundOrderFactory
         await deployer.deploy(
@@ -214,7 +214,7 @@ module.exports = (deployer, network, accounts) ->
         )
 
         # deploy BetokenLogic
-        await deployer.deploy(BetokenLogic, {gas: 5.9e6, gasPrice: 2e9})
+        await deployer.deploy(BetokenLogic, {gas: 6.0e6, gasPrice: 2e9})
 
         # deploy BetokenFund contract
         await deployer.deploy(
