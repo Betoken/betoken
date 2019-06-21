@@ -8,7 +8,7 @@ import "../interfaces/CERC20.sol";
 contract TestPriceOracle is PriceOracle, Ownable {
   using SafeMath for uint;
 
-  address internal constant ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+  address internal constant ETH_TOKEN_ADDRESS = address(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   uint public constant PRECISION = 10 ** 18;
   
   mapping(address => uint256) public priceInDAI;
@@ -23,12 +23,7 @@ contract TestPriceOracle is PriceOracle, Ownable {
     priceInDAI[_token] = _priceInDAI;
   }
 
-  function getUnderlyingPrice(address CToken) external view returns (uint) {
-    address underlying = CERC20(CToken).underlying();
-    return this.assetPrices(underlying);
-  }
-
-  function assetPrices(address asset) external view returns (uint) {
+  function getPrice(address asset) external view returns (uint) {
     return priceInDAI[asset].mul(PRECISION).div(priceInDAI[ETH_TOKEN_ADDRESS]);
   }
 }

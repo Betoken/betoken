@@ -5,14 +5,16 @@ interface PositionToken {
   function mintWithToken(
     address receiver,
     address depositTokenAddress,
-    uint256 depositAmount)
+    uint256 depositAmount,
+    uint256 maxPriceAllowed)
     external
     returns (uint256);
 
   function burnToToken(
     address receiver,
     address burnTokenAddress,
-    uint256 burnAmount)
+    uint256 burnAmount,
+    uint256 minPriceAllowed)
     external
     returns (uint256);
 
@@ -30,4 +32,9 @@ interface PositionToken {
     external
     view
     returns (uint256 leverage);
+
+  function decimals()
+    external
+    view
+    returns (uint8 decimals);
 }

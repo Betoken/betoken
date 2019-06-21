@@ -82,20 +82,20 @@ contract CompoundOrderLogic is CompoundOrderStorage, Utils(address(0), address(0
   function __daiToToken(address _cToken, uint256 _daiAmount) internal view returns (uint256) {
     if (_cToken == CETH_ADDR) {
       // token is ETH
-      return _daiAmount.mul(ORACLE.assetPrices(DAI_ADDR)).div(PRECISION);
+      return _daiAmount.mul(ORACLE.getPrice(DAI_ADDR)).div(PRECISION);
     }
     ERC20Detailed t = __underlyingToken(_cToken);
-    return _daiAmount.mul(ORACLE.assetPrices(DAI_ADDR)).mul(10 ** getDecimals(t)).div(ORACLE.assetPrices(address(t)).mul(PRECISION));
+    return _daiAmount.mul(ORACLE.getPrice(DAI_ADDR)).mul(10 ** getDecimals(t)).div(ORACLE.getPrice(address(t)).mul(PRECISION));
   }
 
   // Convert a compound token amount to the amount of DAI that's of equal value
   function __tokenToDAI(address _cToken, uint256 _tokenAmount) internal view returns (uint256) {
     if (_cToken == CETH_ADDR) {
       // token is ETH
-      return _tokenAmount.mul(PRECISION).div(ORACLE.assetPrices(DAI_ADDR));
+      return _tokenAmount.mul(PRECISION).div(ORACLE.getPrice(DAI_ADDR));
     }
     ERC20Detailed t = __underlyingToken(_cToken);
-    return _tokenAmount.mul(ORACLE.assetPrices(address(t))).mul(PRECISION).div(ORACLE.assetPrices(DAI_ADDR).mul(10 ** uint256(t.decimals())));
+    return _tokenAmount.mul(ORACLE.getPrice(address(t))).mul(PRECISION).div(ORACLE.getPrice(DAI_ADDR).mul(10 ** uint256(t.decimals())));
   }
 
   function __underlyingToken(address _cToken) internal view returns (ERC20Detailed) {

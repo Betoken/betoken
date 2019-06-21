@@ -3,14 +3,23 @@ pragma solidity 0.5.8;
 import "./CompoundOrderLogic.sol";
 
 contract LongCERC20OrderLogic is CompoundOrderLogic {
-  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public onlyOwner isValidToken(compoundTokenAddr) {
-    super.executeOrder(_minPrice, _maxPrice);
-    
+  modifier isValidPrice(uint256 _minPrice, uint256 _maxPrice) {
     // Ensure token's price is between _minPrice and _maxPrice
-    uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the longing token's price in ETH
+    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
+    uint256 tokenPrice = ORACLE.getPrice(address(token)); // Get the longing token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound
     tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
+    _;
+  }
+
+  function executeOrder(uint256 _minPrice, uint256 _maxPrice)
+    public
+    onlyOwner
+    isValidToken(compoundTokenAddr)
+    isValidPrice(_minPrice, _maxPrice)
+  {
+    super.executeOrder(_minPrice, _maxPrice);
 
     // Get funds in DAI from BetokenFund
     require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
@@ -31,6 +40,7 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     require(token.approve(compoundTokenAddr, 0)); // Clear token allowance of Compound
     require(token.approve(compoundTokenAddr, actualTokenAmount)); // Approve token transfer to Compound
     require(market.mint(actualTokenAmount) == 0); // Transfer tokens into Compound as supply
+    require(token.approve(compoundTokenAddr, 0)); // Clear token allowance of Compound
     require(CDAI.borrow(loanAmountInDAI) == 0);// Take out loan in DAI
     (bool negLiquidity, ) = getCurrentLiquidityInDAI();
     require(!negLiquidity); // Ensure account liquidity is positive
@@ -44,22 +54,19 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
       require(dai.approve(address(CDAI), 0));
       require(dai.approve(address(CDAI), repayAmount));
       require(CDAI.repayBorrow(repayAmount) == 0);
+      require(dai.approve(address(CDAI), 0));
     }
   }
 
   function sellOrder(uint256 _minPrice, uint256 _maxPrice)
     public
     onlyOwner
+    isValidPrice(_minPrice, _maxPrice)
     returns (uint256 _inputAmount, uint256 _outputAmount)
   {
     require(buyTime > 0); // Ensure the order has been executed
     require(isSold == false);
     isSold = true;
-
-    // Ensure price is within range provided by user
-    uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the longing token's price in ETH
-    tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
-    require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
     
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
@@ -123,6 +130,7 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     require(dai.approve(address(CDAI), 0));
     require(dai.approve(address(CDAI), actualDAIAmount));
     require(CDAI.repayBorrow(actualDAIAmount) == 0);
+    require(dai.approve(address(CDAI), 0));
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {

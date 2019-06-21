@@ -645,23 +645,23 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
       // Fulcrum trading
       PositionToken pToken = PositionToken(token);
       if (_buy) {
-        investment.buyPrice = pToken.tokenPrice();
-        require(_minPrice <= investment.buyPrice && investment.buyPrice <= _maxPrice);
-
         _actualSrcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
         require(dai.approve(token, 0));
         require(dai.approve(token, _actualSrcAmount));
-        _actualDestAmount = pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount);
+        _actualDestAmount = pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
         require(dai.approve(token, 0));
-        
+
+        investment.buyPrice = calcRateFromQty(_actualDestAmount, _actualSrcAmount, pToken.decimals(), dai.decimals()); // price of pToken in DAI
+        require(_minPrice <= investment.buyPrice && investment.buyPrice <= _maxPrice);
+
         investment.tokenAmount = _actualDestAmount;
         investment.buyCostInDAI = _actualSrcAmount;
       } else {
-        investment.sellPrice = pToken.tokenPrice();
-        require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
-
         _actualSrcAmount = investment.tokenAmount;
-        _actualDestAmount = pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount);
+        _actualDestAmount = pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
+
+        investment.sellPrice = calcRateFromQty(_actualSrcAmount, _actualDestAmount, dai.decimals(), pToken.decimals()); // price of pToken in DAI
+        require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
       }
     } else {
       // Kyber trading
