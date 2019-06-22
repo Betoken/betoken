@@ -181,7 +181,7 @@
             gasPrice: 2e9
           }))).logs[0].args.addr));
           console.log("Deploying Kairo...");
-          ControlToken = (await MiniMeToken.at(((await minimeFactory.createCloneToken("0x13c03e7a1C944Fa87ffCd657182616420C6ea1F9", 7988057, "Kairo", 18, "KRO", false, {
+          ControlToken = (await MiniMeToken.at(((await minimeFactory.createCloneToken(ZERO_ADDR, 0, "Kairo", 18, "KRO", false, {
             gas: 2e6,
             gasPrice: 2e9
           }))).logs[0].args.addr));
