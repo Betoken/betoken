@@ -118,7 +118,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {
-    (, uint256 ratio) = COMPTROLLER.markets(address(compoundTokenAddr));
+    (, uint256 ratio) = COMPTROLLER.markets(address(CDAI));
     return ratio;
   }
 

@@ -127,7 +127,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {
-    (, uint256 ratio) = COMPTROLLER.markets(address(CDAI));
+    (, uint256 ratio) = COMPTROLLER.markets(address(compoundTokenAddr));
     return ratio;
   }
 
