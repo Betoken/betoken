@@ -20,7 +20,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     super.executeOrder(_minPrice, _maxPrice);
     
     // Get funds in DAI from BetokenFund
-    require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    dai.safeTransferFrom(owner(), address(this), collateralAmountInDAI); // Transfer DAI from BetokenFund
 
     // Convert received DAI to longing token
     (,uint256 actualTokenAmount) = __sellDAIForToken(collateralAmountInDAI);
@@ -45,10 +45,10 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     // Repay leftover DAI to avoid complications
     if (dai.balanceOf(address(this)) > 0) {
       uint256 repayAmount = dai.balanceOf(address(this));
-      require(dai.approve(address(CDAI), 0));
-      require(dai.approve(address(CDAI), repayAmount));
+      dai.safeApprove(address(CDAI), 0);
+      dai.safeApprove(address(CDAI), repayAmount);
       require(CDAI.repayBorrow(repayAmount) == 0);
-      require(dai.approve(address(CDAI), 0));
+      dai.safeApprove(address(CDAI), 0);
     }
   }
 
@@ -101,7 +101,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
     outputAmount = _outputAmount;
-    require(dai.transfer(owner(), dai.balanceOf(address(this))));
+    dai.safeTransfer(owner(), dai.balanceOf(address(this)));
     toPayableAddr(owner()).transfer(address(this).balance); // Send back potential leftover tokens
   }
 
@@ -120,10 +120,10 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     }
 
     // Repay loan to Compound
-    require(dai.approve(address(CDAI), 0));
-    require(dai.approve(address(CDAI), actualDAIAmount));
+    dai.safeApprove(address(CDAI), 0);
+    dai.safeApprove(address(CDAI), actualDAIAmount);
     require(CDAI.repayBorrow(actualDAIAmount) == 0);
-    require(dai.approve(address(CDAI), 0));
+    dai.safeApprove(address(CDAI), 0);
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {

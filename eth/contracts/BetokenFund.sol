@@ -189,7 +189,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       nextVersion.transfer(address(this).balance);
     } else {
       ERC20Detailed token = ERC20Detailed(_assetAddress);
-      require(token.transfer(nextVersion, token.balanceOf(address(this))));
+      token.safeTransfer(nextVersion, token.balanceOf(address(this)));
     }
   }
 
@@ -376,7 +376,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     nonReentrant
     notReadyForUpgrade
   {
-    require(dai.transferFrom(msg.sender, address(this), _daiAmount));
+    dai.safeTransferFrom(msg.sender, address(this), _daiAmount);
 
     // Register investment
     __deposit(_daiAmount);
@@ -401,7 +401,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
 
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
 
-    require(token.transferFrom(msg.sender, address(this), _tokenAmount));
+    token.safeTransferFrom(msg.sender, address(this), _tokenAmount);
 
     // Convert token into DAI
     uint256 actualDAIDeposited;
@@ -411,7 +411,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     // Give back leftover tokens
     uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
     if (leftOverTokens > 0) {
-      require(token.transfer(msg.sender, leftOverTokens));
+      token.safeTransfer(msg.sender, leftOverTokens);
     }
 
     // Register investment
@@ -457,7 +457,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     __withdraw(_amountInDAI);
 
     // Transfer DAI to user
-    require(dai.transfer(msg.sender, _amountInDAI));
+    dai.safeTransfer(msg.sender, _amountInDAI);
 
     // Emit event
     emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
@@ -486,7 +486,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     __withdraw(actualDAIWithdrawn);
 
     // Transfer tokens to user
-    require(token.transfer(msg.sender, actualTokenWithdrawn));
+    token.safeTransfer(msg.sender, actualTokenWithdrawn);
 
     // Emit event
     emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
@@ -510,7 +510,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
     } else {
       // Transfer the commission in DAI
-      require(dai.transfer(msg.sender, commission));
+      dai.safeTransfer(msg.sender, commission);
     }
   }
 
@@ -537,7 +537,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
     } else {
       // Transfer the commission in DAI
-      require(dai.transfer(msg.sender, commission));
+      dai.safeTransfer(msg.sender, commission);
     }
   }
 

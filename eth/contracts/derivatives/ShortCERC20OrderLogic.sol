@@ -22,7 +22,7 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     super.executeOrder(_minPrice, _maxPrice);
 
     // Get funds in DAI from BetokenFund
-    require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    dai.safeTransferFrom(owner(), address(this), collateralAmountInDAI); // Transfer DAI from BetokenFund
 
     // Enter Compound markets
     CERC20 market = CERC20(compoundTokenAddr);
@@ -34,10 +34,10 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     
     // Get loan from Compound in tokenAddr
     uint256 loanAmountInToken = __daiToToken(compoundTokenAddr, loanAmountInDAI);
-    require(dai.approve(address(CDAI), 0)); // Clear DAI allowance of Compound DAI market
-    require(dai.approve(address(CDAI), collateralAmountInDAI)); // Approve DAI transfer to Compound DAI market
+    dai.safeApprove(address(CDAI), 0); // Clear DAI allowance of Compound DAI market
+    dai.safeApprove(address(CDAI), collateralAmountInDAI); // Approve DAI transfer to Compound DAI market
     require(CDAI.mint(collateralAmountInDAI) == 0); // Transfer DAI into Compound as supply
-    require(dai.approve(address(CDAI), 0));
+    dai.safeApprove(address(CDAI), 0);
     require(market.borrow(loanAmountInToken) == 0);// Take out loan
     (bool negLiquidity, ) = getCurrentLiquidityInDAI();
     require(!negLiquidity); // Ensure account liquidity is positive
@@ -50,10 +50,10 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     ERC20Detailed token = __underlyingToken(compoundTokenAddr);
     if (token.balanceOf(address(this)) > 0) {
       uint256 repayAmount = token.balanceOf(address(this));
-      require(token.approve(compoundTokenAddr, 0));
-      require(token.approve(compoundTokenAddr, repayAmount));
+      token.safeApprove(compoundTokenAddr, 0);
+      token.safeApprove(compoundTokenAddr, repayAmount);
       require(market.repayBorrow(repayAmount) == 0);
-      require(token.approve(compoundTokenAddr, 0));
+      token.safeApprove(compoundTokenAddr, 0);
     }
   }
 
@@ -102,7 +102,7 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
     outputAmount = _outputAmount;
-    require(dai.transfer(owner(), dai.balanceOf(address(this))));
+    dai.safeTransfer(owner(), dai.balanceOf(address(this)));
   }
 
   // Allows manager to repay loan to avoid liquidation
@@ -121,10 +121,10 @@ contract ShortCERC20OrderLogic is CompoundOrderLogic {
 
     // Repay loan to Compound
     ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-    require(token.approve(compoundTokenAddr, 0));
-    require(token.approve(compoundTokenAddr, actualTokenAmount));
+    token.safeApprove(compoundTokenAddr, 0);
+    token.safeApprove(compoundTokenAddr, actualTokenAmount);
     require(market.repayBorrow(actualTokenAmount) == 0);
-    require(token.approve(compoundTokenAddr, 0));
+    token.safeApprove(compoundTokenAddr, 0);
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {

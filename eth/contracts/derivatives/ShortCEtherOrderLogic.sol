@@ -20,7 +20,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     super.executeOrder(_minPrice, _maxPrice);
 
     // Get funds in DAI from BetokenFund
-    require(dai.transferFrom(owner(), address(this), collateralAmountInDAI)); // Transfer DAI from BetokenFund
+    dai.safeTransferFrom(owner(), address(this), collateralAmountInDAI); // Transfer DAI from BetokenFund
     
     // Enter Compound markets
     CEther market = CEther(compoundTokenAddr);
@@ -32,10 +32,10 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
 
     // Get loan from Compound in tokenAddr
     uint256 loanAmountInToken = __daiToToken(compoundTokenAddr, loanAmountInDAI);
-    require(dai.approve(address(CDAI), 0)); // Clear DAI allowance of Compound DAI market
-    require(dai.approve(address(CDAI), collateralAmountInDAI)); // Approve DAI transfer to Compound DAI market
+    dai.safeApprove(address(CDAI), 0); // Clear DAI allowance of Compound DAI market
+    dai.safeApprove(address(CDAI), collateralAmountInDAI); // Approve DAI transfer to Compound DAI market
     require(CDAI.mint(collateralAmountInDAI) == 0); // Transfer DAI into Compound as supply
-    require(dai.approve(address(CDAI), 0));
+    dai.safeApprove(address(CDAI), 0);
     require(market.borrow(loanAmountInToken) == 0);// Take out loan
     (bool negLiquidity, ) = getCurrentLiquidityInDAI();
     require(!negLiquidity); // Ensure account liquidity is positive
@@ -96,7 +96,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
     outputAmount = _outputAmount;
-    require(dai.transfer(owner(), dai.balanceOf(address(this))));
+    dai.safeTransfer(owner(), dai.balanceOf(address(this)));
   }
 
   // Allows manager to repay loan to avoid liquidation

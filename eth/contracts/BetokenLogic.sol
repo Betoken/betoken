@@ -309,12 +309,12 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @param _donationInDAI the amount of DAI to be used for registration
    */
   function registerWithDAI(uint256 _donationInDAI) public {
-    require(dai.transferFrom(msg.sender, address(this), _donationInDAI));
+    dai.safeTransferFrom(msg.sender, address(this), _donationInDAI);
 
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
     uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
     if (_donationInDAI > maxDonationInDAI) {
-      require(dai.transfer(msg.sender, _donationInDAI.sub(maxDonationInDAI)));
+      dai.safeTransfer(msg.sender, _donationInDAI.sub(maxDonationInDAI));
       _donationInDAI = maxDonationInDAI;
     }
 
@@ -334,7 +334,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
     uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
     if (receivedDAI > maxDonationInDAI) {
-      require(dai.transfer(msg.sender, receivedDAI.sub(maxDonationInDAI)));
+      dai.safeTransfer(msg.sender, receivedDAI.sub(maxDonationInDAI));
       receivedDAI = maxDonationInDAI;
     }
 
@@ -353,7 +353,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     ERC20Detailed token = ERC20Detailed(_token);
     require(token.totalSupply() > 0);
 
-    require(token.transferFrom(msg.sender, address(this), _donationInTokens));
+    token.safeTransferFrom(msg.sender, address(this), _donationInTokens);
 
     uint256 receivedDAI;
 
@@ -362,7 +362,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
     uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
     if (receivedDAI > maxDonationInDAI) {
-      require(dai.transfer(msg.sender, receivedDAI.sub(maxDonationInDAI)));
+      dai.safeTransfer(msg.sender, receivedDAI.sub(maxDonationInDAI));
       receivedDAI = maxDonationInDAI;
     }
 
@@ -386,7 +386,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     if (cyclePhase == CyclePhase.Intermission) {
       // transfer DAI to devFundingAccount
-      require(dai.transfer(devFundingAccount, _donationInDAI));
+      dai.safeTransfer(devFundingAccount, _donationInDAI);
     } else {
       // keep DAI in the fund
       totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
@@ -560,8 +560,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     // Create compound order and execute
     uint256 collateralAmountInDAI = totalFundsInDAI.mul(_stake).div(cToken.totalSupply());
     CompoundOrder order = __createCompoundOrder(_orderType, _tokenAddress, _stake, collateralAmountInDAI);
-    require(dai.approve(address(order), 0));
-    require(dai.approve(address(order), collateralAmountInDAI));
+    dai.safeApprove(address(order), 0);
+    dai.safeApprove(address(order), collateralAmountInDAI);
     order.executeOrder(_minPrice, _maxPrice);
 
     // Add order to list
@@ -646,10 +646,10 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
       PositionToken pToken = PositionToken(token);
       if (_buy) {
         _actualSrcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
-        require(dai.approve(token, 0));
-        require(dai.approve(token, _actualSrcAmount));
+        dai.safeApprove(token, 0);
+        dai.safeApprove(token, _actualSrcAmount);
         _actualDestAmount = pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
-        require(dai.approve(token, 0));
+        dai.safeApprove(token, 0);
 
         investment.buyPrice = calcRateFromQty(_actualDestAmount, _actualSrcAmount, pToken.decimals(), dai.decimals()); // price of pToken in DAI
         require(_minPrice <= investment.buyPrice && investment.buyPrice <= _maxPrice);

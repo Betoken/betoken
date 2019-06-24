@@ -36,5 +36,5 @@ interface PositionToken {
   function decimals()
     external
     view
-    returns (uint8 decimals);
+    returns (uint8);
 }
