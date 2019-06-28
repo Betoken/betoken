@@ -180,41 +180,13 @@ module.exports = (deployer, network, accounts) ->
         minimeFactory = await MiniMeTokenFactory.at("0x49A4a2C8a1A14EC83034E253E89D33DA217dfFFc")
         console.log "Deploying Betoken Shares..."
         ShareToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
-            ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true, {gas: 2e6, gasPrice: 2e9})).logs[0].args.addr)
+            ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true, {gas: 2e6, gasPrice: 6e9})).logs[0].args.addr)
         console.log "Deploying Kairo..."
         ControlToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
-            ZERO_ADDR, 0, "Kairo", 18, "KRO", false, {gas: 2e6, gasPrice: 2e9})).logs[0].args.addr)
-
-        # deploy ShortCERC20OrderLogic
-        await deployer.deploy(ShortCERC20OrderLogic, {gas: 2.9e6, gasPrice: 2e9})
-
-        # deploy ShortCEtherOrderLogic
-        await deployer.deploy(ShortCEtherOrderLogic, {gas: 2.5e6, gasPrice: 2e9})
-
-        # deploy LongCERC20OrderLogic
-        await deployer.deploy(LongCERC20OrderLogic, {gas: 3.0e6, gasPrice: 2e9})
-
-        # deploy LongCEtherOrderLogic
-        await deployer.deploy(LongCEtherOrderLogic, {gas: 2.7e6, gasPrice: 2e9})
-
-        # deploy CompoundOrderFactory
-        await deployer.deploy(
-          CompoundOrderFactory,
-          ShortCERC20OrderLogic.address,
-          ShortCEtherOrderLogic.address,
-          LongCERC20OrderLogic.address,
-          LongCEtherOrderLogic.address,
-          config.DAI_ADDR,
-          config.KYBER_ADDR,
-          config.COMPOUND_COMPTROLLER_ADDR,
-          config.COMPOUND_ORACLE_ADDR,
-          config.COMPOUND_CDAI_ADDR,
-          config.COMPOUND_CETH_ADDR,
-          {gas: 1.78e6, gasPrice: 2e9}
-        )
+            ZERO_ADDR, 0, "Kairo", 18, "KRO", false, {gas: 2e6, gasPrice: 6e9})).logs[0].args.addr)
 
         # deploy BetokenLogic
-        await deployer.deploy(BetokenLogic, {gas: 6.0e6, gasPrice: 2e9})
+        await deployer.deploy(BetokenLogic, {gas: 6.0e6, gasPrice: 6e9})
 
         # deploy BetokenFund contract
         await deployer.deploy(
@@ -227,9 +199,9 @@ module.exports = (deployer, network, accounts) ->
           ZERO_ADDR,
           config.DAI_ADDR,
           config.KYBER_ADDR,
-          CompoundOrderFactory.address,
+          config.COMPOUND_FACTORY_ADDR,
           BetokenLogic.address,
-          {gas: 6.47e6, gasPrice: 2e9}
+          {gas: 6.47e6, gasPrice: 6e9}
         )
         betokenFund = await BetokenFund.deployed()
         console.log "Initializing token listings..."
@@ -237,25 +209,25 @@ module.exports = (deployer, network, accounts) ->
           config.KYBER_TOKENS,
           config.COMPOUND_CTOKENS,
           config.FULCRUM_PTOKENS,
-          {gas: 2.72e6, gasPrice: 2e9}
+          {gas: 2.72e6, gasPrice: 6e9}
         )
 
         # deploy BetokenProxy contract
         await deployer.deploy(
           BetokenProxy,
           BetokenFund.address
-          {gas: 2.2e5, gasPrice: 2e9}
+          {gas: 2.5e5, gasPrice: 6e9}
         )
 
         # set proxy address in BetokenFund
         console.log "Setting Betoken Proxy..."
-        await betokenFund.setProxy(BetokenProxy.address, {gas: 1e6, gasPrice: 2e9})
+        await betokenFund.setProxy(BetokenProxy.address, {gas: 1e6, gasPrice: 6e9})
 
         # transfer ShareToken ownership to BetokenFund
         console.log "Transferring Kairo ownership..."
-        await ControlToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 2e9})
+        await ControlToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 6e9})
         console.log "Transferring Betoken Shares ownership..."
-        await ShareToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 2e9})
+        await ShareToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 6e9})
 
         # transfer fund ownership to developer multisig
         #await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT)

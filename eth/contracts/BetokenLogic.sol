@@ -92,7 +92,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
       proposers[voteID] = msg.sender;
       candidates[voteID] = _candidate;
       proposersVotingWeight = proposersVotingWeight.add(senderWeight).sub(currProposerWeight);
-      emit ProposedCandidate(cycleNumber, _chunkNumber, msg.sender, _candidate);
+      emit ProposedCandidate(cycleNumber, voteID, msg.sender, _candidate);
       return true;
     }
     return false;
@@ -135,7 +135,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         forVotes[voteID] = forVotes[voteID].sub(votingWeight);
       }
     }
-    emit Voted(cycleNumber, _chunkNumber, msg.sender, _inSupport, votingWeight);
+    emit Voted(cycleNumber, voteID, msg.sender, _inSupport, votingWeight);
     return true;
   }
 
@@ -393,7 +393,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     }
     
     // emit events
-    emit Register(msg.sender, block.number, _donationInDAI);
+    emit Register(msg.sender, _donationInDAI, kroAmount);
   }
 
   /**
@@ -448,7 +448,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount);
+    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount, userInvestments[msg.sender][investmentId].tokenAmount);
   }
 
   /**
@@ -527,9 +527,9 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
       emit CreatedInvestment(
         cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
         newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
-        newInvestment.buyCostInDAI);
+        newInvestment.buyCostInDAI, newInvestment.tokenAmount);
     }
-    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, receiveKairoAmount, investment.sellPrice, actualDestAmount);
+    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, investment.tokenAddress, receiveKairoAmount, investment.sellPrice, actualDestAmount);
   }
 
   /**
@@ -571,7 +571,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
-    emit CreatedCompoundOrder(cycleNumber, msg.sender, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
+    emit CreatedCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
   }
 
   /**
@@ -607,7 +607,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     totalFundsInDAI = totalFundsInDAI.sub(inputAmount).add(outputAmount);
 
     // Emit event
-    emit SoldCompoundOrder(cycleNumber, msg.sender, address(order), order.orderType(), order.compoundTokenAddr(), receiveKairoAmount, outputAmount);
+    emit SoldCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), order.orderType(), order.compoundTokenAddr(), receiveKairoAmount, outputAmount);
   }
 
   /**
@@ -625,7 +625,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     order.repayLoan(_repayAmountInDAI);
 
     // Emit event
-    emit RepaidCompoundOrder(cycleNumber, msg.sender, address(order), _repayAmountInDAI);
+    emit RepaidCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _repayAmountInDAI);
   }
 
   /**

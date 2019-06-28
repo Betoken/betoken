@@ -5,8 +5,11 @@ import "./BetokenFund.sol";
 contract BetokenProxy {
   address payable public betokenFundAddress;
 
+  event UpdatedFundAddress(address payable _newFundAddr);
+
   constructor(address payable _fundAddr) public {
     betokenFundAddress = _fundAddr;
+    emit UpdatedFundAddress(_fundAddr);
   }
 
   function updateBetokenFundAddress() public {
@@ -14,5 +17,6 @@ contract BetokenProxy {
     address payable nextVersion = BetokenFund(betokenFundAddress).nextVersion();
     require(nextVersion != address(0), "Next version can't be empty");
     betokenFundAddress = nextVersion;
+    emit UpdatedFundAddress(betokenFundAddress);
   }
 }

@@ -13,7 +13,7 @@ module.exports = {
     mainnet: {
       provider: function() {
         const mnemonic = require("./secret.json");
-        return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199", 2)
+        return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199", 1)
       },
       network_id: 1
     },
