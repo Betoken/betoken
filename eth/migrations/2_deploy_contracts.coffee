@@ -170,7 +170,7 @@ module.exports = (deployer, network, accounts) ->
 
       when "mainnet"
         # Mainnet Migration
-        config = require "../deployment_configs/mainnet_test.json"
+        config = require "../deployment_configs/mainnet.json"
 
         PRECISION = 1e18
 
@@ -182,18 +182,11 @@ module.exports = (deployer, network, accounts) ->
         ShareToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
             ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true, {gas: 2e6, gasPrice: 2e9})).logs[0].args.addr)
         console.log ShareToken.address
-        console.log "Deploying Kairo..."
-        ControlToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
-            ZERO_ADDR, 0, "Kairo", 18, "KRO", false, {gas: 2e6, gasPrice: 2e9})).logs[0].args.addr)
-        console.log ControlToken.address
-
-        # deploy BetokenLogic
-        #await deployer.deploy(BetokenLogic, {gas: 6.1e6, gasPrice: 2e9})
 
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,
-          ControlToken.address,
+          config.KAIRO_ADDR,
           ShareToken.address,
           config.DEVELOPER_ACCOUNT
           config.phaseLengths,
@@ -202,8 +195,8 @@ module.exports = (deployer, network, accounts) ->
           config.DAI_ADDR,
           config.KYBER_ADDR,
           config.COMPOUND_FACTORY_ADDR,
-          "0xa22C4DC54079dD440DaFC61A5f86B97B93741cbE",
-          {gas: 7e6, gasPrice: 4e9}
+          config.BETOKEN_LOGIC_ADDR,
+          {gas: 7e6, gasPrice: 3e9}
         )
         betokenFund = await BetokenFund.deployed()
         console.log "Initializing token listings..."
@@ -226,12 +219,10 @@ module.exports = (deployer, network, accounts) ->
         await betokenFund.setProxy(BetokenProxy.address, {gas: 1e6, gasPrice: 2e9})
 
         # transfer ShareToken ownership to BetokenFund
-        console.log "Transferring Kairo ownership..."
-        await ControlToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 2e9})
         console.log "Transferring Betoken Shares ownership..."
         await ShareToken.transferOwnership(BetokenFund.address, {gas: 1e6, gasPrice: 2e9})
 
         # transfer fund ownership to developer multisig
-        #await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT)
+        await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT)
 
         # IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract
