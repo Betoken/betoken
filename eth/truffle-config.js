@@ -13,13 +13,24 @@ module.exports = {
     rinkeby: {
       provider: function() {
         const mnemonic = require("./secret.json");
-        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724")
+        return new HDWalletProvider(mnemonic, "https://rinkeby.infura.io/v3/3057a4979e92452bae6afaabed67a724", 1)
       },
       host: "localhost",
       port: 8545,
       gas: 6000000,
       gasPrice: 20 * Math.pow(10, 9),
       network_id: 4
+    },
+    mainnet: {
+      provider: function() {
+        const mnemonic = require("./secret.json");
+        return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/3057a4979e92452bae6afaabed67a724", 1)
+      },
+      host: "localhost",
+      port: 8545,
+      gas: 2000000,
+      gasPrice: 3 * Math.pow(10, 9),
+      network_id: 1
     }
   },
   compilers: {
