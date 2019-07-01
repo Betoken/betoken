@@ -415,8 +415,8 @@
       kro = (await KRO(this.fund));
       token = (await TK("OMG"));
       MAX_PRICE = bnToString(OMG_PRICE * 2);
-      // wait for 3 days to sell investment for accounts[1]
-      await timeTravel(3 * DAY);
+      // wait for 1 day to sell investment for accounts[1]
+      await timeTravel(1 * DAY);
       prevKROBlnce = BigNumber((await kro.balanceOf.call(account)));
       prevFundTokenBlnce = BigNumber((await token.balanceOf.call(this.fund.address)));
       prevFundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
@@ -435,9 +435,9 @@
       // check fund balance
       fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       assert(epsilon_equal(prevFundBlnce, fundBlnce), "fund DAI balance changed");
-      // wait for 6 more days to sell investment for account2
+      // wait for 2 more days to sell investment for account2
       account2 = accounts[2];
-      await timeTravel(6 * DAY);
+      await timeTravel(2 * DAY);
       tokenAmount = BigNumber(((await this.fund.userInvestments.call(account2, 0))).tokenAmount);
       // sell half of the investment, then sell the rest
       await this.fund.sellInvestmentAsset(0, bnToString(tokenAmount.div(2)), 0, bnToString(ETH_PRICE * 2), {
@@ -524,7 +524,7 @@
     });
     it("next_cycle", async function() {
       var cycleNumber, cyclePhase;
-      await timeTravel(18 * DAY); // spent 9 days on sell_investment tests
+      await timeTravel(24 * DAY); // spent 3 days on sell_investment tests
       await this.fund.nextPhase({
         from: owner
       });
