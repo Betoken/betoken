@@ -15,6 +15,8 @@ module.exports = {
         const mnemonic = require("./secret.json");
         return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199", 1)
       },
+      gas: 1000000,
+      gasPrice: 2e10,
       network_id: 1
     },
     rinkeby: {
@@ -38,5 +40,8 @@ module.exports = {
       }
     }
   },
-  plugins: [ "truffle-security" ]
+  plugins: [ 'truffle-plugin-verify' ],
+  api_keys: {
+    etherscan: "9P9PSS55YN16E2BW6AV1U9CXE9KYCFUK7N"
+  }
 };
