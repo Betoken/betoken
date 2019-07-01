@@ -644,11 +644,15 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     if (isPositionToken[token]) {
       // Fulcrum trading
       PositionToken pToken = PositionToken(token);
+      uint256 beforeBalance;
       if (_buy) {
         _actualSrcAmount = totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply());
         dai.safeApprove(token, 0);
         dai.safeApprove(token, _actualSrcAmount);
-        _actualDestAmount = pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
+        beforeBalance = pToken.balanceOf(address(this));
+        pToken.mintWithToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
+        _actualDestAmount = pToken.balanceOf(address(this)).sub(beforeBalance);
+        require(_actualDestAmount > 0);
         dai.safeApprove(token, 0);
 
         investment.buyPrice = calcRateFromQty(_actualDestAmount, _actualSrcAmount, pToken.decimals(), dai.decimals()); // price of pToken in DAI
@@ -658,7 +662,9 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         investment.buyCostInDAI = _actualSrcAmount;
       } else {
         _actualSrcAmount = investment.tokenAmount;
-        _actualDestAmount = pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
+        beforeBalance = dai.balanceOf(address(this));
+        pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
+        _actualDestAmount = dai.balanceOf(address(this)).sub(beforeBalance);
 
         investment.sellPrice = calcRateFromQty(_actualSrcAmount, _actualDestAmount, dai.decimals(), pToken.decimals()); // price of pToken in DAI
         require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);

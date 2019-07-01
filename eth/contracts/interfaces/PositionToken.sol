@@ -37,4 +37,9 @@ interface PositionToken {
     external
     view
     returns (uint8);
+
+  function balanceOf(address account)
+    external
+    view
+    returns (uint256);
 }
