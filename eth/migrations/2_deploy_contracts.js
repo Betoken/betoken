@@ -173,39 +173,24 @@
           KYBER_TOKENS = config.KYBER_TOKENS.map(function(x) {
             return web3.utils.toChecksumAddress(x);
           });
-          // deploy Betoken Shares contract and Kairo contract
-          /*minimeFactory = await MiniMeTokenFactory.at("0x49A4a2C8a1A14EC83034E253E89D33DA217dfFFc")
-          console.log "Deploying Betoken Shares..."
-          ShareToken = await MiniMeToken.at((await minimeFactory.createCloneToken(
-              ZERO_ADDR, 0, "Betoken Shares", 18, "BTKS", true, {gas: 2e6, gasPrice: 2e10})).logs[0].args.addr)
-          console.log ShareToken.address*/
-          ShareToken = (await MiniMeToken.at("0x1689dCfef3E695ac4CC1e5B7E77F9135f1d58A50"));
           // deploy BetokenLogic
-          //await deployer.deploy(BetokenLogic, {gas: 6.2e6, gasPrice: 2e10})
-
+          await deployer.deploy(BetokenLogic, {
+            gas: 6.2e6,
+            gasPrice: 2e10
+          });
           // deploy BetokenFund contract
-          /*await deployer.deploy(
-            BetokenFund,
-            config.KAIRO_ADDR,
-            ShareToken.address,
-            config.DEVELOPER_ACCOUNT
-            config.phaseLengths,
-            bnToString(config.devFundingRate),
-            ZERO_ADDR,
-            config.DAI_ADDR,
-            config.KYBER_ADDR,
-            config.COMPOUND_FACTORY_ADDR,
-            "0xD176ff3D44fDAe552bDC5b566fa1F0066E81fe0b",
-            {gas: 7e6, gasPrice: 2e10}
-          )*/
-          betokenFund = (await BetokenFund.at("0x881A0BDF9514c116f4576F4Fba263bf5397fca83"));
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, BetokenLogic.address, {
+            gas: 7e6,
+            gasPrice: 2e10
+          });
+          betokenFund = (await BetokenFund.deployed());
           console.log("Initializing token listings...");
           await betokenFund.initTokenListings(config.KYBER_TOKENS, config.COMPOUND_CTOKENS, config.FULCRUM_PTOKENS, {
             gas: 2.72e6,
             gasPrice: 2e10
           });
           // deploy BetokenProxy contract
-          await deployer.deploy(BetokenProxy, "0x881A0BDF9514c116f4576F4Fba263bf5397fca83", {
+          await deployer.deploy(BetokenProxy, betokenFund.address, {
             gas: 2.4e5,
             gasPrice: 2e10
           });
@@ -215,20 +200,16 @@
             gas: 1e6,
             gasPrice: 2e10
           });
-          // transfer ShareToken ownership to BetokenFund
-          console.log("Transferring Betoken Shares ownership...");
-          return (await ShareToken.transferOwnership(betokenFund.address, {
-            gas: 1e6,
+          // transfer fund ownership to developer multisig
+          console.log("Transferring BetokenFund ownership...");
+          return (await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {
+            gas: 4e5,
             gasPrice: 2e10
           }));
       }
     });
   };
 
-  // transfer fund ownership to developer multisig
-//console.log "Transferring BetokenFund ownership..."
-//await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5, gasPrice: 2e10})
-
-// IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract
+  // IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract
 
 }).call(this);
