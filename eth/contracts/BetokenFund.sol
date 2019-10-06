@@ -308,7 +308,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
    * @param _donationInDAI the amount of DAI to be used for registration
    */
-  function registerWithDAI(uint256 _donationInDAI) public nonReentrant {
+  function registerWithDAI(uint256 _donationInDAI) public nonReentrant during(CyclePhase.Manage) {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI));
     if (!success) { revert(); }
   }
@@ -317,7 +317,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
    */
-  function registerWithETH() public payable nonReentrant {
+  function registerWithETH() public payable nonReentrant during(CyclePhase.Manage) {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector));
     if (!success) { revert(); }
   }
@@ -328,7 +328,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _token the token to be used for payment
    * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
    */
-  function registerWithToken(address _token, uint256 _donationInTokens) public nonReentrant {
+  function registerWithToken(address _token, uint256 _donationInTokens) public nonReentrant during(CyclePhase.Manage) {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens));
     if (!success) { revert(); }
   }

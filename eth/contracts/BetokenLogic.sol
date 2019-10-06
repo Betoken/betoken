@@ -384,13 +384,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     // Set risk fallback base stake
     baseRiskStakeFallback[msg.sender] = kroAmount;
 
-    if (cyclePhase == CyclePhase.Intermission) {
-      // transfer DAI to devFundingAccount
-      dai.safeTransfer(devFundingAccount, _donationInDAI);
-    } else {
-      // keep DAI in the fund
-      totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
-    }
+    // keep DAI in the fund
+    totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
     
     // emit events
     emit Register(msg.sender, _donationInDAI, kroAmount);
