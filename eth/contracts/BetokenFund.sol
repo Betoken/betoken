@@ -2,6 +2,7 @@ pragma solidity 0.5.8;
 
 import "./BetokenStorage.sol";
 import "./derivatives/CompoundOrderFactory.sol";
+import "./interfaces/PositionToken.sol";
 
 /**
  * @title The main smart contract of the Betoken hedge fund.
@@ -553,6 +554,20 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   {
     ERC20Detailed token = ERC20Detailed(_tokenAddr);
     (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, address(this)), dai);
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
+  }
+
+  function sellLeftoverFulcrumToken(address _tokenAddr)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+    isValidToken(_tokenAddr)
+  {
+    PositionToken pToken = PositionToken(_tokenAddr);
+    uint256 beforeBalance = dai.balanceOf(address(this));
+    pToken.burnToToken(address(this), DAI_ADDR, pToken.balanceOf(address(this)), 0);
+    uint256 actualDAIReceived = dai.balanceOf(address(this)).sub(beforeBalance);
+    require(actualDAIReceived > 0);
     totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
   }
 
