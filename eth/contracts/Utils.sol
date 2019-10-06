@@ -120,10 +120,6 @@ contract Utils {
   {
     require(_srcToken != _destToken);
 
-    // Get current rate & ensure token is listed on Kyber
-    (, uint256 rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
-    require(rate > 0);
-
     uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
     uint256 msgValue;
     if (_srcToken != ETH_TOKEN_ADDRESS) {
@@ -139,7 +135,7 @@ contract Utils {
       _destToken,
       toPayableAddr(address(this)),
       MAX_QTY,
-      rate,
+      1,
       0x332D87209f7c8296389C307eAe170c2440830A47,
       PERM_HINT
     );

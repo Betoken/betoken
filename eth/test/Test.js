@@ -48,9 +48,9 @@
 
   PRECISION = 1e18;
 
-  OMG_PRICE = 1000 * PRECISION;
+  OMG_PRICE = 10 * PRECISION;
 
-  ETH_PRICE = 10000 * PRECISION;
+  ETH_PRICE = 20 * PRECISION;
 
   DAI_PRICE = PRECISION;
 
@@ -160,48 +160,6 @@
       // check cycle number
       cycleNumber = +((await this.fund.cycleNumber.call()));
       return assert.equal(cycleNumber, 1, "cycle number didn't change after cycle start");
-    });
-    it("register_accounts", async function() {
-      var account2, account3, amount, dai, daiAmount, kro, omgAmount, token;
-      kro = (await KRO(this.fund));
-      dai = (await DAI(this.fund));
-      token = (await TK("OMG"));
-      account2 = accounts[2];
-      account3 = accounts[3];
-      amount = 10 * PRECISION;
-      // register account[1] using ETH
-      await this.fund.registerWithETH({
-        from: account,
-        value: (await calcRegisterPayAmount(this.fund, amount, ETH_PRICE))
-      });
-      // mint DAI for account[2]
-      daiAmount = bnToString((await calcRegisterPayAmount(this.fund, amount, DAI_PRICE)));
-      await dai.mint(account2, daiAmount, {
-        from: owner
-      });
-      // register account[2]
-      await dai.approve(this.fund.address, daiAmount, {
-        from: account2
-      });
-      await this.fund.registerWithDAI(daiAmount, {
-        from: account2
-      });
-      // mint OMG tokens for account[3]
-      omgAmount = bnToString((await calcRegisterPayAmount(this.fund, amount, OMG_PRICE)));
-      await token.mint(account3, omgAmount, {
-        from: owner
-      });
-      // register account[3]
-      await token.approve(this.fund.address, omgAmount, {
-        from: account3
-      });
-      await this.fund.registerWithToken(token.address, omgAmount, {
-        from: account3
-      });
-      // check Kairo balances
-      assert(epsilon_equal(amount, (await kro.balanceOf.call(account))), "account 1 Kairo amount incorrect");
-      assert(epsilon_equal(amount, (await kro.balanceOf.call(account2))), "account 2 Kairo amount incorrect");
-      return assert(epsilon_equal(amount, (await kro.balanceOf.call(account3))), "account 3 Kairo amount incorrect");
     });
     it("deposit_dai", async function() {
       var account2, amount, dai, daiBlnce, fundBalance, newFundBalance, prevDAIBlnce, prevShareBlnce, shareBlnce, st;
@@ -363,14 +321,6 @@
       ethBlnce = BigNumber((await web3.eth.getBalance(account)));
       return assert.equal(ethBlnce.minus(prevETHBlnce).toNumber(), eth_amount, "ETH balance increase incorrect");
     });
-    it("can't_burn_deadman", async function() {
-      try {
-        await this.fund.burnDeadman(account, {
-          from: account
-        });
-        return assert.fail("burnt KRO of active manager");
-      } catch (error) {}
-    });
     it("phase_0_to_1", async function() {
       var cycleNumber, cyclePhase;
       await timeTravel(PHASE_LENGTHS[0]);
@@ -383,6 +333,56 @@
       // check cycle number
       cycleNumber = +((await this.fund.cycleNumber.call()));
       return assert.equal(cycleNumber, 1, "cycle number didn't change");
+    });
+    it("register_accounts", async function() {
+      var account2, account3, amount, dai, daiAmount, kro, omgAmount, token;
+      kro = (await KRO(this.fund));
+      dai = (await DAI(this.fund));
+      token = (await TK("OMG"));
+      account2 = accounts[2];
+      account3 = accounts[3];
+      amount = 10 * PRECISION;
+      // register account[1] using ETH
+      await this.fund.registerWithETH({
+        from: account,
+        value: (await calcRegisterPayAmount(this.fund, amount, ETH_PRICE))
+      });
+      // mint DAI for account[2]
+      daiAmount = bnToString((await calcRegisterPayAmount(this.fund, amount, DAI_PRICE)));
+      await dai.mint(account2, daiAmount, {
+        from: owner
+      });
+      // register account[2]
+      await dai.approve(this.fund.address, daiAmount, {
+        from: account2
+      });
+      await this.fund.registerWithDAI(daiAmount, {
+        from: account2
+      });
+      // mint OMG tokens for account[3]
+      omgAmount = bnToString((await calcRegisterPayAmount(this.fund, amount, OMG_PRICE)));
+      await token.mint(account3, omgAmount, {
+        from: owner
+      });
+      // register account[3]
+      await token.approve(this.fund.address, omgAmount, {
+        from: account3
+      });
+      await this.fund.registerWithToken(token.address, omgAmount, {
+        from: account3
+      });
+      // check Kairo balances
+      assert(epsilon_equal(amount, (await kro.balanceOf.call(account))), "account 1 Kairo amount incorrect");
+      assert(epsilon_equal(amount, (await kro.balanceOf.call(account2))), "account 2 Kairo amount incorrect");
+      return assert(epsilon_equal(amount, (await kro.balanceOf.call(account3))), "account 3 Kairo amount incorrect");
+    });
+    it("can't_burn_deadman", async function() {
+      try {
+        await this.fund.burnDeadman(account, {
+          from: account
+        });
+        return assert.fail("burnt KRO of active manager");
+      } catch (error) {}
     });
     it("create_investment", async function() {
       var MAX_PRICE, account2, amount, fundDAIBlnce, fundTokenBlnce, kro, kroBlnce, kroTotalSupply, prevFundTokenBlnce, prevKROBlnce, token;
@@ -620,11 +620,6 @@
       var amount, dai, kroAmount;
       this.fund = (await FUND(1, 0, owner)); // Starts in Intermission phase
       dai = (await DAI(this.fund));
-      kroAmount = 10 * PRECISION;
-      await this.fund.registerWithETH({
-        from: account,
-        value: (await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE))
-      });
       amount = 10 * PRECISION;
       await dai.mint(account, bnToString(amount), {
         from: owner // Mint DAI
@@ -636,8 +631,13 @@
         from: account // Deposit for account
       });
       await timeTravel(PHASE_LENGTHS[0]);
-      return (await this.fund.nextPhase({
+      await this.fund.nextPhase({
         from: owner // Go to Manage phase
+      });
+      kroAmount = 10 * PRECISION;
+      return (await this.fund.registerWithETH({
+        from: account,
+        value: (await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE))
       }));
     });
     it("raise_asset_price", async function() {
@@ -890,21 +890,14 @@
   contract("community_initiated_upgrade", function(accounts) {
     var depositAmount, kroAmounts, owner;
     owner = accounts[0];
-    kroAmounts = [3 * PRECISION, 10 * PRECISION, 20 * PRECISION, 5 * PRECISION];
+    kroAmounts = [0.3 * PRECISION, 1 * PRECISION, 2 * PRECISION, 0.5 * PRECISION];
     depositAmount = 10 * PRECISION;
     it("prep_work", async function() {
       var dai, i, j, k;
       this.fund = (await FUND(1, 0, owner)); // Starts in Intermission phase
       dai = (await DAI(this.fund));
-// register managers
-      for (i = j = 1; j <= 3; i = ++j) {
-        await this.fund.registerWithETH({
-          from: accounts[i],
-          value: (await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE))
-        });
-      }
 // deposit funds
-      for (i = k = 1; k <= 3; i = ++k) {
+      for (i = j = 1; j <= 3; i = ++j) {
         await dai.mint(accounts[i], bnToString(depositAmount), {
           from: owner // Mint DAI
         });
@@ -916,6 +909,15 @@
         });
       }
       
+      // move to the Manage phase
+      this.fund = (await FUND(1, 1, owner));
+// register managers
+      for (i = k = 1; k <= 3; i = ++k) {
+        await this.fund.registerWithETH({
+          from: accounts[i],
+          value: (await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE))
+        });
+      }
       // move to the 4th cycle (due to the cooldown period after deployment)
       return this.fund = (await FUND(4, 0, owner));
     });
@@ -1059,15 +1061,8 @@
       var dai, i, j, k;
       this.fund = (await FUND(1, 0, owner)); // Starts in Intermission phase
       dai = (await DAI(this.fund));
-// register managers
-      for (i = j = 1; j <= 3; i = ++j) {
-        await this.fund.registerWithETH({
-          from: accounts[i],
-          value: (await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE))
-        });
-      }
 // deposit funds
-      for (i = k = 1; k <= 3; i = ++k) {
+      for (i = j = 1; j <= 3; i = ++j) {
         await dai.mint(accounts[i], bnToString(depositAmount), {
           from: owner // Mint DAI
         });
@@ -1079,6 +1074,15 @@
         });
       }
       
+      // move to the Manage phase
+      this.fund = (await FUND(1, 1, owner));
+// register managers
+      for (i = k = 1; k <= 3; i = ++k) {
+        await this.fund.registerWithETH({
+          from: accounts[i],
+          value: (await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE))
+        });
+      }
       // move to the 4th cycle (due to the cooldown period after deployment)
       return this.fund = (await FUND(4, 0, owner));
     });
@@ -1129,15 +1133,8 @@
       var dai, i, j, k;
       this.fund = (await FUND(1, 0, owner)); // Starts in Intermission phase
       dai = (await DAI(this.fund));
-// register managers
-      for (i = j = 1; j <= 3; i = ++j) {
-        await this.fund.registerWithETH({
-          from: accounts[i],
-          value: (await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE))
-        });
-      }
 // deposit funds
-      for (i = k = 1; k <= 3; i = ++k) {
+      for (i = j = 1; j <= 3; i = ++j) {
         await dai.mint(accounts[i], bnToString(depositAmount), {
           from: owner // Mint DAI
         });
@@ -1149,6 +1146,15 @@
         });
       }
       
+      // move to the Manage phase
+      this.fund = (await FUND(1, 1, owner));
+// register managers
+      for (i = k = 1; k <= 3; i = ++k) {
+        await this.fund.registerWithETH({
+          from: accounts[i],
+          value: (await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE))
+        });
+      }
       // move to the 4th cycle (due to the cooldown period after deployment)
       return this.fund = (await FUND(4, 0, owner));
     });

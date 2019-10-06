@@ -72,10 +72,10 @@
             var k, ref, results;
             results = [];
             for (i = k = 1, ref = tokensInfo.length; (1 <= ref ? k <= ref : k >= ref); i = 1 <= ref ? ++k : --k) {
-              results.push(bnToString(1000 * PRECISION));
+              results.push(bnToString(10 * PRECISION));
             }
             return results;
-          })()).concat([bnToString(PRECISION), bnToString(10000 * PRECISION)]);
+          })()).concat([bnToString(PRECISION), bnToString(20 * PRECISION)]);
           
           // deploy TestKyberNetwork
           await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices);

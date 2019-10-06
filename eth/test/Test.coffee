@@ -25,8 +25,8 @@ LONG_LEVERAGE = 1.5
 bnToString = (bn) -> BigNumber(bn).toFixed(0)
 
 PRECISION = 1e18
-OMG_PRICE = 1000 * PRECISION
-ETH_PRICE = 10000 * PRECISION
+OMG_PRICE = 10 * PRECISION
+ETH_PRICE = 20 * PRECISION
 DAI_PRICE = PRECISION
 PHASE_LENGTHS = (require "../deployment_configs/testnet.json").phaseLengths
 DAY = 86400
@@ -109,40 +109,6 @@ contract("simulation", (accounts) ->
     # check cycle number
     cycleNumber = +await this.fund.cycleNumber.call()
     assert.equal(cycleNumber, 1, "cycle number didn't change after cycle start")
-  )
-
-  it("register_accounts", () ->
-    kro = await KRO(this.fund)
-    dai = await DAI(this.fund)
-    token = await TK("OMG")
-    account2 = accounts[2]
-    account3 = accounts[3]
-
-    amount = 10 * PRECISION
-
-    # register account[1] using ETH
-    await this.fund.registerWithETH({from: account, value: await calcRegisterPayAmount(this.fund, amount, ETH_PRICE)})
-
-    # mint DAI for account[2]
-    daiAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, DAI_PRICE))
-    await dai.mint(account2, daiAmount, {from: owner})
-
-    # register account[2]
-    await dai.approve(this.fund.address, daiAmount, {from: account2})
-    await this.fund.registerWithDAI(daiAmount, {from: account2})
-
-    # mint OMG tokens for account[3]
-    omgAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, OMG_PRICE))
-    await token.mint(account3, omgAmount, {from: owner})
-
-    # register account[3]
-    await token.approve(this.fund.address, omgAmount, {from: account3})
-    await this.fund.registerWithToken(token.address, omgAmount, {from: account3})
-
-    # check Kairo balances
-    assert(epsilon_equal(amount, await kro.balanceOf.call(account)), "account 1 Kairo amount incorrect")
-    assert(epsilon_equal(amount, await kro.balanceOf.call(account2)), "account 2 Kairo amount incorrect")
-    assert(epsilon_equal(amount, await kro.balanceOf.call(account3)), "account 3 Kairo amount incorrect")
   )
 
   it("deposit_dai", () ->
@@ -305,12 +271,6 @@ contract("simulation", (accounts) ->
     assert.equal(ethBlnce.minus(prevETHBlnce).toNumber(), eth_amount, "ETH balance increase incorrect")
   )
 
-  it("can't_burn_deadman", () ->
-    try
-      await this.fund.burnDeadman(account, {from: account})
-      assert.fail("burnt KRO of active manager")
-  )
-
   it("phase_0_to_1", () ->
     await timeTravel(PHASE_LENGTHS[0])
     await this.fund.nextPhase({from: owner})
@@ -322,6 +282,46 @@ contract("simulation", (accounts) ->
     # check cycle number
     cycleNumber = +await this.fund.cycleNumber.call()
     assert.equal(cycleNumber, 1, "cycle number didn't change")
+  )
+
+  it("register_accounts", () ->
+    kro = await KRO(this.fund)
+    dai = await DAI(this.fund)
+    token = await TK("OMG")
+    account2 = accounts[2]
+    account3 = accounts[3]
+
+    amount = 10 * PRECISION
+
+    # register account[1] using ETH
+    await this.fund.registerWithETH({from: account, value: await calcRegisterPayAmount(this.fund, amount, ETH_PRICE)})
+
+    # mint DAI for account[2]
+    daiAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, DAI_PRICE))
+    await dai.mint(account2, daiAmount, {from: owner})
+
+    # register account[2]
+    await dai.approve(this.fund.address, daiAmount, {from: account2})
+    await this.fund.registerWithDAI(daiAmount, {from: account2})
+
+    # mint OMG tokens for account[3]
+    omgAmount = bnToString(await calcRegisterPayAmount(this.fund, amount, OMG_PRICE))
+    await token.mint(account3, omgAmount, {from: owner})
+
+    # register account[3]
+    await token.approve(this.fund.address, omgAmount, {from: account3})
+    await this.fund.registerWithToken(token.address, omgAmount, {from: account3})
+
+    # check Kairo balances
+    assert(epsilon_equal(amount, await kro.balanceOf.call(account)), "account 1 Kairo amount incorrect")
+    assert(epsilon_equal(amount, await kro.balanceOf.call(account2)), "account 2 Kairo amount incorrect")
+    assert(epsilon_equal(amount, await kro.balanceOf.call(account3)), "account 3 Kairo amount incorrect")
+  )
+
+  it("can't_burn_deadman", () ->
+    try
+      await this.fund.burnDeadman(account, {from: account})
+      assert.fail("burnt KRO of active manager")
   )
 
   it("create_investment", () ->
@@ -567,9 +567,6 @@ contract("price_changes", (accounts) ->
     this.fund = await FUND(1, 0, owner) # Starts in Intermission phase
     dai = await DAI(this.fund)
 
-    kroAmount = 10 * PRECISION
-    await this.fund.registerWithETH({from: account, value: await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE)})
-
     amount = 10 * PRECISION
     await dai.mint(account, bnToString(amount), {from: owner}) # Mint DAI
     await dai.approve(this.fund.address, bnToString(amount), {from: account}) # Approve transfer
@@ -577,6 +574,9 @@ contract("price_changes", (accounts) ->
 
     await timeTravel(PHASE_LENGTHS[0])
     await this.fund.nextPhase({from: owner}) # Go to Manage phase
+
+    kroAmount = 10 * PRECISION
+    await this.fund.registerWithETH({from: account, value: await calcRegisterPayAmount(this.fund, kroAmount, ETH_PRICE)})
   )
 
   it("raise_asset_price", () ->
@@ -794,22 +794,25 @@ contract("param_setters", (accounts) ->
 
 contract("community_initiated_upgrade", (accounts) ->
   owner = accounts[0]
-  kroAmounts = [3 * PRECISION, 10 * PRECISION, 20 * PRECISION, 5 * PRECISION]
+  kroAmounts = [0.3 * PRECISION, 1 * PRECISION, 2 * PRECISION, 0.5 * PRECISION]
   depositAmount = 10 * PRECISION
 
   it("prep_work", () ->
     this.fund = await FUND(1, 0, owner) # Starts in Intermission phase
     dai = await DAI(this.fund)
 
-    # register managers
-    for i in [1..3]
-      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
-
     # deposit funds
     for i in [1..3]
       await dai.mint(accounts[i], bnToString(depositAmount), {from: owner}) # Mint DAI
       await dai.approve(this.fund.address, bnToString(depositAmount), {from: accounts[i]}) # Approve transfer
       await this.fund.depositDAI(bnToString(depositAmount), {from: accounts[i]}) # Deposit for account
+
+    # move to the Manage phase
+    this.fund = await FUND(1, 1, owner)
+
+    # register managers
+    for i in [1..3]
+      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
 
     # move to the 4th cycle (due to the cooldown period after deployment)
     this.fund = await FUND(4, 0, owner)
@@ -945,15 +948,18 @@ contract("developer_initiated_upgrade", (accounts) ->
     this.fund = await FUND(1, 0, owner) # Starts in Intermission phase
     dai = await DAI(this.fund)
 
-    # register managers
-    for i in [1..3]
-      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
-
     # deposit funds
     for i in [1..3]
       await dai.mint(accounts[i], bnToString(depositAmount), {from: owner}) # Mint DAI
       await dai.approve(this.fund.address, bnToString(depositAmount), {from: accounts[i]}) # Approve transfer
       await this.fund.depositDAI(bnToString(depositAmount), {from: accounts[i]}) # Deposit for account
+
+    # move to the Manage phase
+    this.fund = await FUND(1, 1, owner)
+
+    # register managers
+    for i in [1..3]
+      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
 
     # move to the 4th cycle (due to the cooldown period after deployment)
     this.fund = await FUND(4, 0, owner)
@@ -1007,15 +1013,18 @@ contract("community_overrides_developer_upgrade", (accounts) ->
     this.fund = await FUND(1, 0, owner) # Starts in Intermission phase
     dai = await DAI(this.fund)
 
-    # register managers
-    for i in [1..3]
-      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
-
     # deposit funds
     for i in [1..3]
       await dai.mint(accounts[i], bnToString(depositAmount), {from: owner}) # Mint DAI
       await dai.approve(this.fund.address, bnToString(depositAmount), {from: accounts[i]}) # Approve transfer
       await this.fund.depositDAI(bnToString(depositAmount), {from: accounts[i]}) # Deposit for account
+
+    # move to the Manage phase
+    this.fund = await FUND(1, 1, owner)
+
+    # register managers
+    for i in [1..3]
+      await this.fund.registerWithETH({from: accounts[i], value: await calcRegisterPayAmount(this.fund, kroAmounts[i], ETH_PRICE)})
 
     # move to the 4th cycle (due to the cooldown period after deployment)
     this.fund = await FUND(4, 0, owner)
