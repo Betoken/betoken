@@ -1,4 +1,4 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.12;
 
 import "./BetokenStorage.sol";
 import "./derivatives/CompoundOrderFactory.sol";
@@ -287,6 +287,16 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function listKyberToken(address _token) public onlyOwner {
     isKyberToken[_token] = true;
+  }
+
+  /**
+   * @notice Allows managers to invest in a Compound token. Only callable by owner.
+   * @param _token address of the Compound token to be listed
+   */
+  function listCompoundToken(address _token) public onlyOwner {
+    CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
+    require(factory.tokenIsListed(_token));
+    isCompoundToken[_token] = true;
   }
 
   /**

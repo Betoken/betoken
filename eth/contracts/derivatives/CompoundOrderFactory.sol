@@ -1,4 +1,4 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.12;
 
 import "./CompoundOrder.sol";
 
@@ -67,5 +67,11 @@ contract CompoundOrderFactory {
     Comptroller troll = Comptroller(COMPTROLLER_ADDR);
     (, uint256 factor) = troll.markets(_compoundTokenAddr);
     return factor;
+  }
+
+  function tokenIsListed(address _compoundTokenAddr) public view returns (bool) {
+    Comptroller troll = Comptroller(COMPTROLLER_ADDR);
+    (bool isListed,) = troll.markets(_compoundTokenAddr);
+    return isListed;
   }
 }
