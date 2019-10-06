@@ -666,7 +666,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
         _actualDestAmount = dai.balanceOf(address(this)).sub(beforeBalance);
 
-        investment.sellPrice = calcRateFromQty(_actualSrcAmount, _actualDestAmount, dai.decimals(), pToken.decimals()); // price of pToken in DAI
+        investment.sellPrice = calcRateFromQty(_actualSrcAmount, _actualDestAmount, pToken.decimals(), dai.decimals()); // price of pToken in DAI
         require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
       }
     } else {
