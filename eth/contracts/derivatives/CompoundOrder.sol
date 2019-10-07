@@ -28,6 +28,7 @@ contract CompoundOrder is Utils(address(0), address(0)), Ownable {
   address public compoundTokenAddr;
   bool public isSold;
   bool public orderType; // True for shorting, false for longing
+  bool internal initialized;
 
 
   constructor() public {}
@@ -45,8 +46,11 @@ contract CompoundOrder is Utils(address(0), address(0)), Ownable {
     address _priceOracleAddr,
     address _cDAIAddr,
     address _cETHAddr
-  ) public onlyOwner {
-    // Initialize details of short order
+  ) public {
+    require(!initialized);
+    initialized = true;
+    
+    // Initialize details of order
     require(_compoundTokenAddr != _cDAIAddr);
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
     stake = _stake;

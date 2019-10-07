@@ -416,7 +416,7 @@ contract("simulation", (accounts) ->
 
     # create long order for account2
     account2 = accounts[2]
-    await this.fund.createCompoundOrder(false, TestCEther.address, bnToString(amount), 0, bnToString(ETH_PRICE * 2), {from: account2})
+    await this.fund.createCompoundOrder(false, (await TestCEther.deployed()).address, bnToString(amount), 0, bnToString(ETH_PRICE * 2), {from: account2})
   )
 
   it("sell_compound_orders", () ->

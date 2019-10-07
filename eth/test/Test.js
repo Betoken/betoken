@@ -472,7 +472,7 @@
       assert.equal(prevFundDAIBlnce.minus(fundDAIBlnce).toNumber(), (await shortOrder.collateralAmountInDAI.call()), "DAI balance decrease incorrect");
       // create long order for account2
       account2 = accounts[2];
-      return (await this.fund.createCompoundOrder(false, TestCEther.address, bnToString(amount), 0, bnToString(ETH_PRICE * 2), {
+      return (await this.fund.createCompoundOrder(false, ((await TestCEther.deployed())).address, bnToString(amount), 0, bnToString(ETH_PRICE * 2), {
         from: account2
       }));
     });
