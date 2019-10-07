@@ -349,7 +349,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * Intermission phase functions
    */
 
-   /**
+  /**
    * @notice Deposit Ether into the fund. Ether will be converted into DAI.
    */
   function depositEther()
@@ -359,22 +359,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     nonReentrant
     notReadyForUpgrade
   {
-    // Buy DAI with ETH
-    uint256 actualDAIDeposited;
-    uint256 actualETHDeposited;
-    (,, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
-
-    // Send back leftover ETH
-    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
-    if (leftOverETH > 0) {
-      msg.sender.transfer(leftOverETH);
-    }
-
-    // Register investment
-    __deposit(actualDAIDeposited);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHDeposited, actualDAIDeposited, now);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.depositEther.selector));
+    if (!success) { revert(); }
   }
 
   /**
@@ -387,13 +373,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     nonReentrant
     notReadyForUpgrade
   {
-    dai.safeTransferFrom(msg.sender, address(this), _daiAmount);
-
-    // Register investment
-    __deposit(_daiAmount);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, _daiAmount, _daiAmount, now);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.depositDAI.selector, _daiAmount));
+    if (!success) { revert(); }
   }
 
   /**
@@ -408,30 +389,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     isValidToken(_tokenAddr)  
     notReadyForUpgrade
   {
-    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
-
-    ERC20Detailed token = ERC20Detailed(_tokenAddr);
-
-    token.safeTransferFrom(msg.sender, address(this), _tokenAmount);
-
-    // Convert token into DAI
-    uint256 actualDAIDeposited;
-    uint256 actualTokenDeposited;
-    (,, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
-
-    // Give back leftover tokens
-    uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
-    if (leftOverTokens > 0) {
-      token.safeTransfer(msg.sender, leftOverTokens);
-    }
-
-    // Register investment
-    __deposit(actualDAIDeposited);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.depositToken.selector, _tokenAddr, _tokenAmount));
+    if (!success) { revert(); }
   }
-
 
   /**
    * @notice Withdraws Ether by burning Shares.
@@ -442,18 +402,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     during(CyclePhase.Intermission)
     nonReentrant
   {
-    // Buy ETH
-    uint256 actualETHWithdrawn;
-    uint256 actualDAIWithdrawn;
-    (,, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
-
-    __withdraw(actualDAIWithdrawn);
-
-    // Transfer Ether to user
-    msg.sender.transfer(actualETHWithdrawn);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHWithdrawn, actualDAIWithdrawn, now);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.withdrawEther.selector, _amountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -465,13 +415,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     during(CyclePhase.Intermission)
     nonReentrant
   {
-    __withdraw(_amountInDAI);
-
-    // Transfer DAI to user
-    dai.safeTransfer(msg.sender, _amountInDAI);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.withdrawDAI.selector, _amountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -485,22 +430,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     during(CyclePhase.Intermission)
     isValidToken(_tokenAddr)
   {
-    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
-
-    ERC20Detailed token = ERC20Detailed(_tokenAddr);
-
-    // Convert DAI into desired tokens
-    uint256 actualTokenWithdrawn;
-    uint256 actualDAIWithdrawn;
-    (,, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
-
-    __withdraw(actualDAIWithdrawn);
-
-    // Transfer tokens to user
-    token.safeTransfer(msg.sender, actualTokenWithdrawn);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.withdrawToken.selector, _tokenAddr, _amountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -772,16 +703,6 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
       require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
     }
     totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
-  }
-
-  /**
-   * @notice Handles deposits by burning Betoken Shares & updating total funds.
-   * @param _withdrawDAIAmount The amount of the withdrawal in DAI
-   */
-  function __withdraw(uint256 _withdrawDAIAmount) internal {
-    // Burn Shares
-    require(sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
-    totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
   }
 
   /**

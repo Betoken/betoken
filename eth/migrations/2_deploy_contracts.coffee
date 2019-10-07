@@ -2,10 +2,10 @@ BetokenFund = artifacts.require "BetokenFund"
 BetokenProxy = artifacts.require "BetokenProxy"
 MiniMeToken = artifacts.require "MiniMeToken"
 MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
-LongCERC20OrderLogic = artifacts.require "LongCERC20OrderLogic"
-ShortCERC20OrderLogic = artifacts.require "ShortCERC20OrderLogic"
-LongCEtherOrderLogic = artifacts.require "LongCEtherOrderLogic"
-ShortCEtherOrderLogic = artifacts.require "ShortCEtherOrderLogic"
+LongCERC20Order = artifacts.require "LongCERC20Order"
+ShortCERC20Order = artifacts.require "ShortCERC20Order"
+LongCEtherOrder = artifacts.require "LongCEtherOrder"
+ShortCEtherOrder = artifacts.require "ShortCEtherOrder"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
 BetokenLogic = artifacts.require "BetokenLogic"
 
@@ -103,25 +103,29 @@ module.exports = (deployer, network, accounts) ->
         ControlToken = await MiniMeToken.at(controlTokenAddr)
         ShareToken = await MiniMeToken.at(shareTokenAddr)
         
-        # deploy ShortCERC20OrderLogic
-        await deployer.deploy(ShortCERC20OrderLogic)
+        # deploy ShortCERC20Order
+        await deployer.deploy(ShortCERC20Order)
+        await (await ShortCERC20Order.deployed()).renounceOwnership()
 
-        # deploy ShortCEtherOrderLogic
-        await deployer.deploy(ShortCEtherOrderLogic)
+        # deploy ShortCEtherOrder
+        await deployer.deploy(ShortCEtherOrder)
+        await (await ShortCEtherOrder.deployed()).renounceOwnership()
 
-        # deploy LongCERC20OrderLogic
-        await deployer.deploy(LongCERC20OrderLogic)
+        # deploy LongCERC20Order
+        await deployer.deploy(LongCERC20Order)
+        await (await LongCERC20Order.deployed()).renounceOwnership()
 
-        # deploy LongCEtherOrderLogic
-        await deployer.deploy(LongCEtherOrderLogic)
+        # deploy LongCEtherOrder
+        await deployer.deploy(LongCEtherOrder)
+        await (await LongCEtherOrder.deployed()).renounceOwnership()
 
         # deploy CompoundOrderFactory
         await deployer.deploy(
           CompoundOrderFactory,
-          ShortCERC20OrderLogic.address,
-          ShortCEtherOrderLogic.address,
-          LongCERC20OrderLogic.address,
-          LongCEtherOrderLogic.address,
+          ShortCERC20Order.address,
+          ShortCEtherOrder.address,
+          LongCERC20Order.address,
+          LongCEtherOrder.address,
           TestDAI.address,
           TestKyberNetwork.address,
           TestComptroller.address,

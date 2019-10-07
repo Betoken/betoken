@@ -1,24 +1,51 @@
 pragma solidity 0.5.12;
 
-import "./CompoundOrderStorage.sol";
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "../interfaces/Comptroller.sol";
+import "../interfaces/PriceOracle.sol";
+import "../interfaces/CERC20.sol";
+import "../interfaces/CEther.sol";
 import "../Utils.sol";
 
-contract CompoundOrder is CompoundOrderStorage, Utils {
-  constructor(
+contract CompoundOrder is Utils(address(0), address(0)), Ownable {
+  // Constants
+  uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
+  uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
+
+  // Contract instances
+  Comptroller public COMPTROLLER; // The Compound comptroller
+  PriceOracle public ORACLE; // The Compound price oracle
+  CERC20 public CDAI; // The Compound DAI market token
+  address public CETH_ADDR;
+
+  // Instance variables
+  uint256 public stake;
+  uint256 public collateralAmountInDAI;
+  uint256 public loanAmountInDAI;
+  uint256 public cycleNumber;
+  uint256 public buyTime; // Timestamp for order execution
+  uint256 public outputAmount; // Records the total output DAI after order is sold
+  address public compoundTokenAddr;
+  bool public isSold;
+  bool public orderType; // True for shorting, false for longing
+
+
+  constructor() public {}
+
+  function init(
     address _compoundTokenAddr,
     uint256 _cycleNumber,
     uint256 _stake,
     uint256 _collateralAmountInDAI,
     uint256 _loanAmountInDAI,
     bool _orderType,
-    address _logicContract,
     address _daiAddr,
     address payable _kyberAddr,
     address _comptrollerAddr,
     address _priceOracleAddr,
     address _cDAIAddr,
     address _cETHAddr
-  ) public Utils(_daiAddr, _kyberAddr)  {
+  ) public onlyOwner {
     // Initialize details of short order
     require(_compoundTokenAddr != _cDAIAddr);
     require(_stake > 0 && _collateralAmountInDAI > 0 && _loanAmountInDAI > 0); // Validate inputs
@@ -28,52 +55,76 @@ contract CompoundOrder is CompoundOrderStorage, Utils {
     cycleNumber = _cycleNumber;
     compoundTokenAddr = _compoundTokenAddr;
     orderType = _orderType;
-    logicContract = _logicContract;
 
     COMPTROLLER = Comptroller(_comptrollerAddr);
     ORACLE = PriceOracle(_priceOracleAddr);
     CDAI = CERC20(_cDAIAddr);
     CETH_ADDR = _cETHAddr;
+    DAI_ADDR = _daiAddr;
+    KYBER_ADDR = _kyberAddr;
+    dai = ERC20Detailed(_daiAddr);
+    kyber = KyberNetwork(_kyberAddr);
+
+    // transfer ownership to msg.sender
+    _transferOwnership(msg.sender);
   }
-  
+
   /**
    * @notice Executes the Compound order
    * @param _minPrice the minimum token price
    * @param _maxPrice the maximum token price
    */
-  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public {
-    (bool success,) = logicContract.delegatecall(abi.encodeWithSelector(this.executeOrder.selector, _minPrice, _maxPrice));
-    if (!success) { revert(); }
-  }
+  function executeOrder(uint256 _minPrice, uint256 _maxPrice) public;
 
   /**
    * @notice Sells the Compound order and returns assets to BetokenFund
    * @param _minPrice the minimum token price
    * @param _maxPrice the maximum token price
    */
-  function sellOrder(uint256 _minPrice, uint256 _maxPrice) public returns (uint256 _inputAmount, uint256 _outputAmount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.sellOrder.selector, _minPrice, _maxPrice));
-    if (!success) { revert(); }
-    return abi.decode(result, (uint256, uint256));
-  }
+  function sellOrder(uint256 _minPrice, uint256 _maxPrice) public returns (uint256 _inputAmount, uint256 _outputAmount);
 
   /**
    * @notice Repays the loans taken out to prevent the collateral ratio from dropping below threshold
    * @param _repayAmountInDAI the amount to repay, in DAI
    */
-  function repayLoan(uint256 _repayAmountInDAI) public {
-    (bool success,) = logicContract.delegatecall(abi.encodeWithSelector(this.repayLoan.selector, _repayAmountInDAI));
-    if (!success) { revert(); }
-  }
+  function repayLoan(uint256 _repayAmountInDAI) public;
+
+  function getMarketCollateralFactor() public view returns (uint256);
+
+  function getCurrentCollateralInDAI() public returns (uint256 _amount);
+
+  function getCurrentBorrowInDAI() public returns (uint256 _amount);
+
+  function getCurrentCashInDAI() public view returns (uint256 _amount);
 
   /**
-   * @notice Calculates the current liquidity (supply - collateral) on the Compound platform
-   * @return the liquidity
+   * @notice Calculates the current profit in DAI
+   * @return the profit amount
    */
-  function getCurrentLiquidityInDAI() public returns (bool _isNegative, uint256 _amount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentLiquidityInDAI.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (bool, uint256));
+  function getCurrentProfitInDAI() public returns (bool _isNegative, uint256 _amount) {
+    uint256 l;
+    uint256 r;
+    if (isSold) {
+      l = outputAmount;
+      r = collateralAmountInDAI;
+    } else {
+      uint256 cash = getCurrentCashInDAI();
+      uint256 supply = getCurrentCollateralInDAI();
+      uint256 borrow = getCurrentBorrowInDAI();
+      if (cash >= borrow) {
+        l = supply.add(cash);
+        r = borrow.add(collateralAmountInDAI);
+      } else {
+        l = supply;
+        r = borrow.sub(cash).mul(PRECISION).div(getMarketCollateralFactor()).add(collateralAmountInDAI);
+      }
+    }
+    
+    if (l >= r) {
+      return (false, l.sub(r));
+    } else {
+      return (true, r.sub(l));
+    }
   }
 
   /**
@@ -81,43 +132,69 @@ contract CompoundOrder is CompoundOrderStorage, Utils {
    * @return the collateral ratio
    */
   function getCurrentCollateralRatioInDAI() public returns (uint256 _amount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentCollateralRatioInDAI.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (uint256));
+    uint256 supply = getCurrentCollateralInDAI();
+    uint256 borrow = getCurrentBorrowInDAI();
+    if (borrow == 0) {
+      return uint256(-1);
+    }
+    return supply.mul(PRECISION).div(borrow);
   }
 
   /**
-   * @notice Calculates the current profit in DAI
-   * @return the profit amount
+   * @notice Calculates the current liquidity (supply - collateral) on the Compound platform
+   * @return the liquidity
    */
-  function getCurrentProfitInDAI() public returns (bool _isNegative, uint256 _amount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentProfitInDAI.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (bool, uint256));
+  function getCurrentLiquidityInDAI() public returns (bool _isNegative, uint256 _amount) {
+    uint256 supply = getCurrentCollateralInDAI();
+    uint256 borrow = getCurrentBorrowInDAI().mul(PRECISION).div(getMarketCollateralFactor());
+    if (supply >= borrow) {
+      return (false, supply.sub(borrow));
+    } else {
+      return (true, borrow.sub(supply));
+    }
   }
 
-  function getMarketCollateralFactor() public returns (uint256) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getMarketCollateralFactor.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (uint256));
+  function __sellDAIForToken(uint256 _daiAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
+    ERC20Detailed t = __underlyingToken(compoundTokenAddr);
+    (,, _actualTokenAmount, _actualDAIAmount) = __kyberTrade(dai, _daiAmount, t); // Sell DAI for tokens on Kyber
+    require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
   }
 
-  function getCurrentCollateralInDAI() public returns (uint256 _amount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentCollateralInDAI.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (uint256));
+  function __sellTokenForDAI(uint256 _tokenAmount) internal returns (uint256 _actualDAIAmount, uint256 _actualTokenAmount) {
+    ERC20Detailed t = __underlyingToken(compoundTokenAddr);
+    (,, _actualDAIAmount, _actualTokenAmount) = __kyberTrade(t, _tokenAmount, dai); // Sell tokens for DAI on Kyber
+    require(_actualDAIAmount > 0 && _actualTokenAmount > 0); // Validate return values
   }
 
-  function getCurrentBorrowInDAI() public returns (uint256 _amount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentBorrowInDAI.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (uint256));
+  // Convert a DAI amount to the amount of a given token that's of equal value
+  function __daiToToken(address _cToken, uint256 _daiAmount) internal view returns (uint256) {
+    if (_cToken == CETH_ADDR) {
+      // token is ETH
+      return _daiAmount.mul(ORACLE.getPrice(DAI_ADDR)).div(PRECISION);
+    }
+    ERC20Detailed t = __underlyingToken(_cToken);
+    return _daiAmount.mul(ORACLE.getPrice(DAI_ADDR)).mul(10 ** getDecimals(t)).div(ORACLE.getPrice(address(t)).mul(PRECISION));
   }
 
-  function getCurrentCashInDAI() public returns (uint256 _amount) {
-    (bool success, bytes memory result) = logicContract.delegatecall(abi.encodeWithSelector(this.getCurrentCashInDAI.selector));
-    if (!success) { revert(); }
-    return abi.decode(result, (uint256));
+  // Convert a compound token amount to the amount of DAI that's of equal value
+  function __tokenToDAI(address _cToken, uint256 _tokenAmount) internal view returns (uint256) {
+    if (_cToken == CETH_ADDR) {
+      // token is ETH
+      return _tokenAmount.mul(PRECISION).div(ORACLE.getPrice(DAI_ADDR));
+    }
+    ERC20Detailed t = __underlyingToken(_cToken);
+    return _tokenAmount.mul(ORACLE.getPrice(address(t))).mul(PRECISION).div(ORACLE.getPrice(DAI_ADDR).mul(10 ** uint256(t.decimals())));
+  }
+
+  function __underlyingToken(address _cToken) internal view returns (ERC20Detailed) {
+    if (_cToken == CETH_ADDR) {
+      // ETH
+      return ETH_TOKEN_ADDRESS;
+    }
+    CERC20 ct = CERC20(_cToken);
+    address underlyingToken = ct.underlying();
+    ERC20Detailed t = ERC20Detailed(underlyingToken);
+    return t;
   }
 
   function() external payable {}

@@ -154,7 +154,7 @@ contract Utils {
    * @param _addr the account to be checked
    * @return True if the account is a smart contract, false otherwise
    */
-  function isContract(address _addr) view internal returns(bool) {
+  function isContract(address _addr) internal view returns(bool) {
     uint size;
     if (_addr == address(0)) return false;
     assembly {
@@ -163,7 +163,7 @@ contract Utils {
     return size>0;
   }
 
-  function toPayableAddr(address _addr) pure internal returns (address payable) {
+  function toPayableAddr(address _addr) internal pure returns (address payable) {
     return address(uint160(_addr));
   }
 }

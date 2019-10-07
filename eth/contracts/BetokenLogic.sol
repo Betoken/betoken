@@ -287,6 +287,147 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
 
   /**
+   * Deposit & Withdraw
+   */
+
+  /**
+   * @notice Deposit Ether into the fund. Ether will be converted into DAI.
+   */
+  function depositEther()
+    public
+    payable
+  {
+    // Buy DAI with ETH
+    uint256 actualDAIDeposited;
+    uint256 actualETHDeposited;
+    (,, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+
+    // Send back leftover ETH
+    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
+    if (leftOverETH > 0) {
+      msg.sender.transfer(leftOverETH);
+    }
+
+    // Register investment
+    __deposit(actualDAIDeposited);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHDeposited, actualDAIDeposited, now);
+  }
+
+  /**
+   * @notice Deposit DAI Stablecoin into the fund.
+   * @param _daiAmount The amount of DAI to be deposited. May be different from actual deposited amount.
+   */
+  function depositDAI(uint256 _daiAmount)
+    public
+  {
+    dai.safeTransferFrom(msg.sender, address(this), _daiAmount);
+
+    // Register investment
+    __deposit(_daiAmount);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, _daiAmount, _daiAmount, now);
+  }
+
+  /**
+   * @notice Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
+   * @param _tokenAddr the address of the token to be deposited
+   * @param _tokenAmount The amount of tokens to be deposited. May be different from actual deposited amount.
+   */
+  function depositToken(address _tokenAddr, uint256 _tokenAmount)
+    public
+  {
+    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
+
+    ERC20Detailed token = ERC20Detailed(_tokenAddr);
+
+    token.safeTransferFrom(msg.sender, address(this), _tokenAmount);
+
+    // Convert token into DAI
+    uint256 actualDAIDeposited;
+    uint256 actualTokenDeposited;
+    (,, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
+
+    // Give back leftover tokens
+    uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
+    if (leftOverTokens > 0) {
+      token.safeTransfer(msg.sender, leftOverTokens);
+    }
+
+    // Register investment
+    __deposit(actualDAIDeposited);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
+  }
+
+  /**
+   * @notice Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawEther(uint256 _amountInDAI)
+    public
+  {
+    // Buy ETH
+    uint256 actualETHWithdrawn;
+    uint256 actualDAIWithdrawn;
+    (,, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
+
+    __withdraw(actualDAIWithdrawn);
+
+    // Transfer Ether to user
+    msg.sender.transfer(actualETHWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHWithdrawn, actualDAIWithdrawn, now);
+  }
+
+  /**
+   * @notice Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawDAI(uint256 _amountInDAI)
+    public
+  {
+    __withdraw(_amountInDAI);
+
+    // Transfer DAI to user
+    dai.safeTransfer(msg.sender, _amountInDAI);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
+  }
+
+  /**
+   * @notice Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
+   * @param _tokenAddr the address of the token to be withdrawn into the caller's account
+   * @param _amountInDAI The amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
+    public
+  {
+    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
+
+    ERC20Detailed token = ERC20Detailed(_tokenAddr);
+
+    // Convert DAI into desired tokens
+    uint256 actualTokenWithdrawn;
+    uint256 actualDAIWithdrawn;
+    (,, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
+
+    __withdraw(actualDAIWithdrawn);
+
+    // Transfer tokens to user
+    token.safeTransfer(msg.sender, actualTokenWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
+  }
+
+
+  /**
    * Manager registration
    */
   
@@ -717,5 +858,29 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    */
   function __recordRisk(uint256 _stake, uint256 _buyTime) internal {
     riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
+  }
+
+  /**
+   * @notice Handles deposits by minting Betoken Shares & updating total funds.
+   * @param _depositDAIAmount The amount of the deposit in DAI
+   */
+  function __deposit(uint256 _depositDAIAmount) internal {
+    // Register investment and give shares
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount));
+    } else {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
+  }
+
+  /**
+   * @notice Handles deposits by burning Betoken Shares & updating total funds.
+   * @param _withdrawDAIAmount The amount of the withdrawal in DAI
+   */
+  function __withdraw(uint256 _withdrawDAIAmount) internal {
+    // Burn Shares
+    require(sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
+    totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
   }
 }

@@ -1,13 +1,11 @@
 pragma solidity 0.5.12;
 
-import "./CompoundOrderLogic.sol";
+import "./CompoundOrder.sol";
 
-contract LongCERC20OrderLogic is CompoundOrderLogic {
+contract LongCEtherOrder is CompoundOrder {
   modifier isValidPrice(uint256 _minPrice, uint256 _maxPrice) {
     // Ensure token's price is between _minPrice and _maxPrice
-    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-    uint256 tokenPrice = ORACLE.getPrice(address(token)); // Get the longing token's price in ETH
-    require(tokenPrice > 0); // Ensure asset exists on Compound
+    uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
     tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
     _;
@@ -19,8 +17,8 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     isValidToken(compoundTokenAddr)
     isValidPrice(_minPrice, _maxPrice)
   {
-    super.executeOrder(_minPrice, _maxPrice);
-
+    buyTime = now;
+    
     // Get funds in DAI from BetokenFund
     dai.safeTransferFrom(owner(), address(this), collateralAmountInDAI); // Transfer DAI from BetokenFund
 
@@ -28,19 +26,15 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     (,uint256 actualTokenAmount) = __sellDAIForToken(collateralAmountInDAI);
 
     // Enter Compound markets
-    CERC20 market = CERC20(compoundTokenAddr);
+    CEther market = CEther(compoundTokenAddr);
     address[] memory markets = new address[](2);
     markets[0] = compoundTokenAddr;
     markets[1] = address(CDAI);
     uint[] memory errors = COMPTROLLER.enterMarkets(markets);
     require(errors[0] == 0 && errors[1] == 0);
-
+    
     // Get loan from Compound in DAI
-    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-    token.safeApprove(compoundTokenAddr, 0); // Clear token allowance of Compound
-    token.safeApprove(compoundTokenAddr, actualTokenAmount); // Approve token transfer to Compound
-    require(market.mint(actualTokenAmount) == 0); // Transfer tokens into Compound as supply
-    token.safeApprove(compoundTokenAddr, 0); // Clear token allowance of Compound
+    market.mint.value(actualTokenAmount)(); // Transfer tokens into Compound as supply
     require(CDAI.borrow(loanAmountInDAI) == 0);// Take out loan in DAI
     (bool negLiquidity, ) = getCurrentLiquidityInDAI();
     require(!negLiquidity); // Ensure account liquidity is positive
@@ -67,11 +61,10 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     require(buyTime > 0); // Ensure the order has been executed
     require(isSold == false);
     isSold = true;
-    
+
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
-    CERC20 market = CERC20(compoundTokenAddr);
-    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
+    CEther market = CEther(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
       uint256 currentDebt = getCurrentBorrowInDAI();
       if (currentDebt <= NEGLIGIBLE_DEBT) {
@@ -102,14 +95,14 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     }
 
     // Sell all longing token to DAI
-    __sellTokenForDAI(token.balanceOf(address(this)));
+    __sellTokenForDAI(address(this).balance);
 
     // Send DAI back to BetokenFund and return
     _inputAmount = collateralAmountInDAI;
     _outputAmount = dai.balanceOf(address(this));
     outputAmount = _outputAmount;
     dai.safeTransfer(owner(), dai.balanceOf(address(this)));
-    token.safeTransfer(owner(), token.balanceOf(address(this))); // Send back potential leftover tokens
+    toPayableAddr(owner()).transfer(address(this).balance); // Send back potential leftover tokens
   }
 
   // Allows manager to repay loan to avoid liquidation
@@ -125,7 +118,7 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
     if (actualDAIAmount > currentDebt) {
       actualDAIAmount = currentDebt;
     }
-    
+
     // Repay loan to Compound
     dai.safeApprove(address(CDAI), 0);
     dai.safeApprove(address(CDAI), actualDAIAmount);
@@ -139,7 +132,7 @@ contract LongCERC20OrderLogic is CompoundOrderLogic {
   }
 
   function getCurrentCollateralInDAI() public returns (uint256 _amount) {
-    CERC20 market = CERC20(compoundTokenAddr);
+    CEther market = CEther(compoundTokenAddr);
     uint256 supply = __tokenToDAI(compoundTokenAddr, market.balanceOf(address(this)).mul(market.exchangeRateCurrent()).div(PRECISION));
     return supply;
   }
