@@ -6,9 +6,8 @@ sudo: enabled
 install:
   - cd eth
   - npm install
-  - npm install --dev
+  - npm install --only=dev
   - npm install -g truffle
 
 script:
-  - npx buidler compile &> /dev/null &
   - npx buidler test
