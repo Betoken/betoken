@@ -30,7 +30,7 @@ ETH_PRICE = 20 * PRECISION
 DAI_PRICE = PRECISION
 PHASE_LENGTHS = (require "../deployment_configs/testnet.json").phaseLengths
 DAY = 86400
-INACTIVE_THRESHOLD = 6
+INACTIVE_THRESHOLD = 2
 
 # travel `time` seconds forward in time
 timeTravel = (time) ->
