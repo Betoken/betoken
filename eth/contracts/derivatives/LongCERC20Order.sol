@@ -77,20 +77,25 @@ contract LongCERC20Order is CompoundOrder {
       if (currentDebt > NEGLIGIBLE_DEBT) {
         // Determine amount to be repaid this step
         uint256 currentBalance = getCurrentCashInDAI();
+        uint256 repayAmount = 0; // amount to be repaid in DAI
         if (currentDebt <= currentBalance) {
           // Has enough money, repay all debt
-          repayLoan(currentDebt);
+          repayAmount = currentDebt;
         } else {
           // Doesn't have enough money, repay whatever we can repay
-          repayLoan(currentBalance);
+          repayAmount = currentBalance;
         }
+
+        // Repay debt
+        repayLoan(repayAmount);
       }
 
       // Withdraw all available liquidity
       (bool isNeg, uint256 liquidity) = getCurrentLiquidityInDAI();
       if (!isNeg) {
         liquidity = __daiToToken(compoundTokenAddr, liquidity);
-        if (market.redeemUnderlying(liquidity.mul(PRECISION.sub(DEFAULT_LIQUIDITY_SLIPPAGE)).div(PRECISION)) != 0) {
+        uint256 errorCode = market.redeemUnderlying(liquidity.mul(PRECISION.sub(DEFAULT_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+        if (errorCode != 0) {
           // error
           // try again with max slippage
           require(market.redeemUnderlying(liquidity.mul(PRECISION.sub(MAX_LIQUIDITY_SLIPPAGE)).div(PRECISION)) == 0);
