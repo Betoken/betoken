@@ -180,6 +180,97 @@ module.exports = (deployer, network, accounts) ->
 
         KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
+        # deploy ShortCERC20Order
+        await deployer.deploy(ShortCERC20Order)
+        ShortCERC20OrderContract = await ShortCERC20Order.deployed()
+        await ShortCERC20OrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          true,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
+        )
+        await ShortCERC20OrderContract.renounceOwnership()
+
+        # deploy ShortCEtherOrder
+        await deployer.deploy(ShortCEtherOrder)
+        ShortCEtherOrderContract = await ShortCEtherOrder.deployed()
+        await ShortCEtherOrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          true,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
+        )
+        await ShortCEtherOrderContract.renounceOwnership()
+
+        # deploy LongCERC20Order
+        await deployer.deploy(LongCERC20Order)
+        LongCERC20OrderContract = await LongCERC20Order.deployed()
+        await LongCERC20OrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          false,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
+        )
+        await LongCERC20OrderContract.renounceOwnership()
+
+        # deploy LongCEtherOrder
+        await deployer.deploy(LongCEtherOrder)
+        LongCEtherOrderContract = await LongCEtherOrder.deployed()
+        await LongCEtherOrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          false,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
+        )
+        await LongCEtherOrderContract.renounceOwnership()
+
+        # deploy CompoundOrderFactory
+        await deployer.deploy(
+          CompoundOrderFactory,
+          ShortCERC20Order.address,
+          ShortCEtherOrder.address,
+          LongCERC20Order.address,
+          LongCEtherOrder.address,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
+        )
+
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic, {gas: 6.2e6, gasPrice: 2e10})
 
@@ -206,17 +297,6 @@ module.exports = (deployer, network, accounts) ->
           config.FULCRUM_PTOKENS,
           {gas: 2.72e6, gasPrice: 2e10}
         )
-
-        # deploy BetokenProxy contract
-        await deployer.deploy(
-          BetokenProxy,
-          betokenFund.address
-          {gas: 2.4e5, gasPrice: 2e10}
-        )
-
-        # set proxy address in BetokenFund
-        console.log "Setting Betoken Proxy..."
-        await betokenFund.setProxy(BetokenProxy.address, {gas: 1e6, gasPrice: 2e10})
 
         # transfer fund ownership to developer multisig
         console.log "Transferring BetokenFund ownership..."

@@ -58,7 +58,7 @@
 
   DAY = 86400;
 
-  INACTIVE_THRESHOLD = 6;
+  INACTIVE_THRESHOLD = 2;
 
   // travel `time` seconds forward in time
   timeTravel = function(time) {
