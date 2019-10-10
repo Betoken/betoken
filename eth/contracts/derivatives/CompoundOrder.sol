@@ -12,7 +12,8 @@ contract CompoundOrder is Utils(address(0), address(0)), Ownable {
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
   uint256 internal constant DEFAULT_LIQUIDITY_SLIPPAGE = 10 ** 12; // 1e-6 slippage for redeeming liquidity when selling order
-  uint256 internal constant MAX_LIQUIDITY_SLIPPAGE = 10 ** 15; // 0.1% max slippage for redeeming liquidity when selling order
+  uint256 internal constant FALLBACK_LIQUIDITY_SLIPPAGE = 10 ** 15; // 0.1% slippage for redeeming liquidity when selling order
+  uint256 internal constant MAX_LIQUIDITY_SLIPPAGE = 10 ** 17; // 10% max slippage for redeeming liquidity when selling order
 
   // Contract instances
   Comptroller public COMPTROLLER; // The Compound comptroller

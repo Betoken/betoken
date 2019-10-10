@@ -93,8 +93,13 @@ contract ShortCERC20Order is CompoundOrder {
         uint256 errorCode = CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(DEFAULT_LIQUIDITY_SLIPPAGE)).div(PRECISION));
         if (errorCode != 0) {
           // error
-          // try again with slippage
-          require(CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(MAX_LIQUIDITY_SLIPPAGE)).div(PRECISION)) == 0);
+          // try again with fallback slippage
+          errorCode = CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(FALLBACK_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+          if (errorCode != 0) {
+            // error
+            // try again with max slippage
+            CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(MAX_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+          }
         }
       }
 
