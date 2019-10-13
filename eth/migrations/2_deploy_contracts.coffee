@@ -8,6 +8,7 @@ LongCEtherOrder = artifacts.require "LongCEtherOrder"
 ShortCEtherOrder = artifacts.require "ShortCEtherOrder"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
 BetokenLogic = artifacts.require "BetokenLogic"
+BetokenLogic2 = artifacts.require "BetokenLogic2"
 
 BigNumber = require "bignumber.js"
 
@@ -136,6 +137,7 @@ module.exports = (deployer, network, accounts) ->
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic)
+        await deployer.deploy(BetokenLogic2)
 
         # deploy BetokenFund contract
         compoundTokensArray = (compoundTokens[token] for token in tokenAddrs[0..tokenAddrs.length - 3])
@@ -151,7 +153,8 @@ module.exports = (deployer, network, accounts) ->
           TestDAI.address,
           TestKyberNetwork.address,
           CompoundOrderFactory.address,
-          BetokenLogic.address
+          BetokenLogic.address,
+          BetokenLogic2.address
         )
         betokenFund = await BetokenFund.deployed()
         await betokenFund.initTokenListings(
@@ -273,6 +276,7 @@ module.exports = (deployer, network, accounts) ->
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic, {gas: 6.2e6, gasPrice: 2e10})
+        await deployer.deploy(BetokenLogic2, {gas: 6.2e6, gasPrice: 2e10})
 
         # deploy BetokenFund contract
         await deployer.deploy(
@@ -287,6 +291,7 @@ module.exports = (deployer, network, accounts) ->
           config.KYBER_ADDR,
           config.COMPOUND_FACTORY_ADDR,
           BetokenLogic.address,
+          BetokenLogic2.address,
           {gas: 7e6, gasPrice: 2e10}
         )
         betokenFund = await BetokenFund.deployed()

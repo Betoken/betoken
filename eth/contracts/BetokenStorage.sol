@@ -67,6 +67,7 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
 
   // Address of the BetokenLogic contract.
   address public betokenLogic;
+  address public betokenLogic2;
 
   // Address to which the development team funding will be sent.
   address payable public devFundingAccount;
@@ -93,16 +94,16 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   uint256[2] public phaseLengths;
 
   // The last cycle where a user redeemed all of their remaining commission.
-  mapping(address => uint256) public lastCommissionRedemption;
+  mapping(address => uint256) internal _lastCommissionRedemption;
 
   // Marks whether a manager has redeemed their commission for a certain cycle
-  mapping(address => mapping(uint256 => bool)) public hasRedeemedCommissionForCycle;
+  mapping(address => mapping(uint256 => bool)) internal _hasRedeemedCommissionForCycle;
 
   // The stake-time measured risk that a manager has taken in a cycle
-  mapping(address => mapping(uint256 => uint256)) public riskTakenInCycle;
+  mapping(address => mapping(uint256 => uint256)) internal _riskTakenInCycle;
 
   // In case a manager joined the fund during the current cycle, set the fallback base stake for risk threshold calculation
-  mapping(address => uint256) public baseRiskStakeFallback;
+  mapping(address => uint256) internal _baseRiskStakeFallback;
 
   // List of investments of a manager in the current cycle.
   mapping(address => Investment[]) public userInvestments;
@@ -111,13 +112,13 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   mapping(address => address payable[]) public userCompoundOrders;
 
   // Total commission to be paid for work done in a certain cycle (will be redeemed in the next cycle's Intermission)
-  mapping(uint256 => uint256) public totalCommissionOfCycle;
+  mapping(uint256 => uint256) internal _totalCommissionOfCycle;
 
   // The block number at which the Manage phase ended for a given cycle
-  mapping(uint256 => uint256) public managePhaseEndBlock;
+  mapping(uint256 => uint256) internal _managePhaseEndBlock;
 
   // The last cycle where a manager made an investment
-  mapping(address => uint256) public lastActiveCycle;
+  mapping(address => uint256) internal _lastActiveCycle;
 
   // Checks if an address points to a whitelisted Kyber token.
   mapping(address => bool) public isKyberToken;
@@ -213,7 +214,7 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
     if (cycleNumber <= CYCLES_TILL_MATURITY || _of == address(0)) {
       return 0;
     }
-    return cToken.balanceOfAt(_of, managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]);
+    return cToken.balanceOfAt(_of, managePhaseEndBlock(cycleNumber.sub(CYCLES_TILL_MATURITY)));
   }
 
   /**
@@ -225,7 +226,7 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
     if (cycleNumber <= CYCLES_TILL_MATURITY) {
       return 0;
     }
-    return cToken.totalSupplyAt(managePhaseEndBlock[cycleNumber.sub(CYCLES_TILL_MATURITY)]).sub(proposersVotingWeight);
+    return cToken.totalSupplyAt(managePhaseEndBlock(cycleNumber.sub(CYCLES_TILL_MATURITY))).sub(proposersVotingWeight);
   }
 
   /**
@@ -241,5 +242,54 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
       return MIN_KRO_PRICE;
     }
     return controlPerKairo;
+  }
+
+  function lastCommissionRedemption(address _manager) public view returns (uint256) {
+    if (_lastCommissionRedemption[_manager] == 0) {
+      return previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).lastCommissionRedemption(_manager);
+    }
+    return _lastCommissionRedemption[_manager];
+  }
+
+  function hasRedeemedCommissionForCycle(address _manager, uint256 _cycle) public view returns (bool) {
+    if (_hasRedeemedCommissionForCycle[_manager][_cycle] == false) {
+      return previousVersion == address(0) ? false : BetokenStorage(previousVersion).hasRedeemedCommissionForCycle(_manager, _cycle);
+    }
+    return _hasRedeemedCommissionForCycle[_manager][_cycle];
+  }
+
+  function riskTakenInCycle(address _manager, uint256 _cycle) public view returns (uint256) {
+    if (_riskTakenInCycle[_manager][_cycle] == 0) {
+      return previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).riskTakenInCycle(_manager, _cycle);
+    }
+    return _riskTakenInCycle[_manager][_cycle];
+  }
+
+  function baseRiskStakeFallback(address _manager) public view returns (uint256) {
+    if (_baseRiskStakeFallback[_manager] == 0) {
+      return previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).baseRiskStakeFallback(_manager);
+    }
+    return _baseRiskStakeFallback[_manager];
+  }
+
+  function totalCommissionOfCycle(uint256 _cycle) public view returns (uint256) {
+    if (_totalCommissionOfCycle[_cycle] == 0) {
+      return previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionOfCycle(_cycle);
+    }
+    return _totalCommissionOfCycle[_cycle];
+  }
+
+  function managePhaseEndBlock(uint256 _cycle) public view returns (uint256) {
+    if (_managePhaseEndBlock[_cycle] == 0) {
+      return previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).managePhaseEndBlock(_cycle);
+    }
+    return _managePhaseEndBlock[_cycle];
+  }
+
+  function lastActiveCycle(address _manager) public view returns (uint256) {
+    if (_lastActiveCycle[_manager] == 0) {
+      return previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).lastActiveCycle(_manager);
+    }
+    return _lastActiveCycle[_manager];
   }
 }

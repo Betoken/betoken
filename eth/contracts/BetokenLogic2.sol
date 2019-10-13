@@ -1,0 +1,477 @@
+pragma solidity 0.5.12;
+
+import "./BetokenStorage.sol";
+import "./interfaces/PositionToken.sol";
+import "./derivatives/CompoundOrderFactory.sol";
+
+/**
+ * @title Part of the functions for BetokenFund
+ * @author Zefram Lou (Zebang Liu)
+ */
+contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
+  /**
+   * Upgrading functions
+   */
+
+  /**
+   * @notice Allows the developer to propose a candidate smart contract for the fund to upgrade to.
+   *          The developer may change the candidate during the Intermission phase.
+   * @param _candidate the address of the candidate smart contract
+   * @return True if successfully changed candidate, false otherwise.
+   */
+  function developerInitiateUpgrade(address payable _candidate) public returns (bool _success) {
+    if (_candidate == address(0) || _candidate == address(this) || !__isMature()) {
+      return false;
+    }
+    nextVersion = _candidate;
+    upgradeVotingActive = true;
+    emit DeveloperInitiatedUpgrade(cycleNumber, _candidate);
+    return true;
+  }
+
+  /**
+   * @notice Allows a manager to signal their support of initiating an upgrade. They can change their signal before the end of the Intermission phase.
+   *          Managers who oppose initiating an upgrade don't need to call this function, unless they origianlly signalled in support.
+   *          Signals are reset every cycle.
+   * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
+   * @return True if successfully changed signal, false if no changes were made.
+   */
+  function signalUpgrade(bool _inSupport) public returns (bool _success) {
+    if (!__isMature()) {
+      return false;
+    }
+
+    if (upgradeSignal[cycleNumber][msg.sender] == false) {
+      if (_inSupport == true) {
+        upgradeSignal[cycleNumber][msg.sender] = true;
+        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].add(getVotingWeight(msg.sender));
+      } else {
+        return false;
+      }
+    } else {
+      if (_inSupport == false) {
+        upgradeSignal[cycleNumber][msg.sender] = false;
+        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].sub(getVotingWeight(msg.sender));
+      } else {
+        return false;
+      }
+    }
+    emit SignaledUpgrade(cycleNumber, msg.sender, _inSupport);
+    return true;
+  }
+
+  /**
+   * @notice Allows manager to propose a candidate smart contract for the fund to upgrade to. Among the managers who have proposed a candidate,
+   *          the manager with the most voting weight's candidate will be used in the vote. Ties are broken in favor of the larger address.
+   *          The proposer may change the candidate they support during the Propose subchunk in their chunk.
+   * @param _chunkNumber the chunk for which the sender is proposing the candidate
+   * @param _candidate the address of the candidate smart contract
+   * @return True if successfully proposed/changed candidate, false otherwise.
+   */
+  function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public returns (bool _success) {
+    // Input & state check
+    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
+      upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0) || !__isMature()) {
+      return false;
+    }
+
+    // Ensure msg.sender has not been a proposer before
+    // Ensure candidate hasn't been proposed in previous vote
+    uint256 voteID = _chunkNumber.sub(1);
+    uint256 i;
+    for (i = 0; i < voteID; i = i.add(1)) {
+      if (proposers[i] == msg.sender || candidates[i] == _candidate) {
+        return false;
+      }
+    }
+
+    // Ensure msg.sender has more voting weight than current proposer
+    uint256 senderWeight = getVotingWeight(msg.sender);
+    uint256 currProposerWeight = getVotingWeight(proposers[voteID]);
+    if (senderWeight > currProposerWeight || (senderWeight == currProposerWeight && msg.sender > proposers[voteID]) || msg.sender == proposers[voteID]) {
+      proposers[voteID] = msg.sender;
+      candidates[voteID] = _candidate;
+      proposersVotingWeight = proposersVotingWeight.add(senderWeight).sub(currProposerWeight);
+      emit ProposedCandidate(cycleNumber, voteID, msg.sender, _candidate);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @notice Allows a manager to vote for or against a candidate smart contract the fund will upgrade to. The manager may change their vote during
+   *          the Vote subchunk. A manager who has been a proposer may not vote.
+   * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
+   * @return True if successfully changed vote, false otherwise.
+   */
+  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public returns (bool _success) {
+    // Input & state check
+    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false || !__isMature()) {
+      return false;
+    }
+
+    // Ensure msg.sender has not been a proposer before
+    uint256 voteID = _chunkNumber.sub(1);
+    uint256 i;
+    for (i = 0; i < voteID; i = i.add(1)) {
+      if (proposers[i] == msg.sender) {
+        return false;
+      }
+    }
+
+    // Register vote
+    VoteDirection currVote = managerVotes[cycleNumber][msg.sender][voteID];
+    uint256 votingWeight = getVotingWeight(msg.sender);
+    if ((currVote == VoteDirection.Empty || currVote == VoteDirection.Against) && _inSupport) {
+      managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.For;
+      forVotes[voteID] = forVotes[voteID].add(votingWeight);
+      if (currVote == VoteDirection.Against) {
+        againstVotes[voteID] = againstVotes[voteID].sub(votingWeight);
+      }
+    } else if ((currVote == VoteDirection.Empty || currVote == VoteDirection.For) && !_inSupport) {
+      managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.Against;
+      againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
+      if (currVote == VoteDirection.For) {
+        forVotes[voteID] = forVotes[voteID].sub(votingWeight);
+      }
+    }
+    emit Voted(cycleNumber, voteID, msg.sender, _inSupport, votingWeight);
+    return true;
+  }
+
+  /**
+   * @notice Performs the necessary state changes after a successful vote
+   * @param _chunkNumber the chunk number of the successful vote
+   * @return True if successful, false otherwise
+   */
+  function finalizeSuccessfulVote(uint256 _chunkNumber) public returns (bool _success) {
+    // Input & state check
+    if (!__isValidChunk(_chunkNumber) || !__isMature()) {
+      return false;
+    }
+
+    // Ensure the given vote was successful
+    if (__voteSuccessful(_chunkNumber) == false) {
+      return false;
+    }
+
+    // Ensure the chunk given has ended
+    if (_chunkNumber >= currentChunk()) {
+      return false;
+    }
+
+    // Ensure no previous vote was successful
+    for (uint256 i = 1; i < _chunkNumber; i = i.add(1)) {
+      if (__voteSuccessful(i)) {
+        return false;
+      }
+    }
+
+    // End voting process
+    upgradeVotingActive = false;
+    nextVersion = candidates[_chunkNumber.sub(1)];
+    hasFinalizedNextVersion = true;
+    return true;
+  }
+
+  /**
+   * @notice Checks if the fund is mature enough for initiating an upgrade
+   * @return True if mature enough, false otherwise
+   */
+  function __isMature() internal view returns (bool) {
+    return cycleNumber > CYCLES_TILL_MATURITY;
+  }
+
+  /**
+   * @notice Checks if a chunk number is valid
+   * @param _chunkNumber the chunk number to be checked
+   * @return True if valid, false otherwise
+   */
+  function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {
+    return _chunkNumber >= 1 && _chunkNumber <= 5;
+  }
+
+  /**
+   * @notice Checks if a vote was successful
+   * @param _chunkNumber the chunk number of the vote
+   * @return True if successful, false otherwise
+   */
+  function __voteSuccessful(uint256 _chunkNumber) internal view returns (bool _success) {
+    if (!__isValidChunk(_chunkNumber)) {
+      return false;
+    }
+    uint256 voteID = _chunkNumber.sub(1);
+    return forVotes[voteID].mul(PRECISION).div(forVotes[voteID].add(againstVotes[voteID])) > VOTE_SUCCESS_THRESHOLD
+      && forVotes[voteID].add(againstVotes[voteID]) > getTotalVotingWeight().mul(QUORUM).div(PRECISION);
+  }
+
+  /**
+   * Deposit & Withdraw
+   */
+
+  /**
+   * @notice Deposit Ether into the fund. Ether will be converted into DAI.
+   */
+  function depositEther()
+    public
+    payable
+  {
+    // Buy DAI with ETH
+    uint256 actualDAIDeposited;
+    uint256 actualETHDeposited;
+    (,, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+
+    // Send back leftover ETH
+    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
+    if (leftOverETH > 0) {
+      msg.sender.transfer(leftOverETH);
+    }
+
+    // Register investment
+    __deposit(actualDAIDeposited);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHDeposited, actualDAIDeposited, now);
+  }
+
+  /**
+   * @notice Deposit DAI Stablecoin into the fund.
+   * @param _daiAmount The amount of DAI to be deposited. May be different from actual deposited amount.
+   */
+  function depositDAI(uint256 _daiAmount)
+    public
+  {
+    dai.safeTransferFrom(msg.sender, address(this), _daiAmount);
+
+    // Register investment
+    __deposit(_daiAmount);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, _daiAmount, _daiAmount, now);
+  }
+
+  /**
+   * @notice Deposit ERC20 tokens into the fund. Tokens will be converted into DAI.
+   * @param _tokenAddr the address of the token to be deposited
+   * @param _tokenAmount The amount of tokens to be deposited. May be different from actual deposited amount.
+   */
+  function depositToken(address _tokenAddr, uint256 _tokenAmount)
+    public
+  {
+    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
+
+    ERC20Detailed token = ERC20Detailed(_tokenAddr);
+
+    token.safeTransferFrom(msg.sender, address(this), _tokenAmount);
+
+    // Convert token into DAI
+    uint256 actualDAIDeposited;
+    uint256 actualTokenDeposited;
+    (,, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
+
+    // Give back leftover tokens
+    uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
+    if (leftOverTokens > 0) {
+      token.safeTransfer(msg.sender, leftOverTokens);
+    }
+
+    // Register investment
+    __deposit(actualDAIDeposited);
+
+    // Emit event
+    emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
+  }
+
+  /**
+   * @notice Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawEther(uint256 _amountInDAI)
+    public
+  {
+    // Buy ETH
+    uint256 actualETHWithdrawn;
+    uint256 actualDAIWithdrawn;
+    (,, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
+
+    __withdraw(actualDAIWithdrawn);
+
+    // Transfer Ether to user
+    msg.sender.transfer(actualETHWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHWithdrawn, actualDAIWithdrawn, now);
+  }
+
+  /**
+   * @notice Withdraws Ether by burning Shares.
+   * @param _amountInDAI Amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawDAI(uint256 _amountInDAI)
+    public
+  {
+    __withdraw(_amountInDAI);
+
+    // Transfer DAI to user
+    dai.safeTransfer(msg.sender, _amountInDAI);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
+  }
+
+  /**
+   * @notice Withdraws funds by burning Shares, and converts the funds into the specified token using Kyber Network.
+   * @param _tokenAddr the address of the token to be withdrawn into the caller's account
+   * @param _amountInDAI The amount of funds to be withdrawn expressed in DAI. Fixed-point decimal. May be different from actual amount.
+   */
+  function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
+    public
+  {
+    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
+
+    ERC20Detailed token = ERC20Detailed(_tokenAddr);
+
+    // Convert DAI into desired tokens
+    uint256 actualTokenWithdrawn;
+    uint256 actualDAIWithdrawn;
+    (,, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
+
+    __withdraw(actualDAIWithdrawn);
+
+    // Transfer tokens to user
+    token.safeTransfer(msg.sender, actualTokenWithdrawn);
+
+    // Emit event
+    emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
+  }
+
+
+  /**
+   * Manager registration
+   */
+  
+  /**
+   * @notice Calculates the max amount a new manager can pay for an account. Equivalent to 1% of Kairo total supply.
+   *         If less than 100 DAI, returns 100 DAI.
+   * @return the max DAI amount for purchasing a manager account
+   */
+  function maxRegistrationPaymentInDAI() public view returns (uint256 _maxDonationInDAI) {
+    uint256 kroPrice = kairoPrice();
+    _maxDonationInDAI = MAX_BUY_KRO_PROP.mul(cToken.totalSupply()).div(PRECISION).mul(kroPrice).div(PRECISION);
+    if (_maxDonationInDAI < FALLBACK_MAX_DONATION) {
+      _maxDonationInDAI = FALLBACK_MAX_DONATION;
+    }
+  }
+
+  /**
+   * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   * @param _donationInDAI the amount of DAI to be used for registration
+   */
+  function registerWithDAI(uint256 _donationInDAI) public {
+    dai.safeTransferFrom(msg.sender, address(this), _donationInDAI);
+
+    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
+    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
+    if (_donationInDAI > maxDonationInDAI) {
+      dai.safeTransfer(msg.sender, _donationInDAI.sub(maxDonationInDAI));
+      _donationInDAI = maxDonationInDAI;
+    }
+
+    __register(_donationInDAI);
+  }
+
+  /**
+   * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   */
+  function registerWithETH() public payable {
+    uint256 receivedDAI;
+
+    // trade ETH for DAI
+    (,,receivedDAI,) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
+    
+    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
+    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
+    if (receivedDAI > maxDonationInDAI) {
+      dai.safeTransfer(msg.sender, receivedDAI.sub(maxDonationInDAI));
+      receivedDAI = maxDonationInDAI;
+    }
+
+    // register new manager
+    __register(receivedDAI);
+  }
+
+  /**
+   * @notice Registers `msg.sender` as a manager, using tokens as payment. The more one pays, the more Kairo one gets.
+   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
+   * @param _token the token to be used for payment
+   * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
+   */
+  function registerWithToken(address _token, uint256 _donationInTokens) public {
+    require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR);
+    ERC20Detailed token = ERC20Detailed(_token);
+    require(token.totalSupply() > 0);
+
+    token.safeTransferFrom(msg.sender, address(this), _donationInTokens);
+
+    uint256 receivedDAI;
+
+    (,,receivedDAI,) = __kyberTrade(token, _donationInTokens, dai);
+
+    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
+    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
+    if (receivedDAI > maxDonationInDAI) {
+      dai.safeTransfer(msg.sender, receivedDAI.sub(maxDonationInDAI));
+      receivedDAI = maxDonationInDAI;
+    }
+
+    // register new manager
+    __register(receivedDAI);
+  }
+
+  /**
+   * @notice Registers `msg.sender` as a manager.
+   * @param _donationInDAI the amount of DAI to be used for registration
+   */
+  function __register(uint256 _donationInDAI) internal {
+    require(cToken.balanceOf(msg.sender) == 0 && userInvestments[msg.sender].length == 0 && userCompoundOrders[msg.sender].length == 0); // each address can only join once
+
+    // mint KRO for msg.sender
+    uint256 kroAmount = _donationInDAI.mul(PRECISION).div(kairoPrice());
+    require(cToken.generateTokens(msg.sender, kroAmount));
+
+    // Set risk fallback base stake
+    _baseRiskStakeFallback[msg.sender] = kroAmount;
+
+    // keep DAI in the fund
+    totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
+    
+    // emit events
+    emit Register(msg.sender, _donationInDAI, kroAmount);
+  }
+
+  /**
+   * @notice Handles deposits by minting Betoken Shares & updating total funds.
+   * @param _depositDAIAmount The amount of the deposit in DAI
+   */
+  function __deposit(uint256 _depositDAIAmount) internal {
+    // Register investment and give shares
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount));
+    } else {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
+  }
+
+  /**
+   * @notice Handles deposits by burning Betoken Shares & updating total funds.
+   * @param _withdrawDAIAmount The amount of the withdrawal in DAI
+   */
+  function __withdraw(uint256 _withdrawDAIAmount) internal {
+    // Burn Shares
+    require(sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
+    totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
+  }
+}
