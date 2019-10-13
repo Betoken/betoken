@@ -16,6 +16,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   function nextPhase()
     public
   {
+    require(proxy.betokenFundAddress() == address(this)); // upgrade complete
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
     if (cycleNumber == 0) {

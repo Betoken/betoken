@@ -50,7 +50,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     address payable _kyberAddr,
     address _compoundFactoryAddr,
     address _betokenLogic,
-    address _betokenLogic2
+    address _betokenLogic2,
+    uint256 _startCycleNumber
   )
     public
     Utils(_daiAddr, _kyberAddr)
@@ -65,6 +66,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     betokenLogic = _betokenLogic;
     betokenLogic2 = _betokenLogic2;
     previousVersion = _previousVersion;
+    cycleNumber = _startCycleNumber;
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
