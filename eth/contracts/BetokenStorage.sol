@@ -53,6 +53,9 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   // Checks if the token listing initialization has been completed.
   bool public hasInitializedTokenListings;
 
+  // Checks if the fund has been initialized
+  bool public isInitialized;
+
   // Address of the Kairo token contract.
   address public controlTokenAddr;
 

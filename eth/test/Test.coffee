@@ -99,19 +99,8 @@ contract("simulation", (accounts) ->
   owner = accounts[0]
   account = accounts[1]
 
-  it("start_cycle", () ->
-    this.fund = await FUND(1, 0, owner)
-
-    # check phase
-    cyclePhase = +await this.fund.cyclePhase.call()
-    assert.equal(cyclePhase, 0, "cycle phase didn't change after cycle start")
-
-    # check cycle number
-    cycleNumber = +await this.fund.cycleNumber.call()
-    assert.equal(cycleNumber, 1, "cycle number didn't change after cycle start")
-  )
-
   it("deposit_dai", () ->
+    this.fund = await FUND(1, 0, owner)
     dai = await DAI(this.fund)
     st = await ST(this.fund)
     account2 = accounts[2]

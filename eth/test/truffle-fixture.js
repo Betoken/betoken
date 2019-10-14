@@ -171,7 +171,7 @@
       return results;
     })();
     compoundTokensArray.push(TestCEtherContract.address);
-    BetokenFund.setAsDeployed((await BetokenFund.new(ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetworkContract.address, CompoundOrderFactoryContract.address, BetokenLogicContract.address, BetokenLogic2Contract.address)));
+    BetokenFund.setAsDeployed((await BetokenFund.new(ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetworkContract.address, CompoundOrderFactoryContract.address, BetokenLogicContract.address, BetokenLogic2Contract.address, 1)));
     betokenFund = (await BetokenFund.deployed());
     await betokenFund.initTokenListings(tokenAddrs.slice(0, +(tokenAddrs.length - 3) + 1 || 9e9).concat([ETH_ADDR]), compoundTokensArray, []);
     // deploy BetokenProxy contract
@@ -180,7 +180,8 @@
     // set proxy address in BetokenFund
     await betokenFund.setProxy(BetokenProxyContract.address);
     await ControlToken.transferOwnership(betokenFund.address);
-    return (await ShareToken.transferOwnership(betokenFund.address));
+    await ShareToken.transferOwnership(betokenFund.address);
+    return (await betokenFund.nextPhase());
   };
 
 }).call(this);

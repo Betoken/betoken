@@ -164,7 +164,7 @@
             return results;
           })();
           compoundTokensArray.push(TestCEther.address);
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, 1);
           betokenFund = (await BetokenFund.deployed());
           await betokenFund.initTokenListings(tokenAddrs.slice(0, +(tokenAddrs.length - 3) + 1 || 9e9).concat([ETH_ADDR]), compoundTokensArray, []);
           // deploy BetokenProxy contract
@@ -172,7 +172,8 @@
           // set proxy address in BetokenFund
           await betokenFund.setProxy(BetokenProxy.address);
           await ControlToken.transferOwnership(betokenFund.address);
-          return (await ShareToken.transferOwnership(betokenFund.address));
+          await ShareToken.transferOwnership(betokenFund.address);
+          return (await betokenFund.nextPhase());
         case "mainnet":
           // Mainnet Migration
           config = require("../deployment_configs/mainnet.json");
@@ -212,7 +213,7 @@
             gasPrice: 2e10
           });
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, BetokenLogic.address, BetokenLogic2.address, {
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, {
             gas: 7e6,
             gasPrice: 2e10
           });
@@ -220,6 +221,17 @@
           console.log("Initializing token listings...");
           await betokenFund.initTokenListings(config.KYBER_TOKENS, config.COMPOUND_CTOKENS, config.FULCRUM_PTOKENS, {
             gas: 2.72e6,
+            gasPrice: 2e10
+          });
+          // set proxy address in BetokenFund
+          console.log("Setting proxy address...");
+          await betokenFund.setProxy(config.PROXY_ADDR, {
+            gas: 4e5,
+            gasPrice: 2e10
+          });
+          console.log("Starting cycle...");
+          await betokenFund.nextPhase({
+            gas: 4e5,
             gasPrice: 2e10
           });
           // transfer fund ownership to developer multisig
@@ -231,7 +243,5 @@
       }
     });
   };
-
-  // IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract
 
 }).call(this);

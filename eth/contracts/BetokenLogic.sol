@@ -16,69 +16,79 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   function nextPhase()
     public
   {
-    require(proxy.betokenFundAddress() == address(this)); // upgrade complete
     require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
 
-    if (cycleNumber == 0) {
-      require(msg.sender == owner());
+    if (isInitialized == false) {
+      // first cycle of this smart contract deployment
+      // check whether ready for starting cycle
+      isInitialized = true;
+      require(proxyAddr != address(0)); // has initialized proxy
+      require(proxy.betokenFundAddress() == address(this)); // upgrade complete
+      require(hasInitializedTokenListings); // has initialized token listings
+      require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
+
+      // execute initialization function
+      init();
+    } else {
+      // normal phase changing
+      if (cyclePhase == CyclePhase.Intermission) {
+        require(hasFinalizedNextVersion == false); // Shouldn't progress to next phase if upgrading
+
+        // Check if there is enough signal supporting upgrade
+        if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
+          upgradeVotingActive = true;
+          emit InitiatedUpgrade(cycleNumber);
+        }
+      } else if (cyclePhase == CyclePhase.Manage) {
+        // Burn any Kairo left in BetokenFund's account
+        require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
+
+        // Pay out commissions and fees
+        uint256 profit = 0;
+        if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
+          profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
+        }
+        uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
+        _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(commissionThisCycle); // account for penalties
+        totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
+
+        totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
+
+        // Give the developer Betoken shares inflation funding
+        uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
+        require(sToken.generateTokens(devFundingAccount, devFunding));
+
+        // Emit event
+        emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle(cycleNumber));
+
+        _managePhaseEndBlock[cycleNumber] = block.number;
+
+        // Clear/update upgrade related data
+        if (nextVersion == address(this)) {
+          // The developer proposed a candidate, but the managers decide to not upgrade at all
+          // Reset upgrade process
+          delete nextVersion;
+          delete hasFinalizedNextVersion;
+        }
+        if (nextVersion == address(0)) {
+          delete proposers;
+          delete candidates;
+          delete forVotes;
+          delete againstVotes;
+          delete upgradeVotingActive;
+          delete proposersVotingWeight;
+        } else {
+          hasFinalizedNextVersion = true;
+          emit FinalizedNextVersion(cycleNumber, nextVersion);
+        }
+
+        // Start new cycle
+        cycleNumber = cycleNumber.add(1);
+      }
+
+      cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
     }
-
-    if (cyclePhase == CyclePhase.Intermission) {
-      require(hasFinalizedNextVersion == false); // Shouldn't progress to next phase if upgrading
-
-      // Check if there is enough signal supporting upgrade
-      if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
-        upgradeVotingActive = true;
-        emit InitiatedUpgrade(cycleNumber);
-      }
-    } else if (cyclePhase == CyclePhase.Manage) {
-      // Burn any Kairo left in BetokenFund's account
-      require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
-
-      // Pay out commissions and fees
-      uint256 profit = 0;
-      if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
-        profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
-      }
-      uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
-      _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(commissionThisCycle); // account for penalties
-      totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
-
-      totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
-
-      // Give the developer Betoken shares inflation funding
-      uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
-      require(sToken.generateTokens(devFundingAccount, devFunding));
-
-      // Emit event
-      emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle(cycleNumber));
-
-      _managePhaseEndBlock[cycleNumber] = block.number;
-
-      // Clear/update upgrade related data
-      if (nextVersion == address(this)) {
-        // The developer proposed a candidate, but the managers decide to not upgrade at all
-        // Reset upgrade process
-        delete nextVersion;
-        delete hasFinalizedNextVersion;
-      }
-      if (nextVersion == address(0)) {
-        delete proposers;
-        delete candidates;
-        delete forVotes;
-        delete againstVotes;
-        delete upgradeVotingActive;
-        delete proposersVotingWeight;
-      } else {
-        hasFinalizedNextVersion = true;
-        emit FinalizedNextVersion(cycleNumber, nextVersion);
-      }
-
-      // Start new cycle
-      cycleNumber = cycleNumber.add(1);
-    }
-
-    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
+    
     startTimeOfCyclePhase = now;
 
     // Reward caller if they're a manager
@@ -87,6 +97,15 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     }
 
     emit ChangedPhase(cycleNumber, uint(cyclePhase), now, totalFundsInDAI);
+  }
+
+  /**
+   * @notice Initializes several important variables after smart contract upgrade
+   */
+  function init() internal {
+    totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
+    totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
+    _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
   }
 
   /**

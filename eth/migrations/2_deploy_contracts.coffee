@@ -154,7 +154,8 @@ module.exports = (deployer, network, accounts) ->
           TestKyberNetwork.address,
           CompoundOrderFactory.address,
           BetokenLogic.address,
-          BetokenLogic2.address
+          BetokenLogic2.address,
+          1
         )
         betokenFund = await BetokenFund.deployed()
         await betokenFund.initTokenListings(
@@ -174,6 +175,8 @@ module.exports = (deployer, network, accounts) ->
 
         await ControlToken.transferOwnership(betokenFund.address)
         await ShareToken.transferOwnership(betokenFund.address)
+
+        await betokenFund.nextPhase()
 
       when "mainnet"
         # Mainnet Migration
@@ -292,6 +295,7 @@ module.exports = (deployer, network, accounts) ->
           config.COMPOUND_FACTORY_ADDR,
           BetokenLogic.address,
           BetokenLogic2.address,
+          config.START_CYCLE_NUM,
           {gas: 7e6, gasPrice: 2e10}
         )
         betokenFund = await BetokenFund.deployed()
@@ -303,8 +307,13 @@ module.exports = (deployer, network, accounts) ->
           {gas: 2.72e6, gasPrice: 2e10}
         )
 
+        # set proxy address in BetokenFund
+        console.log "Setting proxy address..."
+        await betokenFund.setProxy(config.PROXY_ADDR, {gas: 4e5, gasPrice: 2e10})
+
+        console.log "Starting cycle..."
+        await betokenFund.nextPhase({gas: 4e5, gasPrice: 2e10})
+
         # transfer fund ownership to developer multisig
         console.log "Transferring BetokenFund ownership..."
         await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5, gasPrice: 2e10})
-
-        # IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract

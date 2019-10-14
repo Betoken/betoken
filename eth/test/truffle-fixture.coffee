@@ -162,7 +162,8 @@ module.exports = () ->
     TestKyberNetworkContract.address,
     CompoundOrderFactoryContract.address,
     BetokenLogicContract.address,
-    BetokenLogic2Contract.address
+    BetokenLogic2Contract.address,
+    1
   ))
   betokenFund = await BetokenFund.deployed()
   await betokenFund.initTokenListings(
@@ -182,3 +183,5 @@ module.exports = () ->
 
   await ControlToken.transferOwnership(betokenFund.address)
   await ShareToken.transferOwnership(betokenFund.address)
+
+  await betokenFund.nextPhase()

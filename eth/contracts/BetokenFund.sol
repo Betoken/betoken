@@ -15,6 +15,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   modifier during(CyclePhase phase) {
     require(cyclePhase == phase);
+    if (cyclePhase == CyclePhase.Intermission) {
+      require(isInitialized);
+    }
     _;
   }
 
@@ -61,7 +64,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     devFundingAccount = _devFundingAccount;
     phaseLengths = _phaseLengths;
     devFundingRate = _devFundingRate;
-    cyclePhase = CyclePhase.Manage;
+    cyclePhase = CyclePhase.Intermission;
     compoundFactoryAddr = _compoundFactoryAddr;
     betokenLogic = _betokenLogic;
     betokenLogic2 = _betokenLogic2;
