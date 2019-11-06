@@ -10,6 +10,26 @@ import "./derivatives/CompoundOrderFactory.sol";
  */
 contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
   /**
+   * @notice Passes if the fund has not finalized the next smart contract to upgrade to
+   */
+  modifier notReadyForUpgrade {
+    require(hasFinalizedNextVersion == false);
+    _;
+  }
+
+  /**
+   * @notice Executes function only during the given cycle phase.
+   * @param phase the cycle phase during which the function may be called
+   */
+  modifier during(CyclePhase phase) {
+    require(cyclePhase == phase);
+    if (cyclePhase == CyclePhase.Intermission) {
+      require(isInitialized);
+    }
+    _;
+  }
+
+  /**
    * Upgrading functions
    */
 
@@ -19,7 +39,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @param _candidate the address of the candidate smart contract
    * @return True if successfully changed candidate, false otherwise.
    */
-  function developerInitiateUpgrade(address payable _candidate) public returns (bool _success) {
+  function developerInitiateUpgrade(address payable _candidate) public onlyOwner notReadyForUpgrade during(CyclePhase.Intermission) returns (bool _success) {
     if (_candidate == address(0) || _candidate == address(this) || !__isMature()) {
       return false;
     }
@@ -36,7 +56,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed signal, false if no changes were made.
    */
-  function signalUpgrade(bool _inSupport) public returns (bool _success) {
+  function signalUpgrade(bool _inSupport) public notReadyForUpgrade during(CyclePhase.Intermission) returns (bool _success) {
     if (!__isMature()) {
       return false;
     }
@@ -68,7 +88,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @param _candidate the address of the candidate smart contract
    * @return True if successfully proposed/changed candidate, false otherwise.
    */
-  function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public returns (bool _success) {
+  function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public notReadyForUpgrade during(CyclePhase.Manage) returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
       upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0) || !__isMature()) {
@@ -104,7 +124,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed vote, false otherwise.
    */
-  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public returns (bool _success) {
+  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public notReadyForUpgrade during(CyclePhase.Manage) returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false || !__isMature()) {
       return false;
@@ -144,7 +164,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @param _chunkNumber the chunk number of the successful vote
    * @return True if successful, false otherwise
    */
-  function finalizeSuccessfulVote(uint256 _chunkNumber) public returns (bool _success) {
+  function finalizeSuccessfulVote(uint256 _chunkNumber) public notReadyForUpgrade during(CyclePhase.Manage) returns (bool _success) {
     // Input & state check
     if (!__isValidChunk(_chunkNumber) || !__isMature()) {
       return false;
@@ -215,6 +235,9 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
   function depositEther()
     public
     payable
+    during(CyclePhase.Intermission)
+    notReadyForUpgrade
+    nonReentrant
   {
     // Buy DAI with ETH
     uint256 actualDAIDeposited;
@@ -240,6 +263,9 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    */
   function depositDAI(uint256 _daiAmount)
     public
+    during(CyclePhase.Intermission)
+    notReadyForUpgrade
+    nonReentrant
   {
     dai.safeTransferFrom(msg.sender, address(this), _daiAmount);
 
@@ -257,6 +283,10 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    */
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
+    during(CyclePhase.Intermission)
+    notReadyForUpgrade
+    nonReentrant
+    isValidToken(_tokenAddr)
   {
     require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
 
@@ -288,6 +318,8 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    */
   function withdrawEther(uint256 _amountInDAI)
     public
+    during(CyclePhase.Intermission)
+    nonReentrant
   {
     // Buy ETH
     uint256 actualETHWithdrawn;
@@ -309,6 +341,8 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    */
   function withdrawDAI(uint256 _amountInDAI)
     public
+    during(CyclePhase.Intermission)
+    nonReentrant
   {
     __withdraw(_amountInDAI);
 
@@ -326,6 +360,9 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    */
   function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
     public
+    during(CyclePhase.Intermission)
+    nonReentrant
+    isValidToken(_tokenAddr)
   {
     require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
 
@@ -368,7 +405,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
    * @param _donationInDAI the amount of DAI to be used for registration
    */
-  function registerWithDAI(uint256 _donationInDAI) public {
+  function registerWithDAI(uint256 _donationInDAI) public nonReentrant during(CyclePhase.Manage) {
     dai.safeTransferFrom(msg.sender, address(this), _donationInDAI);
 
     // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
@@ -385,7 +422,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
    */
-  function registerWithETH() public payable {
+  function registerWithETH() public payable nonReentrant during(CyclePhase.Manage) {
     uint256 receivedDAI;
 
     // trade ETH for DAI
@@ -408,7 +445,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
    * @param _token the token to be used for payment
    * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
    */
-  function registerWithToken(address _token, uint256 _donationInTokens) public {
+  function registerWithToken(address _token, uint256 _donationInTokens) public nonReentrant during(CyclePhase.Manage) {
     require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR);
     ERC20Detailed token = ERC20Detailed(_token);
     require(token.totalSupply() > 0);
@@ -428,6 +465,72 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
 
     // register new manager
     __register(receivedDAI);
+  }
+
+  /**
+   * @notice Sells tokens left over due to manager not selling or KyberNetwork not having enough volume. Callable by anyone. Money goes to developer.
+   * @param _tokenAddr address of the token to be sold
+   */
+  function sellLeftoverToken(address _tokenAddr)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+    isValidToken(_tokenAddr)
+  {
+    ERC20Detailed token = ERC20Detailed(_tokenAddr);
+    (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, address(this)), dai);
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
+  }
+
+  function sellLeftoverFulcrumToken(address _tokenAddr)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+    isValidToken(_tokenAddr)
+  {
+    PositionToken pToken = PositionToken(_tokenAddr);
+    uint256 beforeBalance = dai.balanceOf(address(this));
+    pToken.burnToToken(address(this), DAI_ADDR, pToken.balanceOf(address(this)), 0);
+    uint256 actualDAIReceived = dai.balanceOf(address(this)).sub(beforeBalance);
+    require(actualDAIReceived > 0);
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
+  }
+
+  /**
+   * @notice Sells CompoundOrder left over due to manager not selling or KyberNetwork not having enough volume. Callable by anyone. Money goes to developer.
+   * @param _orderAddress address of the CompoundOrder to be sold
+   */
+  function sellLeftoverCompoundOrder(address payable _orderAddress)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    // Load order info
+    require(_orderAddress != address(0));
+    CompoundOrder order = CompoundOrder(_orderAddress);
+    require(order.isSold() == false && order.cycleNumber() < cycleNumber);
+
+    // Sell short order
+    // Not using outputAmount returned by order.sellOrder() because _orderAddress could point to a malicious contract
+    uint256 beforeDAIBalance = dai.balanceOf(address(this));
+    order.sellOrder(0, MAX_QTY);
+    uint256 actualDAIReceived = dai.balanceOf(address(this)).sub(beforeDAIBalance);
+
+    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
+  }
+
+  /**
+   * @notice Burns the Kairo balance of a manager who has been inactive for a certain number of cycles
+   * @param _deadman the manager whose Kairo balance will be burned
+   */
+  function burnDeadman(address _deadman)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    require(_deadman != address(this));
+    require(cycleNumber.sub(lastActiveCycle(_deadman)) >= INACTIVE_THRESHOLD);
+    require(cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman)));
   }
 
   /**

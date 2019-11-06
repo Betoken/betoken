@@ -10,6 +10,18 @@ import "./derivatives/CompoundOrderFactory.sol";
  */
 contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   /**
+   * @notice Executes function only during the given cycle phase.
+   * @param phase the cycle phase during which the function may be called
+   */
+  modifier during(CyclePhase phase) {
+    require(cyclePhase == phase);
+    if (cyclePhase == CyclePhase.Intermission) {
+      require(isInitialized);
+    }
+    _;
+  }
+
+  /**
    * Next phase transition handler
    * @notice Moves the fund to the next phase in the investment cycle.
    */
@@ -130,6 +142,9 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
+    isValidToken(_tokenAddress)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
@@ -180,6 +195,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
     require(investment.buyPrice > 0 && investment.cycleNumber == cycleNumber && !investment.isSold);
@@ -260,6 +277,9 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
+    isValidToken(_tokenAddress)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
@@ -298,6 +318,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
   {
     // Load order info
     require(userCompoundOrders[msg.sender][_orderId] != address(0));
@@ -327,7 +349,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @param _orderId the ID of the Compound order
    * @param _repayAmountInDAI amount of DAI to use for repaying debt
    */
-  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public {
+  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
     // Load order info
     require(userCompoundOrders[msg.sender][_orderId] != address(0));
     CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
@@ -338,6 +360,91 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     // Emit event
     emit RepaidCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _repayAmountInDAI);
+  }
+
+  /**
+   * @notice Returns the commission balance of `_manager`
+   * @return the commission balance and the received penalty, denoted in DAI
+   */
+  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
+    if (lastCommissionRedemption(_manager) >= cycleNumber) { return (0, 0); }
+    uint256 cycle = lastCommissionRedemption(_manager) > 0 ? lastCommissionRedemption(_manager) : 1;
+    uint256 cycleCommission;
+    uint256 cyclePenalty;
+    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
+      (cycleCommission, cyclePenalty) = commissionOfAt(_manager, cycle);
+      _commission = _commission.add(cycleCommission);
+      _penalty = _penalty.add(cyclePenalty);
+    }
+  }
+
+  /**
+   * @notice Returns the commission amount received by `_manager` in the `_cycle`th cycle
+   * @return the commission amount and the received penalty, denoted in DAI
+   */
+  function commissionOfAt(address _manager, uint256 _cycle) public view returns (uint256 _commission, uint256 _penalty) {
+    if (hasRedeemedCommissionForCycle(_manager, _cycle)) { return (0, 0); }
+    // take risk into account
+    uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock(_cycle.sub(1)));
+    uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback(_manager) : baseKairoBalance;
+    if (baseKairoBalance == 0 && baseRiskStakeFallback(_manager) == 0) { return (0, 0); }
+    uint256 riskTakenProportion = riskTakenInCycle(_manager, _cycle).mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
+    riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
+
+    uint256 fullCommission = totalCommissionOfCycle(_cycle).mul(cToken.balanceOfAt(_manager, managePhaseEndBlock(_cycle)))
+      .div(cToken.totalSupplyAt(managePhaseEndBlock(_cycle)));
+
+    _commission = fullCommission.mul(riskTakenProportion).div(PRECISION);
+    _penalty = fullCommission.sub(_commission);
+  }
+
+  /**
+   * @notice Redeems commission.
+   */
+  function redeemCommission(bool _inShares)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    uint256 commission = __redeemCommission();
+
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.safeTransfer(msg.sender, commission);
+    }
+  }
+
+  /**
+   * @notice Redeems commission for a particular cycle.
+   * @param _inShares true to redeem in Betoken Shares, false to redeem in DAI
+   * @param _cycle the cycle for which the commission will be redeemed.
+   *        Commissions for a cycle will be redeemed during the Intermission phase of the next cycle, so _cycle must < cycleNumber.
+   */
+  function redeemCommissionForCycle(bool _inShares, uint256 _cycle)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    require(_cycle < cycleNumber);
+
+    uint256 commission = __redeemCommissionForCycle(_cycle);
+
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.safeTransfer(msg.sender, commission);
+    }
   }
 
   /**
@@ -434,5 +541,70 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    */
   function __recordRisk(uint256 _stake, uint256 _buyTime) internal {
     _riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle(msg.sender, cycleNumber).add(_stake.mul(now.sub(_buyTime)));
+  }
+
+  /**
+   * @notice Redeems the commission for all previous cycles. Updates the related variables.
+   * @return the amount of commission to be redeemed
+   */
+  function __redeemCommission() internal returns (uint256 _commission) {
+    require(lastCommissionRedemption(msg.sender) < cycleNumber);
+
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionBalanceOf(msg.sender);
+
+    // record the redemption to prevent double-redemption
+    for (uint256 i = lastCommissionRedemption(msg.sender); i < cycleNumber; i = i.add(1)) {
+      _hasRedeemedCommissionForCycle[msg.sender][i] = true;
+    }
+    _lastCommissionRedemption[msg.sender] = cycleNumber;
+
+    // record the decrease in commission pool
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(penalty);
+    // clear investment arrays to save space
+    delete userInvestments[msg.sender];
+    delete userCompoundOrders[msg.sender];
+
+    emit CommissionPaid(cycleNumber, msg.sender, _commission);
+  }
+
+  /**
+   * @notice Redeems commission for a particular cycle. Updates the related variables.
+   * @param _cycle the cycle for which the commission will be redeemed
+   * @return the amount of commission to be redeemed
+   */
+  function __redeemCommissionForCycle(uint256 _cycle) internal returns (uint256 _commission) {
+    require(!hasRedeemedCommissionForCycle(msg.sender, _cycle));
+
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionOfAt(msg.sender, _cycle);
+
+    _hasRedeemedCommissionForCycle[msg.sender][_cycle] = true;
+
+    // record the decrease in commission pool
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(penalty);
+    // clear investment arrays to save space
+    delete userInvestments[msg.sender];
+    delete userCompoundOrders[msg.sender];
+
+    emit CommissionPaid(_cycle, msg.sender, _commission);
+  }
+
+  /**
+   * @notice Handles deposits by minting Betoken Shares & updating total funds.
+   * @param _depositDAIAmount The amount of the deposit in DAI
+   */
+  function __deposit(uint256 _depositDAIAmount) internal {
+    // Register investment and give shares
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount));
+    } else {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
   }
 }
