@@ -60,11 +60,13 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
           profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
         }
-        uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
+
+        totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
+
+        uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(totalFundsInDAI)).div(PRECISION);
         _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(commissionThisCycle); // account for penalties
         totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
 
-        totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
 
         // Give the developer Betoken shares inflation funding
         uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
@@ -241,7 +243,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     }
 
     // Return staked Kairo
-    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice).div(investment.buyPrice);
+    uint256 receiveKairoAmount = getReceiveKairoAmount(stakeOfSoldTokens, investment.sellPrice, investment.buyPrice);
     __returnStake(receiveKairoAmount, stakeOfSoldTokens);
 
     // Record risk taken in investment
@@ -331,7 +333,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     // Return staked Kairo
     uint256 stake = order.stake();
-    uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
+    uint256 receiveKairoAmount = getReceiveKairoAmount(stake, outputAmount, inputAmount);
     __returnStake(receiveKairoAmount, stake);
 
     // Record risk taken
@@ -360,6 +362,27 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     // Emit event
     emit RepaidCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _repayAmountInDAI);
+  }
+
+  function getReceiveKairoAmount(uint256 stake, uint256 output, uint256 input) public view returns(uint256 _amount) {
+    if (output >= input) {
+      // positive ROI, simply return stake * (1 + ROI)
+      return stake.mul(output).div(input);
+    } else {
+      // negative ROI
+      uint256 absROI = input.sub(output).mul(PRECISION).div(input);
+      if (absROI <= ROI_PUNISH_THRESHOLD) {
+        // ROI better than -10%, no punishment
+        return stake.mul(output).div(input);
+      } else if (absROI > ROI_PUNISH_THRESHOLD && absROI < ROI_BURN_THRESHOLD) {
+        // ROI between -10% and -25%, punish
+        // return stake * (1 + roiWithPunishment) = stake * (1 + (-(6 * absROI - 0.5)))
+        return stake.mul(PRECISION.sub(ROI_PUNISH_SLOPE.mul(absROI).sub(ROI_PUNISH_NEG_BIAS))).div(PRECISION);
+      } else {
+        // ROI greater than 25%, burn all stake
+        return 0;
+      }
+    }
   }
 
   /**

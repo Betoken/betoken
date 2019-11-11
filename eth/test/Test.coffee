@@ -89,11 +89,22 @@ CO = (fund, account, id) ->
   return CompoundOrder.at(orderAddr)
 
 epsilon_equal = (curr, prev) ->
-  BigNumber(curr).minus(prev).div(prev).abs().lt(epsilon)
+  BigNumber(curr).eq(prev) or BigNumber(curr).minus(prev).div(prev).abs().lt(epsilon)
 
 calcRegisterPayAmount = (fund, kroAmount, tokenPrice) ->
   kairoPrice = BigNumber await fund.kairoPrice.call()
   return kroAmount * kairoPrice / tokenPrice
+
+getReceiveKairoRatio = (delta) ->
+  if delta >= -0.1
+    # no punishment
+    return 1 + delta
+  else if delta < -0.1 and delta > -0.25
+    # punishment
+    return 1 + (-(6 * (-delta) - 0.5))
+  else
+    # burn
+    return 0
 
 contract("simulation", (accounts) ->
   owner = accounts[0]
@@ -677,7 +688,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO penalty incorrect")
+    expectedReceiveKairoRatio = getReceiveKairoRatio(delta)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "investment KRO penalty incorrect")
 
     # check fund balance
     fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
@@ -690,7 +702,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO reward
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO reward incorrect")
+    expectedReceiveKairoRatio = getReceiveKairoRatio(delta * SHORT_LEVERAGE)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "short KRO reward incorrect")
 
     # check fund balance
     fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
@@ -703,7 +716,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO penalty incorrect")
+    expectedReceiveKairoRatio = getReceiveKairoRatio(delta * LONG_LEVERAGE)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "long KRO penalty incorrect")
 
     # check fund balance
     fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
@@ -740,7 +754,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO penalty incorrect")
+    expectedReceiveKairoRatio = 0
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "investment KRO penalty incorrect")
   )
 )
 
