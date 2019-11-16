@@ -8,7 +8,7 @@ import "./derivatives/CompoundOrderFactory.sol";
  * @title Part of the functions for BetokenFund
  * @author Zefram Lou (Zebang Liu)
  */
-contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0)) {
+contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(0)) {
   /**
    * @notice Passes if the fund has not finalized the next smart contract to upgrade to
    */

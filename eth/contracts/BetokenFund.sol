@@ -34,10 +34,11 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     address _compoundFactoryAddr,
     address _betokenLogic,
     address _betokenLogic2,
-    uint256 _startCycleNumber
+    uint256 _startCycleNumber,
+    address payable _dexagAddr
   )
     public
-    Utils(_daiAddr, _kyberAddr)
+    Utils(_daiAddr, _kyberAddr, _dexagAddr)
   {
     controlTokenAddr = _kroAddr;
     shareTokenAddr = _sTokenAddr;

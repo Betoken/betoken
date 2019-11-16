@@ -155,7 +155,8 @@ module.exports = (deployer, network, accounts) ->
           CompoundOrderFactory.address,
           BetokenLogic.address,
           BetokenLogic2.address,
-          1
+          1,
+          ZERO_ADDR
         )
         betokenFund = await BetokenFund.deployed()
         await betokenFund.initTokenListings(
@@ -296,6 +297,7 @@ module.exports = (deployer, network, accounts) ->
           BetokenLogic.address,
           BetokenLogic2.address,
           config.START_CYCLE_NUM,
+          config.DEXAG_ADDR,
           {gas: 7e6, gasPrice: 2e10}
         )
         betokenFund = await BetokenFund.deployed()

@@ -8,7 +8,7 @@ import "./derivatives/CompoundOrderFactory.sol";
  * @title Part of the functions for BetokenFund
  * @author Zefram Lou (Zebang Liu)
  */
-contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
+contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0)) {
   /**
    * @notice Executes function only during the given cycle phase.
    * @param phase the cycle phase during which the function may be called
@@ -131,7 +131,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   }
 
   /**
-   * @notice Creates a new investment for an ERC20 token.
+   * @notice Creates a new investment for an ERC20 token. Backwards compatible.
    * @param _tokenAddress address of the ERC20 token contract
    * @param _stake amount of Kairos to be staked in support of the investment
    * @param _minPrice the minimum price for the trade
@@ -142,6 +142,65 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _stake,
     uint256 _minPrice,
     uint256 _maxPrice
+  )
+    public
+  {
+    bytes memory nil;
+    createInvestment(
+      _tokenAddress,
+      _stake,
+      _minPrice,
+      _maxPrice,
+      nil,
+      true
+    );
+  }
+
+  /**
+   * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
+   *         The user can sell only part of the investment by changing _tokenAmount. Backwards compatible.
+   * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
+   *   the original buy price and however much tokens that are not sold.
+   * @param _investmentId the ID of the investment
+   * @param _tokenAmount the amount of tokens to be sold.
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   */
+  function sellInvestmentAsset(
+    uint256 _investmentId,
+    uint256 _tokenAmount,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+  {
+    bytes memory nil;
+    sellInvestmentAsset(
+      _investmentId,
+      _tokenAmount,
+      _minPrice,
+      _maxPrice,
+      nil,
+      true
+    );
+  }
+
+  /**
+   * @notice Creates a new investment for an ERC20 token.
+   * @param _tokenAddress address of the ERC20 token contract
+   * @param _stake amount of Kairos to be staked in support of the investment
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   * @param _calldata calldata for dex.ag trading
+   * @param _useKyber true for Kyber Network, false for dex.ag
+   */
+  function createInvestment(
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
   )
     public
     during(CyclePhase.Manage)
@@ -171,13 +230,13 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     // Invest
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
+    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true, _calldata, _useKyber);
 
     // Update last active cycle
     _lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount, userInvestments[msg.sender][investmentId].tokenAmount);
+    __emitCreatedInvestmentEvent(investmentId);
   }
 
   /**
@@ -194,7 +253,9 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _investmentId,
     uint256 _tokenAmount,
     uint256 _minPrice,
-    uint256 _maxPrice
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
   )
     public
     during(CyclePhase.Manage)
@@ -211,32 +272,14 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     if (_tokenAmount != investment.tokenAmount) {
       isPartialSell = true;
 
-      // calculate the part of original DAI cost attributed to the sold tokens
-      uint256 soldBuyCostInDAI = investment.buyCostInDAI.mul(_tokenAmount).div(investment.tokenAmount);
-
-      userInvestments[msg.sender].push(Investment({
-        tokenAddress: investment.tokenAddress,
-        cycleNumber: cycleNumber,
-        stake: investment.stake.sub(stakeOfSoldTokens),
-        tokenAmount: investment.tokenAmount.sub(_tokenAmount),
-        buyPrice: investment.buyPrice,
-        sellPrice: 0,
-        buyTime: investment.buyTime,
-        buyCostInDAI: investment.buyCostInDAI.sub(soldBuyCostInDAI),
-        isSold: false
-      }));
-
-      // update the investment object being sold
-      investment.tokenAmount = _tokenAmount;
-      investment.stake = stakeOfSoldTokens;
-      investment.buyCostInDAI = soldBuyCostInDAI;
+      __createInvestmentForLeftovers(_investmentId, _tokenAmount);
     }
     
     // Update investment info
     investment.isSold = true;
 
     // Sell asset
-    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
+    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false, _calldata, _useKyber);
     if (isPartialSell) {
       // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
       userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(actualSrcAmount));
@@ -254,13 +297,48 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     
     // Emit event
     if (isPartialSell) {
-      Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
-      emit CreatedInvestment(
-        cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
-        newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
-        newInvestment.buyCostInDAI, newInvestment.tokenAmount);
+      __emitCreatedInvestmentEvent(investmentsCount(msg.sender).sub(1));
     }
-    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, investment.tokenAddress, receiveKairoAmount, investment.sellPrice, actualDestAmount);
+    __emitSoldInvestmentEvent(_investmentId, receiveKairoAmount, actualDestAmount);
+  }
+
+  function __emitSoldInvestmentEvent(uint256 _investmentId, uint256 _receiveKairoAmount, uint256 _actualDestAmount) internal {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, investment.tokenAddress, _receiveKairoAmount, investment.sellPrice, _actualDestAmount);
+  }
+
+  function __createInvestmentForLeftovers(uint256 _investmentId, uint256 _tokenAmount) internal {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+
+    uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
+
+    // calculate the part of original DAI cost attributed to the sold tokens
+    uint256 soldBuyCostInDAI = investment.buyCostInDAI.mul(_tokenAmount).div(investment.tokenAmount);
+
+    userInvestments[msg.sender].push(Investment({
+      tokenAddress: investment.tokenAddress,
+      cycleNumber: cycleNumber,
+      stake: investment.stake.sub(stakeOfSoldTokens),
+      tokenAmount: investment.tokenAmount.sub(_tokenAmount),
+      buyPrice: investment.buyPrice,
+      sellPrice: 0,
+      buyTime: investment.buyTime,
+      buyCostInDAI: investment.buyCostInDAI.sub(soldBuyCostInDAI),
+      isSold: false
+    }));
+
+    // update the investment object being sold
+    investment.tokenAmount = _tokenAmount;
+    investment.stake = stakeOfSoldTokens;
+    investment.buyCostInDAI = soldBuyCostInDAI;
+  }
+
+  function __emitCreatedInvestmentEvent(uint256 _id) internal {
+    Investment storage investment = userInvestments[msg.sender][_id];
+    emit CreatedInvestment(
+      cycleNumber, msg.sender, _id,
+      investment.tokenAddress, investment.stake, investment.buyPrice,
+      investment.buyCostInDAI, investment.tokenAmount);
   }
 
   /**
@@ -476,8 +554,10 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
    * @param _buy whether to buy or sell the given investment
+   * @param _calldata calldata for dex.ag trading
+   * @param _useKyber true for Kyber Network, false for dex.ag
    */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy)
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy, bytes memory _calldata, bool _useKyber)
     public
     returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
   {
@@ -512,17 +592,27 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
       }
     } else {
-      // Kyber trading
+      // Basic trading
       uint256 dInS; // price of dest token denominated in src token
       uint256 sInD; // price of src token denominated in dest token
       if (_buy) {
-        (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token));
+        if (_useKyber) {
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token));
+        } else {
+          // dex.ag trading
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __dexagTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token), _calldata);
+        }
         require(_minPrice <= dInS && dInS <= _maxPrice);
         investment.buyPrice = dInS;
         investment.tokenAmount = _actualDestAmount;
         investment.buyCostInDAI = _actualSrcAmount;
       } else {
-        (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(ERC20Detailed(token), investment.tokenAmount, dai);
+        if (_useKyber) {
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(ERC20Detailed(token), investment.tokenAmount, dai);
+        } else {
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __dexagTrade(ERC20Detailed(token), investment.tokenAmount, dai, _calldata);
+        }
+        
         require(_minPrice <= sInD && sInD <= _maxPrice);
         investment.sellPrice = sInD;
       }

@@ -163,7 +163,8 @@ module.exports = () ->
     CompoundOrderFactoryContract.address,
     BetokenLogicContract.address,
     BetokenLogic2Contract.address,
-    1
+    1,
+    ZERO_ADDR
   ))
   betokenFund = await BetokenFund.deployed()
   await betokenFund.initTokenListings(

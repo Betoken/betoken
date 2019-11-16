@@ -7,7 +7,7 @@ import "../interfaces/CERC20.sol";
 import "../interfaces/CEther.sol";
 import "../Utils.sol";
 
-contract CompoundOrder is Utils(address(0), address(0)), Ownable {
+contract CompoundOrder is Utils(address(0), address(0), address(0)), Ownable {
   // Constants
   uint256 internal constant NEGLIGIBLE_DEBT = 10 ** 14; // we don't care about debts below 10^-4 DAI (0.1 cent)
   uint256 internal constant MAX_REPAY_STEPS = 3; // Max number of times we attempt to repay remaining debt
