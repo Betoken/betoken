@@ -117,6 +117,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
    * @notice Initializes several important variables after smart contract upgrade
    */
   function init() internal {
+    // load values from previous version
     totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
     totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
     _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;

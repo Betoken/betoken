@@ -132,7 +132,8 @@ module.exports = (deployer, network, accounts) ->
           TestComptroller.address,
           TestPriceOracle.address,
           compoundTokens[TestDAI.address],
-          TestCEther.address
+          TestCEther.address,
+          ZERO_ADDR
         )
 
         # deploy BetokenLogic
@@ -156,6 +157,8 @@ module.exports = (deployer, network, accounts) ->
           BetokenLogic.address,
           BetokenLogic2.address,
           1,
+          ZERO_ADDR,
+          ZERO_ADDR,
           ZERO_ADDR
         )
         betokenFund = await BetokenFund.deployed()
@@ -275,7 +278,8 @@ module.exports = (deployer, network, accounts) ->
           config.COMPOUND_COMPTROLLER_ADDR,
           config.COMPOUND_ORACLE_ADDR,
           config.COMPOUND_CDAI_ADDR,
-          config.COMPOUND_CETH_ADDR
+          config.COMPOUND_CETH_ADDR,
+          config.MCDAI_ADDR
         )
 
         # deploy BetokenLogic
@@ -298,6 +302,8 @@ module.exports = (deployer, network, accounts) ->
           BetokenLogic2.address,
           config.START_CYCLE_NUM,
           config.DEXAG_ADDR,
+          config.MCDAI_ADDR,
+          config.MCDAI_MIGRATION_ADDR,
           {gas: 7e6, gasPrice: 2e10}
         )
         betokenFund = await BetokenFund.deployed()

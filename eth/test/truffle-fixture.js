@@ -152,7 +152,7 @@
     LongCEtherOrder.setAsDeployed(LongCEtherOrderContract);
     await LongCEtherOrderContract.renounceOwnership();
     // deploy CompoundOrderFactory
-    CompoundOrderFactoryContract = (await CompoundOrderFactory.new(ShortCERC20OrderContract.address, ShortCEtherOrderContract.address, LongCERC20OrderContract.address, LongCEtherOrderContract.address, TestDAI.address, TestKyberNetworkContract.address, TestComptrollerContract.address, TestPriceOracleContract.address, compoundTokens[TestDAI.address], TestCEtherContract.address));
+    CompoundOrderFactoryContract = (await CompoundOrderFactory.new(ShortCERC20OrderContract.address, ShortCEtherOrderContract.address, LongCERC20OrderContract.address, LongCEtherOrderContract.address, TestDAI.address, TestKyberNetworkContract.address, TestComptrollerContract.address, TestPriceOracleContract.address, compoundTokens[TestDAI.address], TestCEtherContract.address, ZERO_ADDR));
     CompoundOrderFactory.setAsDeployed(CompoundOrderFactoryContract);
     // deploy BetokenLogic
     BetokenLogicContract = (await BetokenLogic.new());
@@ -171,7 +171,7 @@
       return results;
     })();
     compoundTokensArray.push(TestCEtherContract.address);
-    BetokenFund.setAsDeployed((await BetokenFund.new(ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetworkContract.address, CompoundOrderFactoryContract.address, BetokenLogicContract.address, BetokenLogic2Contract.address, 1, ZERO_ADDR)));
+    BetokenFund.setAsDeployed((await BetokenFund.new(ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetworkContract.address, CompoundOrderFactoryContract.address, BetokenLogicContract.address, BetokenLogic2Contract.address, 1, ZERO_ADDR, ZERO_ADDR, ZERO_ADDR)));
     betokenFund = (await BetokenFund.deployed());
     await betokenFund.initTokenListings(tokenAddrs.slice(0, +(tokenAddrs.length - 3) + 1 || 9e9).concat([ETH_ADDR]), compoundTokensArray, []);
     // deploy BetokenProxy contract

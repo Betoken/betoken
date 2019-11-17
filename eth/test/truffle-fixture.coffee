@@ -138,7 +138,8 @@ module.exports = () ->
     TestComptrollerContract.address,
     TestPriceOracleContract.address,
     compoundTokens[TestDAI.address],
-    TestCEtherContract.address
+    TestCEtherContract.address,
+    ZERO_ADDR
   )
   CompoundOrderFactory.setAsDeployed(CompoundOrderFactoryContract)
 
@@ -164,6 +165,8 @@ module.exports = () ->
     BetokenLogicContract.address,
     BetokenLogic2Contract.address,
     1,
+    ZERO_ADDR,
+    ZERO_ADDR,
     ZERO_ADDR
   ))
   betokenFund = await BetokenFund.deployed()

@@ -148,7 +148,7 @@
           await deployer.deploy(LongCEtherOrder);
           await ((await LongCEtherOrder.deployed())).renounceOwnership();
           // deploy CompoundOrderFactory
-          await deployer.deploy(CompoundOrderFactory, ShortCERC20Order.address, ShortCEtherOrder.address, LongCERC20Order.address, LongCEtherOrder.address, TestDAI.address, TestKyberNetwork.address, TestComptroller.address, TestPriceOracle.address, compoundTokens[TestDAI.address], TestCEther.address);
+          await deployer.deploy(CompoundOrderFactory, ShortCERC20Order.address, ShortCEtherOrder.address, LongCERC20Order.address, LongCEtherOrder.address, TestDAI.address, TestKyberNetwork.address, TestComptroller.address, TestPriceOracle.address, compoundTokens[TestDAI.address], TestCEther.address, ZERO_ADDR);
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic);
           await deployer.deploy(BetokenLogic2);
@@ -164,7 +164,7 @@
             return results;
           })();
           compoundTokensArray.push(TestCEther.address);
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, 1, ZERO_ADDR);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, 1, ZERO_ADDR, ZERO_ADDR, ZERO_ADDR);
           betokenFund = (await BetokenFund.deployed());
           await betokenFund.initTokenListings(tokenAddrs.slice(0, +(tokenAddrs.length - 3) + 1 || 9e9).concat([ETH_ADDR]), compoundTokensArray, []);
           // deploy BetokenProxy contract
@@ -202,7 +202,7 @@
           await LongCEtherOrderContract.init(config.COMPOUND_CETH_ADDR, 1, 1, 1, 1, false, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR);
           await LongCEtherOrderContract.renounceOwnership();
           // deploy CompoundOrderFactory
-          await deployer.deploy(CompoundOrderFactory, ShortCERC20Order.address, ShortCEtherOrder.address, LongCERC20Order.address, LongCEtherOrder.address, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR);
+          await deployer.deploy(CompoundOrderFactory, ShortCERC20Order.address, ShortCEtherOrder.address, LongCERC20Order.address, LongCEtherOrder.address, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR, config.MCDAI_ADDR);
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic, {
             gas: 6.2e6,
@@ -213,7 +213,7 @@
             gasPrice: 2e10
           });
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, config.DEXAG_ADDR, {
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, config.DEXAG_ADDR, config.MCDAI_ADDR, config.MCDAI_MIGRATION_ADDR, {
             gas: 7e6,
             gasPrice: 2e10
           });

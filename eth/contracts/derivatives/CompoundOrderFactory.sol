@@ -1,12 +1,13 @@
 pragma solidity 0.5.12;
 
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./LongCERC20Order.sol";
 import "./LongCEtherOrder.sol";
 import "./ShortCERC20Order.sol";
 import "./ShortCEtherOrder.sol";
 import "../lib/CloneFactory.sol";
 
-contract CompoundOrderFactory is CloneFactory {
+contract CompoundOrderFactory is CloneFactory, Ownable {
   address public SHORT_CERC20_LOGIC_CONTRACT;
   address public SHORT_CEther_LOGIC_CONTRACT;
   address public LONG_CERC20_LOGIC_CONTRACT;
@@ -18,6 +19,7 @@ contract CompoundOrderFactory is CloneFactory {
   address public ORACLE_ADDR;
   address public CDAI_ADDR;
   address public CETH_ADDR;
+  address public mcdaiAddr;
 
   constructor(
     address _shortCERC20LogicContract,
@@ -29,7 +31,8 @@ contract CompoundOrderFactory is CloneFactory {
     address _comptrollerAddr,
     address _priceOracleAddr,
     address _cDAIAddr,
-    address _cETHAddr
+    address _cETHAddr,
+    address _mcdaiAddr
   ) public {
     SHORT_CERC20_LOGIC_CONTRACT = _shortCERC20LogicContract;
     SHORT_CEther_LOGIC_CONTRACT = _shortCEtherLogicContract;
@@ -42,6 +45,7 @@ contract CompoundOrderFactory is CloneFactory {
     ORACLE_ADDR = _priceOracleAddr;
     CDAI_ADDR = _cDAIAddr;
     CETH_ADDR = _cETHAddr;
+    mcdaiAddr = _mcdaiAddr;
   }
 
   function createOrder(
@@ -51,7 +55,7 @@ contract CompoundOrderFactory is CloneFactory {
     uint256 _collateralAmountInDAI,
     uint256 _loanAmountInDAI,
     bool _orderType
-  ) public returns (CompoundOrder) {
+  ) external returns (CompoundOrder) {
     require(_compoundTokenAddr != address(0));
 
     CompoundOrder order;
@@ -81,13 +85,24 @@ contract CompoundOrderFactory is CloneFactory {
     return order;
   }
 
-  function getMarketCollateralFactor(address _compoundTokenAddr) public view returns (uint256) {
+  function upgradeFromSaiToDai(address _newCDAI) external onlyOwner {
+    require(_newCDAI != address(0)); // prevent zero address
+    require(DAI_ADDR != mcdaiAddr); // prevent calling more than once
+
+    // upgrade DAI and cDAI addresses
+    DAI_ADDR = mcdaiAddr;
+    CDAI_ADDR = _newCDAI;
+
+    require(this.tokenIsListed(_newCDAI)); // ensure cDAI address is valid
+  }
+
+  function getMarketCollateralFactor(address _compoundTokenAddr) external view returns (uint256) {
     Comptroller troll = Comptroller(COMPTROLLER_ADDR);
     (, uint256 factor) = troll.markets(_compoundTokenAddr);
     return factor;
   }
 
-  function tokenIsListed(address _compoundTokenAddr) public view returns (bool) {
+  function tokenIsListed(address _compoundTokenAddr) external view returns (bool) {
     Comptroller troll = Comptroller(COMPTROLLER_ADDR);
     (bool isListed,) = troll.markets(_compoundTokenAddr);
     return isListed;

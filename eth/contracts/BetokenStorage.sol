@@ -7,6 +7,7 @@ import "./interfaces/IMiniMeToken.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxyInterface.sol";
+import "./interfaces/ScdMcdMigration.sol";
 
 /**
  * @title The storage layout of BetokenFund
@@ -82,6 +83,9 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   // Address of the previous version of BetokenFund.
   address payable public previousVersion;
 
+  // Address of the multi-collateral DAI
+  address public mcdaiAddr;
+
   // The number of the current investment cycle.
   uint256 public cycleNumber;
 
@@ -156,6 +160,7 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   IMiniMeToken internal cToken;
   IMiniMeToken internal sToken;
   BetokenProxyInterface internal proxy;
+  ScdMcdMigration internal mcdaiMigration;
 
   // Events
 
