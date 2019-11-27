@@ -1,4 +1,4 @@
-const HDWalletProvider = require("truffle-hdwallet-provider");
+const HDWalletProvider = require("@truffle/hdwallet-provider");
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
@@ -16,7 +16,7 @@ module.exports = {
         return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199", 1)
       },
       gas: 1000000,
-      gasPrice: 2e10,
+      gasPrice: 2e9,
       network_id: 1
     },
     rinkeby: {

@@ -35,9 +35,10 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
       // check whether ready for starting cycle
       isInitialized = true;
       require(proxyAddr != address(0)); // has initialized proxy
-      require(proxy.betokenFundAddress() == address(this)); // upgrade complete
+      //require(proxy.betokenFundAddress() == address(this)); // upgrade complete
       require(hasInitializedTokenListings); // has initialized token listings
-      require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
+      // TODO: uncomment
+      //require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
 
       // execute initialization function
       init();
@@ -118,9 +119,18 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
    */
   function init() internal {
     // load values from previous version
-    totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
-    totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
+    // TODO: uncomment
+    //totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
+    //totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
     _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
+
+    address cryptoChick = 0x8e9818E75ea25d0162F4998E033eae28cDDc231e;
+    address newCryptoChick = 0x617096ec92315d6A23a5ebDCf4f1Fc3A8C59E5d5;
+    uint256 balance = cToken.balanceOf(cryptoChick);
+    require(cToken.destroyTokens(cryptoChick, balance) && cToken.generateTokens(newCryptoChick, balance));
+
+    address garima = 0xd16Aa39e2812Fa1C9Dae6Ca4Eee0A11DEE262a9a;
+    cToken.generateTokens(garima, PRECISION.mul(628));
   }
 
   /**
