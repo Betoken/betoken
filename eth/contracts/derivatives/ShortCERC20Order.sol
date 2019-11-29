@@ -5,8 +5,7 @@ import "./CompoundOrder.sol";
 contract ShortCERC20Order is CompoundOrder {
   modifier isValidPrice(uint256 _minPrice, uint256 _maxPrice) {
     // Ensure token's price is between _minPrice and _maxPrice
-    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
-    uint256 tokenPrice = ORACLE.getPrice(address(token)); // Get the longing token's price in ETH
+    uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the shorting token's price in ETH
     require(tokenPrice > 0); // Ensure asset exists on Compound
     tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range

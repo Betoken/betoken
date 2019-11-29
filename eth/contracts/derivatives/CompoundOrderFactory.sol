@@ -18,7 +18,6 @@ contract CompoundOrderFactory is CloneFactory {
   address public ORACLE_ADDR;
   address public CDAI_ADDR;
   address public CETH_ADDR;
-  address public mcdaiAddr;
 
   constructor(
     address _shortCERC20LogicContract,
@@ -30,8 +29,7 @@ contract CompoundOrderFactory is CloneFactory {
     address _comptrollerAddr,
     address _priceOracleAddr,
     address _cDAIAddr,
-    address _cETHAddr,
-    address _mcdaiAddr
+    address _cETHAddr
   ) public {
     SHORT_CERC20_LOGIC_CONTRACT = _shortCERC20LogicContract;
     SHORT_CEther_LOGIC_CONTRACT = _shortCEtherLogicContract;
@@ -44,7 +42,6 @@ contract CompoundOrderFactory is CloneFactory {
     ORACLE_ADDR = _priceOracleAddr;
     CDAI_ADDR = _cDAIAddr;
     CETH_ADDR = _cETHAddr;
-    mcdaiAddr = _mcdaiAddr;
   }
 
   function createOrder(

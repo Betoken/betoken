@@ -138,8 +138,7 @@ module.exports = () ->
     TestComptrollerContract.address,
     TestPriceOracleContract.address,
     compoundTokens[TestDAI.address],
-    TestCEtherContract.address,
-    ZERO_ADDR
+    TestCEtherContract.address
   )
   CompoundOrderFactory.setAsDeployed(CompoundOrderFactoryContract)
 

@@ -152,7 +152,7 @@
     LongCEtherOrder.setAsDeployed(LongCEtherOrderContract);
     await LongCEtherOrderContract.renounceOwnership();
     // deploy CompoundOrderFactory
-    CompoundOrderFactoryContract = (await CompoundOrderFactory.new(ShortCERC20OrderContract.address, ShortCEtherOrderContract.address, LongCERC20OrderContract.address, LongCEtherOrderContract.address, TestDAI.address, TestKyberNetworkContract.address, TestComptrollerContract.address, TestPriceOracleContract.address, compoundTokens[TestDAI.address], TestCEtherContract.address, ZERO_ADDR));
+    CompoundOrderFactoryContract = (await CompoundOrderFactory.new(ShortCERC20OrderContract.address, ShortCEtherOrderContract.address, LongCERC20OrderContract.address, LongCEtherOrderContract.address, TestDAI.address, TestKyberNetworkContract.address, TestComptrollerContract.address, TestPriceOracleContract.address, compoundTokens[TestDAI.address], TestCEtherContract.address));
     CompoundOrderFactory.setAsDeployed(CompoundOrderFactoryContract);
     // deploy BetokenLogic
     BetokenLogicContract = (await BetokenLogic.new());
