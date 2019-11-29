@@ -41,6 +41,7 @@
       var ControlToken, KYBER_TOKENS, ShareToken, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
+        case "develop":
           // Local testnet migration
           config = require("../deployment_configs/testnet.json");
           TestKyberNetwork = artifacts.require("TestKyberNetwork");
@@ -279,14 +280,14 @@
           ) */
           // deploy BetokenLogic
           await deployer.deploy(BetokenLogic, {
-            gas: 7e6
+            gas: 6.3e6
           });
           await deployer.deploy(BetokenLogic2, {
-            gas: 6e6
+            gas: 6.7e6
           });
           // deploy BetokenFund contract
           await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, {
-            gas: 6e6
+            gas: 5.6e6
           });
           betokenFund = (await BetokenFund.deployed());
           console.log("Initializing token listings...");

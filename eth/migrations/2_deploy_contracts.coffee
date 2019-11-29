@@ -21,7 +21,7 @@ bnToString = (bn) -> BigNumber(bn).toFixed(0)
 module.exports = (deployer, network, accounts) ->
   deployer.then () ->
     switch network
-      when "development"
+      when "development", "develop"
         # Local testnet migration
         config = require "../deployment_configs/testnet.json"
 
@@ -288,8 +288,8 @@ module.exports = (deployer, network, accounts) ->
         )###
 
         # deploy BetokenLogic
-        await deployer.deploy(BetokenLogic, {gas: 7e6})
-        await deployer.deploy(BetokenLogic2, {gas: 6e6})
+        await deployer.deploy(BetokenLogic, {gas: 6.3e6})
+        await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
 
         # deploy BetokenFund contract
         await deployer.deploy(
@@ -309,7 +309,7 @@ module.exports = (deployer, network, accounts) ->
           config.DEXAG_ADDR,
           config.SAI_ADDR,
           config.MCDAI_MIGRATION_ADDR,
-          {gas: 6e6}
+          {gas: 5.6e6}
         )
         betokenFund = await BetokenFund.deployed()
 

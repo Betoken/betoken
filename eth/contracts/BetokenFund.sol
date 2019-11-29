@@ -281,7 +281,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   function nextPhase()
     public
   {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
     if (!success) { revert(); }
   }
 
@@ -452,7 +452,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   function burnDeadman(address _deadman)
     public
   {
-    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.burnDeadman.selector, _deadman));
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.burnDeadman.selector, _deadman));
     if (!success) { revert(); }
   }
 

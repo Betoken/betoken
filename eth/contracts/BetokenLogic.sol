@@ -22,130 +22,25 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
   }
 
   /**
-   * Next phase transition handler
-   * @notice Moves the fund to the next phase in the investment cycle.
-   */
-  function nextPhase()
-    public
-  {
-    require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
-
-    if (isInitialized == false) {
-      // first cycle of this smart contract deployment
-      // check whether ready for starting cycle
-      isInitialized = true;
-      require(proxyAddr != address(0)); // has initialized proxy
-      require(proxy.betokenFundAddress() == address(this)); // upgrade complete
-      require(hasInitializedTokenListings); // has initialized token listings
-
-      // execute initialization function
-      init();
-
-      require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
-    } else {
-      // normal phase changing
-      if (cyclePhase == CyclePhase.Intermission) {
-        require(hasFinalizedNextVersion == false); // Shouldn't progress to next phase if upgrading
-
-        // Check if there is enough signal supporting upgrade
-        if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
-          upgradeVotingActive = true;
-          emit InitiatedUpgrade(cycleNumber);
-        }
-      } else if (cyclePhase == CyclePhase.Manage) {
-        // Burn any Kairo left in BetokenFund's account
-        require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
-
-        // Pay out commissions and fees
-        uint256 profit = 0;
-        if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
-          profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
-        }
-
-        totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
-
-        uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(totalFundsInDAI)).div(PRECISION);
-        _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(commissionThisCycle); // account for penalties
-        totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
-
-
-        // Give the developer Betoken shares inflation funding
-        uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
-        require(sToken.generateTokens(devFundingAccount, devFunding));
-
-        // Emit event
-        emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle(cycleNumber));
-
-        _managePhaseEndBlock[cycleNumber] = block.number;
-
-        // Clear/update upgrade related data
-        if (nextVersion == address(this)) {
-          // The developer proposed a candidate, but the managers decide to not upgrade at all
-          // Reset upgrade process
-          delete nextVersion;
-          delete hasFinalizedNextVersion;
-        }
-        if (nextVersion == address(0)) {
-          delete proposers;
-          delete candidates;
-          delete forVotes;
-          delete againstVotes;
-          delete upgradeVotingActive;
-          delete proposersVotingWeight;
-        } else {
-          hasFinalizedNextVersion = true;
-          emit FinalizedNextVersion(cycleNumber, nextVersion);
-        }
-
-        // Start new cycle
-        cycleNumber = cycleNumber.add(1);
-      }
-
-      cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
-    }
-    
-    startTimeOfCyclePhase = now;
-
-    // Reward caller if they're a manager
-    if (cToken.balanceOf(msg.sender) > 0) {
-      require(cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD));
-    }
-
-    emit ChangedPhase(cycleNumber, uint(cyclePhase), now, totalFundsInDAI);
-  }
-
-  /**
-   * @notice Initializes several important variables after smart contract upgrade
-   */
-  function init() internal {
-    // load values from previous version
-    totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
-    totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
-    _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
-
-    // convert SAI to DAI
-    ERC20Detailed sai = ERC20Detailed(saiAddr);
-    uint256 saiBalance = getBalance(sai, address(this));
-    require(sai.approve(address(mcdaiMigration), 0));
-    require(sai.approve(address(mcdaiMigration), saiBalance));
-    mcdaiMigration.swapSaiToDai(saiBalance);
-
-    // reimbursements
-    address cryptoChick = 0x8e9818E75ea25d0162F4998E033eae28cDDc231e;
-    address newCryptoChick = 0x617096ec92315d6A23a5ebDCf4f1Fc3A8C59E5d5;
-    uint256 balance = cToken.balanceOf(cryptoChick);
-    require(cToken.destroyTokens(cryptoChick, balance) && cToken.generateTokens(newCryptoChick, balance));
-
-    address garima = 0xd16Aa39e2812Fa1C9Dae6Ca4Eee0A11DEE262a9a;
-    cToken.generateTokens(garima, PRECISION.mul(628));
-  }
-
-  /**
    * @notice Returns the length of the user's investments array.
    * @return length of the user's investments array
    */
   function investmentsCount(address _userAddr) public view returns(uint256 _count) {
     return userInvestments[_userAddr].length;
+  }
+
+  /**
+   * @notice Burns the Kairo balance of a manager who has been inactive for a certain number of cycles
+   * @param _deadman the manager whose Kairo balance will be burned
+   */
+  function burnDeadman(address _deadman)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    require(_deadman != address(this));
+    require(cycleNumber.sub(lastActiveCycle(_deadman)) > INACTIVE_THRESHOLD);
+    require(cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman)));
   }
 
   /**
