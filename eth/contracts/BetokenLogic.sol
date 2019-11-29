@@ -1,4 +1,4 @@
-pragma solidity 0.5.12;
+pragma solidity 0.5.13;
 
 import "./BetokenStorage.sol";
 import "./interfaces/PositionToken.sol";
@@ -35,14 +35,13 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
       // check whether ready for starting cycle
       isInitialized = true;
       require(proxyAddr != address(0)); // has initialized proxy
-      //require(proxy.betokenFundAddress() == address(this)); // upgrade complete
+      require(proxy.betokenFundAddress() == address(this)); // upgrade complete
       require(hasInitializedTokenListings); // has initialized token listings
-      // TODO: uncomment
 
       // execute initialization function
       init();
 
-      //require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
+      require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
     } else {
       // normal phase changing
       if (cyclePhase == CyclePhase.Intermission) {
@@ -120,9 +119,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
    */
   function init() internal {
     // load values from previous version
-    // TODO: uncomment
-    //totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
-    //totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
+    totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
+    totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
     _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
 
     // convert SAI to DAI

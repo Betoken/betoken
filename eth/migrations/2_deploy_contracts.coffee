@@ -184,7 +184,7 @@ module.exports = (deployer, network, accounts) ->
 
       when "mainnet"
         # Mainnet Migration
-        config = require "../deployment_configs/mainnet_test.json"
+        config = require "../deployment_configs/mainnet.json"
 
         PRECISION = 1e18
 
@@ -268,10 +268,10 @@ module.exports = (deployer, network, accounts) ->
           config.COMPOUND_CETH_ADDR,
           {gas: 5e5}
         )
-        await LongCEtherOrderContract.renounceOwnership({gas: 4e5})###
+        await LongCEtherOrderContract.renounceOwnership({gas: 4e5})
 
         # deploy CompoundOrderFactory
-        ###await deployer.deploy(
+        await deployer.deploy(
           CompoundOrderFactory,
           "0x53fC267069228A0FB206277f7B675F72517558f3",
           "0xb4fE2DEB3A079e70165964222872015032302F00",
@@ -292,21 +292,11 @@ module.exports = (deployer, network, accounts) ->
         await deployer.deploy(BetokenLogic2, {gas: 6e6})
 
         # deploy BetokenFund contract
-        # TODO: remove in production
-        # deploy Kairo and Betoken Shares contracts
-        minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
-        controlTokenAddr = (await minimeFactory.createCloneToken(
-            config.KAIRO_ADDR, 8995570, "Test Kairo", 18, "Test-KRO", false, {gas: 3e6})).logs[0].args.addr
-        shareTokenAddr = (await minimeFactory.createCloneToken(
-            config.SHARES_ADDR, 8995570, "Test Betoken Shares", 18, "Test-BTKS", true, {gas: 3e6})).logs[0].args.addr
-        ControlToken = await MiniMeToken.at(controlTokenAddr)
-        ShareToken = await MiniMeToken.at(shareTokenAddr)
-
         await deployer.deploy(
           BetokenFund,
-          controlTokenAddr,
-          shareTokenAddr,
-          config.DEVELOPER_ACCOUNT
+          config.KAIRO_ADDR,
+          config.SHARES_ADDR,
+          config.DEVELOPER_ACCOUNT,
           config.phaseLengths,
           bnToString(config.devFundingRate),
           config.PREV_VERSION,
@@ -323,12 +313,6 @@ module.exports = (deployer, network, accounts) ->
         )
         betokenFund = await BetokenFund.deployed()
 
-        console.log "Transferring Kairo ownership to BetokenFund..."
-        await ControlToken.transferOwnership(betokenFund.address, {gas: 4e5})
-
-        console.log "Transferring BetokenShares ownership to BetokenFund..."
-        await ShareToken.transferOwnership(betokenFund.address, {gas: 4e5})
-
         console.log "Initializing token listings..."
         await betokenFund.initTokenListings(
           config.KYBER_TOKENS,
@@ -341,9 +325,6 @@ module.exports = (deployer, network, accounts) ->
         console.log "Setting proxy address..."
         await betokenFund.setProxy(config.PROXY_ADDR, {gas: 4e5})
 
-        console.log "Starting cycle..."
-        await betokenFund.nextPhase({gas: 3e6})
-
         # transfer fund ownership to developer multisig
-        #console.log "Transferring BetokenFund ownership..."
-        #await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5})
+        console.log "Transferring BetokenFund ownership..."
+        await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5})

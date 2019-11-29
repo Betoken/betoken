@@ -1,4 +1,4 @@
-pragma solidity 0.5.12;
+pragma solidity 0.5.13;
 
 import "./BetokenStorage.sol";
 import "./interfaces/PositionToken.sol";
@@ -529,7 +529,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
     during(CyclePhase.Intermission)
   {
     require(_deadman != address(this));
-    require(cycleNumber.sub(lastActiveCycle(_deadman)) >= INACTIVE_THRESHOLD);
+    require(cycleNumber.sub(lastActiveCycle(_deadman)) > INACTIVE_THRESHOLD);
     require(cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman)));
   }
 

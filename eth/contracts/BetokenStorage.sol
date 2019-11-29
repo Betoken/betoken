@@ -1,4 +1,4 @@
-pragma solidity 0.5.12;
+pragma solidity 0.5.13;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
@@ -180,7 +180,7 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   event TotalCommissionPaid(uint256 indexed _cycleNumber, uint256 _totalCommissionInDAI);
 
   event Register(address indexed _manager, uint256 _donationInDAI, uint256 _kairoReceived);
-  
+
   event SignaledUpgrade(uint256 indexed _cycleNumber, address indexed _sender, bool indexed _inSupport);
   event DeveloperInitiatedUpgrade(uint256 indexed _cycleNumber, address _candidate);
   event InitiatedUpgrade(uint256 indexed _cycleNumber);
