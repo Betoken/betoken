@@ -83,8 +83,8 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   // Address of the previous version of BetokenFund.
   address payable public previousVersion;
 
-  // Address of the multi-collateral DAI
-  address public mcdaiAddr;
+  // Address of the single-collateral DAI (SAI)
+  address public saiAddr;
 
   // The number of the current investment cycle.
   uint256 public cycleNumber;

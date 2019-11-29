@@ -38,10 +38,11 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
       //require(proxy.betokenFundAddress() == address(this)); // upgrade complete
       require(hasInitializedTokenListings); // has initialized token listings
       // TODO: uncomment
-      //require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
 
       // execute initialization function
       init();
+
+      //require(previousVersion == address(0) || (previousVersion != address(0) && getBalance(dai, address(this)) > 0)); // has transfered assets from previous version
     } else {
       // normal phase changing
       if (cyclePhase == CyclePhase.Intermission) {
@@ -124,6 +125,14 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
     //totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
     _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
 
+    // convert SAI to DAI
+    ERC20Detailed sai = ERC20Detailed(saiAddr);
+    uint256 saiBalance = getBalance(sai, address(this));
+    require(sai.approve(address(mcdaiMigration), 0));
+    require(sai.approve(address(mcdaiMigration), saiBalance));
+    mcdaiMigration.swapSaiToDai(saiBalance);
+
+    // reimbursements
     address cryptoChick = 0x8e9818E75ea25d0162F4998E033eae28cDDc231e;
     address newCryptoChick = 0x617096ec92315d6A23a5ebDCf4f1Fc3A8C59E5d5;
     uint256 balance = cToken.balanceOf(cryptoChick);

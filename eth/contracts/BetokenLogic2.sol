@@ -547,6 +547,9 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
     // Set risk fallback base stake
     _baseRiskStakeFallback[msg.sender] = kroAmount;
 
+    // Set last active cycle for msg.sender to be the current cycle
+    _lastActiveCycle[msg.sender] = cycleNumber;
+
     // keep DAI in the fund
     totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
     

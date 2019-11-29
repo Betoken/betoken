@@ -1,13 +1,12 @@
 pragma solidity 0.5.12;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./LongCERC20Order.sol";
 import "./LongCEtherOrder.sol";
 import "./ShortCERC20Order.sol";
 import "./ShortCEtherOrder.sol";
 import "../lib/CloneFactory.sol";
 
-contract CompoundOrderFactory is CloneFactory, Ownable {
+contract CompoundOrderFactory is CloneFactory {
   address public SHORT_CERC20_LOGIC_CONTRACT;
   address public SHORT_CEther_LOGIC_CONTRACT;
   address public LONG_CERC20_LOGIC_CONTRACT;
@@ -83,17 +82,6 @@ contract CompoundOrderFactory is CloneFactory, Ownable {
       DAI_ADDR, KYBER_ADDR, COMPTROLLER_ADDR, ORACLE_ADDR, CDAI_ADDR, CETH_ADDR);
     order.transferOwnership(msg.sender);
     return order;
-  }
-
-  function upgradeFromSaiToDai(address _newCDAI) external onlyOwner {
-    require(_newCDAI != address(0)); // prevent zero address
-    require(DAI_ADDR != mcdaiAddr); // prevent calling more than once
-
-    // upgrade DAI and cDAI addresses
-    DAI_ADDR = mcdaiAddr;
-    CDAI_ADDR = _newCDAI;
-
-    require(this.tokenIsListed(_newCDAI)); // ensure cDAI address is valid
   }
 
   function getMarketCollateralFactor(address _compoundTokenAddr) external view returns (uint256) {

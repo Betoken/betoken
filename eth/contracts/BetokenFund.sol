@@ -36,7 +36,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     address _betokenLogic2,
     uint256 _startCycleNumber,
     address payable _dexagAddr,
-    address _mcdaiAddr,
+    address _saiAddr,
     address _mcdaiMigrationAddr
   )
     public
@@ -53,7 +53,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     betokenLogic2 = _betokenLogic2;
     previousVersion = _previousVersion;
     cycleNumber = _startCycleNumber;
-    mcdaiAddr = _mcdaiAddr;
+    saiAddr = _saiAddr;
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
@@ -273,29 +273,6 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
     require(factory.tokenIsListed(_token));
     isCompoundToken[_token] = true;
-  }
-
-  /**
-   * @notice Performs the upgrade from Single-collateral Dai to Multi-collateral Dai
-   * @param _newCDAI address of the new Compound DAI market
-   */
-  function upgradeFromSaiToDai(address _newCDAI) public onlyOwner {
-    require(_newCDAI != address(0)); // prevent zero address
-    require(DAI_ADDR != mcdaiAddr); // prevent calling more than once
-
-    // convert SAI to DAI
-    uint256 saiBalance = getBalance(dai, address(this));
-    require(dai.approve(address(mcdaiMigration), 0));
-    require(dai.approve(address(mcdaiMigration), saiBalance));
-    mcdaiMigration.swapSaiToDai(saiBalance);
-
-    // upgrade DAI address and contract instance
-    DAI_ADDR = mcdaiAddr;
-    dai = ERC20Detailed(mcdaiAddr);
-
-    // upgrade DAI address and cDAI address for Compound Factory
-    CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
-    factory.upgradeFromSaiToDai(_newCDAI);
   }
 
   /**
