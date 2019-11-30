@@ -59,7 +59,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
     public
   {
     bytes memory nil;
-    createInvestment(
+    createInvestmentV2(
       _tokenAddress,
       _stake,
       _minPrice,
@@ -88,7 +88,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
     public
   {
     bytes memory nil;
-    sellInvestmentAsset(
+    sellInvestmentAssetV2(
       _investmentId,
       _tokenAmount,
       _minPrice,
@@ -107,7 +107,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
    * @param _calldata calldata for dex.ag trading
    * @param _useKyber true for Kyber Network, false for dex.ag
    */
-  function createInvestment(
+  function createInvestmentV2(
     address _tokenAddress,
     uint256 _stake,
     uint256 _minPrice,
@@ -162,7 +162,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
    */
-  function sellInvestmentAsset(
+  function sellInvestmentAssetV2(
     uint256 _investmentId,
     uint256 _tokenAmount,
     uint256 _minPrice,

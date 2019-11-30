@@ -190,7 +190,7 @@ module.exports = (deployer, network, accounts) ->
         KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
         # deploy ShortCERC20Order
-        await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
+        ###await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
         ShortCERC20OrderContract = await ShortCERC20Order.deployed()
         await ShortCERC20OrderContract.init(
           config.COMPOUND_CETH_ADDR,
@@ -283,11 +283,11 @@ module.exports = (deployer, network, accounts) ->
           config.COMPOUND_CDAI_ADDR,
           config.COMPOUND_CETH_ADDR
           {gas: 8e5}
-        )
+        )###
 
         # deploy BetokenLogic
-        await deployer.deploy(BetokenLogic, {gas: 6.3e6})
-        await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
+        #await deployer.deploy(BetokenLogic, {gas: 6.3e6})
+        #await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
 
         ###minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
         controlTokenAddr = (await minimeFactory.createCloneToken(
@@ -308,14 +308,14 @@ module.exports = (deployer, network, accounts) ->
           config.PREV_VERSION,
           config.DAI_ADDR,
           config.KYBER_ADDR,
-          CompoundOrderFactory.address,
-          BetokenLogic.address,
-          BetokenLogic2.address,
+          config.COMPOUND_FACTORY_ADDR,#CompoundOrderFactory.address,
+          '0x5B435cD2Ebc7B91990F9A7FcCAB0DCbfEBDDAe35',#BetokenLogic.address,
+          '0xedd00c14bBE57553768a85E38017901853741623',#BetokenLogic2.address,
           config.START_CYCLE_NUM,
           config.DEXAG_ADDR,
           config.SAI_ADDR,
           config.MCDAI_MIGRATION_ADDR,
-          {gas: 5.6e6}
+          {gas: 6e6}
         )
         betokenFund = await BetokenFund.deployed()
 

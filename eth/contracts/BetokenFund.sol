@@ -480,6 +480,29 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   }
 
   /**
+   * @notice Creates a new investment for an ERC20 token.
+   * @param _tokenAddress address of the ERC20 token contract
+   * @param _stake amount of Kairos to be staked in support of the investment
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   * @param _calldata calldata for dex.ag trading
+   * @param _useKyber true for Kyber Network, false for dex.ag
+   */
+  function createInvestmentV2(
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
+  )
+    public
+  {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createInvestmentV2.selector, _tokenAddress, _stake, _minPrice, _maxPrice, _calldata, _useKyber));
+    if (!success) { revert(); }
+  }
+
+  /**
    * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
    *         The user can sell only part of the investment by changing _tokenAmount.
    * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
@@ -498,6 +521,30 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     public
   {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellInvestmentAsset.selector, _investmentId, _tokenAmount, _minPrice, _maxPrice));
+    if (!success) { revert(); }
+  }
+
+  /**
+   * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
+   *         The user can sell only part of the investment by changing _tokenAmount.
+   * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
+   *   the original buy price and however much tokens that are not sold.
+   * @param _investmentId the ID of the investment
+   * @param _tokenAmount the amount of tokens to be sold.
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   */
+  function sellInvestmentAssetV2(
+    uint256 _investmentId,
+    uint256 _tokenAmount,
+    uint256 _minPrice,
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
+  )
+    public
+  {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellInvestmentAssetV2.selector, _investmentId, _tokenAmount, _minPrice, _maxPrice, _calldata, _useKyber));
     if (!success) { revert(); }
   }
 

@@ -177,7 +177,7 @@
           return (await betokenFund.nextPhase());
         case "mainnet":
           // Mainnet Migration
-          config = require("../deployment_configs/mainnet_test.json");
+          config = require("../deployment_configs/mainnet.json");
           PRECISION = 1e18;
           KYBER_TOKENS = config.KYBER_TOKENS.map(function(x) {
             return web3.utils.toChecksumAddress(x);
@@ -280,43 +280,39 @@
           // deploy BetokenLogic
           //await deployer.deploy(BetokenLogic, {gas: 6.3e6})
           //await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
-          minimeFactory = (await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a'));
-          controlTokenAddr = ((await minimeFactory.createCloneToken(config.KAIRO_ADDR, 8995570, "Test Kairo", 18, "Test-KRO", false, {
-            gas: 3e6
-          }))).logs[0].args.addr;
-          shareTokenAddr = ((await minimeFactory.createCloneToken(config.SHARES_ADDR, 8995570, "Test Betoken Shares", 18, "Test-BTKS", true, {
-            gas: 3e6
-          }))).logs[0].args.addr;
-          ControlToken = (await MiniMeToken.at(controlTokenAddr));
-          ShareToken = (await MiniMeToken.at(shareTokenAddr));
+          /*minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
+          controlTokenAddr = (await minimeFactory.createCloneToken(
+              config.KAIRO_ADDR, 8995570, "Test Kairo", 18, "Test-KRO", false, {gas: 3e6})).logs[0].args.addr
+          shareTokenAddr = (await minimeFactory.createCloneToken(
+              config.SHARES_ADDR, 8995570, "Test Betoken Shares", 18, "Test-BTKS", true, {gas: 3e6})).logs[0].args.addr
+          ControlToken = await MiniMeToken.at(controlTokenAddr)
+          ShareToken = await MiniMeToken.at(shareTokenAddr)*/
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, controlTokenAddr, shareTokenAddr, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, '0x1e361df9e3e47D86A26151dA131c98291897bD60', '0x186b2a8a462Af7423E282CEaF24BC4b917c7e2bA', config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, { //config.KAIRO_ADDR, //config.SHARES_ADDR, //CompoundOrderFactory.address, //BetokenLogic.address, //BetokenLogic2.address,
-            gas: 5.6e6
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, '0x5B435cD2Ebc7B91990F9A7FcCAB0DCbfEBDDAe35', '0xedd00c14bBE57553768a85E38017901853741623', config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, { //CompoundOrderFactory.address, //BetokenLogic.address, //BetokenLogic2.address,
+            gas: 6e6
           });
           betokenFund = (await BetokenFund.deployed());
-          console.log("Transferring Kairo ownership to BetokenFund...");
-          await ControlToken.transferOwnership(betokenFund.address, {
-            gas: 4e5
-          });
-          console.log("Transferring BetokenShares ownership to BetokenFund...");
-          await ShareToken.transferOwnership(betokenFund.address, {
-            gas: 4e5
-          });
+          /*console.log "Transferring Kairo ownership to BetokenFund..."
+          await ControlToken.transferOwnership(betokenFund.address, {gas: 4e5})
+
+          console.log "Transferring BetokenShares ownership to BetokenFund..."
+          await ShareToken.transferOwnership(betokenFund.address, {gas: 4e5})*/
           console.log("Initializing token listings...");
           await betokenFund.initTokenListings(config.KYBER_TOKENS, config.COMPOUND_CTOKENS, config.FULCRUM_PTOKENS, {
             gas: 2.72e6
           });
           // set proxy address in BetokenFund
           console.log("Setting proxy address...");
-          return (await betokenFund.setProxy(config.PROXY_ADDR, {
+          await betokenFund.setProxy(config.PROXY_ADDR, {
+            gas: 4e5
+          });
+          // transfer fund ownership to developer multisig
+          console.log("Transferring BetokenFund ownership...");
+          return (await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {
             gas: 4e5
           }));
       }
     });
   };
-
-  // transfer fund ownership to developer multisig
-//console.log "Transferring BetokenFund ownership..."
-//await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5})
 
 }).call(this);
