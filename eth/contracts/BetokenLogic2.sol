@@ -126,9 +126,6 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
    * @notice Initializes several important variables after smart contract upgrade
    */
   function init() internal {
-    // load values from previous version
-    totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
-    totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
     _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
 
     // convert SAI to DAI
@@ -148,6 +145,10 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
       address garima = 0xd16Aa39e2812Fa1C9Dae6Ca4Eee0A11DEE262a9a;
       cToken.generateTokens(garima, PRECISION.mul(628));
     }
+
+    // load values from previous version
+    totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
+    totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
   }
 
   /**

@@ -119,7 +119,10 @@ contract LongCERC20Order is CompoundOrder {
     _outputAmount = dai.balanceOf(address(this));
     outputAmount = _outputAmount;
     dai.safeTransfer(owner(), dai.balanceOf(address(this)));
-    token.safeTransfer(owner(), token.balanceOf(address(this))); // Send back potential leftover tokens
+    uint256 leftoverTokens = token.balanceOf(address(this));
+    if (leftoverTokens > 0) {
+      token.safeTransfer(owner(), leftoverTokens); // Send back potential leftover tokens
+    }
   }
 
   // Allows manager to repay loan to avoid liquidation
