@@ -645,7 +645,7 @@
       }));
     });
     it("raise_asset_price", async function() {
-      var MAX_PRICE, cOMG, delta, fundBlnce, investmentId, kn, kro, kroBlnce, longId, newPrice, omg, oracle, prevFundBlnce, prevKROBlnce, shortId, stake, tokenAmount;
+      var MAX_PRICE, cOMG, delta, expectedReceiveKairoRatio, fundBlnce, investmentId, kn, kro, kroBlnce, longId, newPrice, omg, oracle, prevFundBlnce, prevKROBlnce, shortId, stake, tokenAmount;
       kn = (await KN(this.fund));
       kro = (await KRO(this.fund));
       omg = (await TK("OMG"));
@@ -656,7 +656,7 @@
       await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {
         from: owner
       });
-      await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {
+      await oracle.setTokenPrice(cOMG.address, bnToString(OMG_PRICE), {
         from: owner
       });
       // invest in asset
@@ -681,7 +681,7 @@
       await kn.setTokenPrice(omg.address, bnToString(newPrice), {
         from: owner
       });
-      await oracle.setTokenPrice(omg.address, bnToString(newPrice), {
+      await oracle.setTokenPrice(cOMG.address, bnToString(newPrice), {
         from: owner
       });
       // sell asset
@@ -693,7 +693,8 @@
       });
       // check KRO reward
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
-      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO reward incorrect");
+      expectedReceiveKairoRatio = getReceiveKairoRatio(delta);
+      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "investment KRO reward incorrect");
       // check fund balance
       fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect");
@@ -705,7 +706,8 @@
       });
       // check KRO penalty
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
-      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO penalty incorrect");
+      expectedReceiveKairoRatio = getReceiveKairoRatio(delta * SHORT_LEVERAGE);
+      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "short KRO penalty incorrect");
       // check fund balance
       fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       assert(fundBlnce.minus(prevFundBlnce).lt(0), "fund DAI decrease incorrect");
@@ -717,7 +719,8 @@
       });
       // check KRO reward
       kroBlnce = BigNumber((await kro.balanceOf.call(account)));
-      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO reward incorrect");
+      expectedReceiveKairoRatio = getReceiveKairoRatio(delta * LONG_LEVERAGE);
+      assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "long KRO reward incorrect");
       // check fund balance
       fundBlnce = BigNumber((await this.fund.totalFundsInDAI.call()));
       return assert(fundBlnce.minus(prevFundBlnce).gt(0), "fund DAI increase incorrect");
@@ -734,7 +737,7 @@
       await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {
         from: owner
       });
-      await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {
+      await oracle.setTokenPrice(cOMG.address, bnToString(OMG_PRICE), {
         from: owner
       });
       // invest in asset
@@ -759,7 +762,7 @@
       await kn.setTokenPrice(omg.address, bnToString(newPrice), {
         from: owner
       });
-      await oracle.setTokenPrice(omg.address, bnToString(newPrice), {
+      await oracle.setTokenPrice(cOMG.address, bnToString(newPrice), {
         from: owner
       });
       // sell asset

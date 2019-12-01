@@ -589,7 +589,7 @@ contract("price_changes", (accounts) ->
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
-    await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await oracle.setTokenPrice(cOMG.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
     stake = 0.1 * PRECISION
@@ -607,7 +607,7 @@ contract("price_changes", (accounts) ->
     delta = 0.2
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
-    await oracle.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await oracle.setTokenPrice(cOMG.address, bnToString(newPrice), {from: owner})
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)
@@ -617,7 +617,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO reward
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta), "investment KRO reward incorrect")
+    expectedReceiveKairoRatio = getReceiveKairoRatio(delta)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "investment KRO reward incorrect")
 
     # check fund balance
     fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
@@ -630,7 +631,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO penalty
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * SHORT_LEVERAGE), "short KRO penalty incorrect")
+    expectedReceiveKairoRatio = getReceiveKairoRatio(delta * SHORT_LEVERAGE)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "short KRO penalty incorrect")
 
     # check fund balance
     fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
@@ -643,7 +645,8 @@ contract("price_changes", (accounts) ->
 
     # check KRO reward
     kroBlnce = BigNumber await kro.balanceOf.call(account)
-    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), 1 + delta * LONG_LEVERAGE), "long KRO reward incorrect")
+    expectedReceiveKairoRatio = getReceiveKairoRatio(delta * LONG_LEVERAGE)
+    assert(epsilon_equal(kroBlnce.minus(prevKROBlnce).div(stake), expectedReceiveKairoRatio), "long KRO reward incorrect")
 
     # check fund balance
     fundBlnce = BigNumber await this.fund.totalFundsInDAI.call()
@@ -660,7 +663,7 @@ contract("price_changes", (accounts) ->
 
     # reset asset price
     await kn.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
-    await oracle.setTokenPrice(omg.address, bnToString(OMG_PRICE), {from: owner})
+    await oracle.setTokenPrice(cOMG.address, bnToString(OMG_PRICE), {from: owner})
 
     # invest in asset
     stake = 0.1 * PRECISION
@@ -678,7 +681,7 @@ contract("price_changes", (accounts) ->
     delta = -0.2
     newPrice = OMG_PRICE * (1 + delta)
     await kn.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
-    await oracle.setTokenPrice(omg.address, bnToString(newPrice), {from: owner})
+    await oracle.setTokenPrice(cOMG.address, bnToString(newPrice), {from: owner})
 
     # sell asset
     prevKROBlnce = BigNumber await kro.balanceOf.call(account)

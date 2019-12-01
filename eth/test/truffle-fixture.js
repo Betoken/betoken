@@ -37,7 +37,7 @@
   };
 
   module.exports = async function() {
-    var BetokenLogic2Contract, BetokenLogicContract, BetokenProxyContract, CompoundOrderFactoryContract, ControlToken, LongCERC20OrderContract, LongCEtherOrderContract, ShareToken, ShortCERC20OrderContract, ShortCEtherOrderContract, TestCERC20, TestCERC20Factory, TestCEther, TestCEtherContract, TestComptroller, TestComptrollerContract, TestDAI, TestKyberNetwork, TestKyberNetworkContract, TestPriceOracle, TestPriceOracleContract, TestToken, TestTokenFactory, accounts, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+    var BetokenLogic2Contract, BetokenLogicContract, BetokenProxyContract, CompoundOrderFactoryContract, ControlToken, LongCERC20OrderContract, LongCEtherOrderContract, ShareToken, ShortCERC20OrderContract, ShortCEtherOrderContract, TestCERC20, TestCERC20Factory, TestCEther, TestCEtherContract, TestComptroller, TestComptrollerContract, TestDAI, TestKyberNetwork, TestKyberNetworkContract, TestPriceOracle, TestPriceOracleContract, TestToken, TestTokenFactory, accounts, betokenFund, compoundTokenAddrs, compoundTokens, compoundTokensArray, config, controlTokenAddr, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
     accounts = (await web3.eth.getAccounts());
     config = require("../deployment_configs/testnet.json");
     TestToken = artifacts.require("TestToken");
@@ -86,9 +86,6 @@
     });
     // deploy Test Compound suite of contracts
 
-    // deploy TestPriceOracle
-    TestPriceOracleContract = (await TestPriceOracle.new(tokenAddrs, tokenPrices));
-    TestPriceOracle.setAsDeployed(TestPriceOracleContract);
     // deploy TestComptroller
     TestComptrollerContract = (await TestComptroller.new());
     TestComptroller.setAsDeployed(TestComptrollerContract);
@@ -111,6 +108,13 @@
       token = ref[k];
       compoundTokens[token] = ((await testCERC20Factory.newToken(token, TestComptrollerContract.address))).logs[0].args.cToken;
     }
+    compoundTokens[ETH_ADDR] = TestCEtherContract.address;
+    // deploy TestPriceOracle
+    compoundTokenAddrs = tokenAddrs.map(function(x) {
+      return compoundTokens[x];
+    });
+    TestPriceOracleContract = (await TestPriceOracle.new(compoundTokenAddrs, tokenPrices, TestCEtherContract.address));
+    TestPriceOracle.setAsDeployed(TestPriceOracleContract);
     ref1 = tokenAddrs.slice(0, +(tokenAddrs.length - 2) + 1 || 9e9);
     // mint tokens for KN
     for (l = 0, len2 = ref1.length; l < len2; l++) {

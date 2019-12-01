@@ -62,10 +62,6 @@ module.exports = () ->
 
   # deploy Test Compound suite of contracts
 
-  # deploy TestPriceOracle
-  TestPriceOracleContract =  await TestPriceOracle.new(tokenAddrs, tokenPrices)
-  TestPriceOracle.setAsDeployed(TestPriceOracleContract)
-
   # deploy TestComptroller
   TestComptrollerContract = await TestComptroller.new()
   TestComptroller.setAsDeployed(TestComptrollerContract)
@@ -85,7 +81,12 @@ module.exports = () ->
   compoundTokens = {}
   for token in tokenAddrs[0..tokenAddrs.length - 2]
     compoundTokens[token] = (await testCERC20Factory.newToken(token, TestComptrollerContract.address)).logs[0].args.cToken
+  compoundTokens[ETH_ADDR] = TestCEtherContract.address
 
+  # deploy TestPriceOracle
+  compoundTokenAddrs = tokenAddrs.map((x) -> compoundTokens[x])
+  TestPriceOracleContract =  await TestPriceOracle.new(compoundTokenAddrs, tokenPrices, TestCEtherContract.address)
+  TestPriceOracle.setAsDeployed(TestPriceOracleContract)
 
   # mint tokens for KN
   for token in tokenAddrs[0..tokenAddrs.length - 2]
