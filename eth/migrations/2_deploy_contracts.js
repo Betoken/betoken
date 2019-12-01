@@ -38,7 +38,7 @@
 
   module.exports = function(deployer, network, accounts) {
     return deployer.then(async function() {
-      var ControlToken, KYBER_TOKENS, ShareToken, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
+      var ControlToken, KYBER_TOKENS, LongCERC20OrderContract, LongCEtherOrderContract, ShareToken, ShortCERC20OrderContract, ShortCEtherOrderContract, TestCERC20, TestCERC20Factory, TestCEther, TestComptroller, TestDAI, TestKyberNetwork, TestPriceOracle, TestToken, TestTokenFactory, betokenFund, compoundTokens, compoundTokensArray, config, controlTokenAddr, i, j, k, l, len, len1, len2, len3, m, minimeFactory, ref, ref1, ref2, shareTokenAddr, testCERC20Factory, testDAIAddr, testTokenFactory, token, tokenAddrs, tokenObj, tokenPrices, tokensInfo;
       switch (network) {
         case "development":
         case "develop":
@@ -183,103 +183,60 @@
             return web3.utils.toChecksumAddress(x);
           });
           // deploy ShortCERC20Order
-          /*await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
-          ShortCERC20OrderContract = await ShortCERC20Order.deployed()
-          await ShortCERC20OrderContract.init(
-            config.COMPOUND_CETH_ADDR,
-            1,
-            1,
-            1,
-            1,
-            true,
-            config.DAI_ADDR,
-            config.KYBER_ADDR,
-            config.COMPOUND_COMPTROLLER_ADDR,
-            config.COMPOUND_ORACLE_ADDR,
-            config.COMPOUND_CDAI_ADDR,
-            config.COMPOUND_CETH_ADDR,
-            {gas: 5e5}
-          )
-          await ShortCERC20OrderContract.renounceOwnership({gas: 4e5})
-
-           * deploy ShortCEtherOrder
-          await deployer.deploy(ShortCEtherOrder, {gas: 3.2e6})
-          ShortCEtherOrderContract = await ShortCEtherOrder.deployed()
-          await ShortCEtherOrderContract.init(
-            config.COMPOUND_CETH_ADDR,
-            1,
-            1,
-            1,
-            1,
-            true,
-            config.DAI_ADDR,
-            config.KYBER_ADDR,
-            config.COMPOUND_COMPTROLLER_ADDR,
-            config.COMPOUND_ORACLE_ADDR,
-            config.COMPOUND_CDAI_ADDR,
-            config.COMPOUND_CETH_ADDR,
-            {gas: 5e5}
-          )
-          await ShortCEtherOrderContract.renounceOwnership({gas: 4e5})
-
-           * deploy LongCERC20Order
-          await deployer.deploy(LongCERC20Order, {gas: 3.5e6})
-          LongCERC20OrderContract = await LongCERC20Order.deployed()
-          await LongCERC20OrderContract.init(
-            config.COMPOUND_CETH_ADDR,
-            1,
-            1,
-            1,
-            1,
-            false,
-            config.DAI_ADDR,
-            config.KYBER_ADDR,
-            config.COMPOUND_COMPTROLLER_ADDR,
-            config.COMPOUND_ORACLE_ADDR,
-            config.COMPOUND_CDAI_ADDR,
-            config.COMPOUND_CETH_ADDR,
-            {gas: 5e5}
-          )
-          await LongCERC20OrderContract.renounceOwnership({gas: 4e5})
-
-           * deploy LongCEtherOrder
-          await deployer.deploy(LongCEtherOrder, {gas: 3.3e6})
-          LongCEtherOrderContract = await LongCEtherOrder.deployed()
-          await LongCEtherOrderContract.init(
-            config.COMPOUND_CETH_ADDR,
-            1,
-            1,
-            1,
-            1,
-            false,
-            config.DAI_ADDR,
-            config.KYBER_ADDR,
-            config.COMPOUND_COMPTROLLER_ADDR,
-            config.COMPOUND_ORACLE_ADDR,
-            config.COMPOUND_CDAI_ADDR,
-            config.COMPOUND_CETH_ADDR,
-            {gas: 5e5}
-          )
-          await LongCEtherOrderContract.renounceOwnership({gas: 4e5})
-
-           * deploy CompoundOrderFactory
-          await deployer.deploy(
-            CompoundOrderFactory,
-            ShortCERC20OrderContract.address,
-            ShortCEtherOrderContract.address,
-            LongCERC20OrderContract.address,
-            LongCEtherOrderContract.address,
-            config.DAI_ADDR,
-            config.KYBER_ADDR,
-            config.COMPOUND_COMPTROLLER_ADDR,
-            config.COMPOUND_ORACLE_ADDR,
-            config.COMPOUND_CDAI_ADDR,
-            config.COMPOUND_CETH_ADDR
-            {gas: 8e5}
-          ) */
+          await deployer.deploy(ShortCERC20Order, {
+            gas: 3.4e6
+          });
+          ShortCERC20OrderContract = (await ShortCERC20Order.deployed());
+          await ShortCERC20OrderContract.init(config.COMPOUND_CETH_ADDR, 1, 1, 1, 1, true, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR, {
+            gas: 5e5
+          });
+          await ShortCERC20OrderContract.renounceOwnership({
+            gas: 4e5
+          });
+          // deploy ShortCEtherOrder
+          await deployer.deploy(ShortCEtherOrder, {
+            gas: 3.5e6
+          });
+          ShortCEtherOrderContract = (await ShortCEtherOrder.deployed());
+          await ShortCEtherOrderContract.init(config.COMPOUND_CETH_ADDR, 1, 1, 1, 1, true, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR, {
+            gas: 5e5
+          });
+          await ShortCEtherOrderContract.renounceOwnership({
+            gas: 4e5
+          });
+          // deploy LongCERC20Order
+          await deployer.deploy(LongCERC20Order, {
+            gas: 3.5e6
+          });
+          LongCERC20OrderContract = (await LongCERC20Order.deployed());
+          await LongCERC20OrderContract.init(config.COMPOUND_CETH_ADDR, 1, 1, 1, 1, false, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR, {
+            gas: 5e5
+          });
+          await LongCERC20OrderContract.renounceOwnership({
+            gas: 4e5
+          });
+          // deploy LongCEtherOrder
+          await deployer.deploy(LongCEtherOrder, {
+            gas: 3.3e6
+          });
+          LongCEtherOrderContract = (await LongCEtherOrder.deployed());
+          await LongCEtherOrderContract.init(config.COMPOUND_CETH_ADDR, 1, 1, 1, 1, false, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR, {
+            gas: 5e5
+          });
+          await LongCEtherOrderContract.renounceOwnership({
+            gas: 4e5
+          });
+          // deploy CompoundOrderFactory
+          await deployer.deploy(CompoundOrderFactory, ShortCERC20OrderContract.address, ShortCEtherOrderContract.address, LongCERC20OrderContract.address, LongCEtherOrderContract.address, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_COMPTROLLER_ADDR, config.COMPOUND_ORACLE_ADDR, config.COMPOUND_CDAI_ADDR, config.COMPOUND_CETH_ADDR, {
+            gas: 8e5
+          });
           // deploy BetokenLogic
-          //await deployer.deploy(BetokenLogic, {gas: 6.5e6})
-          //await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
+          await deployer.deploy(BetokenLogic, {
+            gas: 6.5e6
+          });
+          await deployer.deploy(BetokenLogic2, {
+            gas: 6.7e6
+          });
           /*minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
           controlTokenAddr = (await minimeFactory.createCloneToken(
               config.KAIRO_ADDR, 8995570, "Test Kairo", 18, "Test-KRO", false, {gas: 3e6})).logs[0].args.addr
@@ -288,7 +245,7 @@
           ControlToken = await MiniMeToken.at(controlTokenAddr)
           ShareToken = await MiniMeToken.at(shareTokenAddr)*/
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, '0xd85E9B5b359B087a3D99A57f23cD34A8a9ebe207', '0xedd00c14bBE57553768a85E38017901853741623', config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, { //CompoundOrderFactory.address, //BetokenLogic.address, //BetokenLogic2.address,
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, {
             gas: 6e6
           });
           betokenFund = (await BetokenFund.deployed());

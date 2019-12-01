@@ -190,7 +190,7 @@ module.exports = (deployer, network, accounts) ->
         KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
         # deploy ShortCERC20Order
-        ###await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
+        await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
         ShortCERC20OrderContract = await ShortCERC20Order.deployed()
         await ShortCERC20OrderContract.init(
           config.COMPOUND_CETH_ADDR,
@@ -210,7 +210,7 @@ module.exports = (deployer, network, accounts) ->
         await ShortCERC20OrderContract.renounceOwnership({gas: 4e5})
 
         # deploy ShortCEtherOrder
-        await deployer.deploy(ShortCEtherOrder, {gas: 3.2e6})
+        await deployer.deploy(ShortCEtherOrder, {gas: 3.5e6})
         ShortCEtherOrderContract = await ShortCEtherOrder.deployed()
         await ShortCEtherOrderContract.init(
           config.COMPOUND_CETH_ADDR,
@@ -283,11 +283,11 @@ module.exports = (deployer, network, accounts) ->
           config.COMPOUND_CDAI_ADDR,
           config.COMPOUND_CETH_ADDR
           {gas: 8e5}
-        )###
+        )
 
         # deploy BetokenLogic
-        #await deployer.deploy(BetokenLogic, {gas: 6.5e6})
-        #await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
+        await deployer.deploy(BetokenLogic, {gas: 6.5e6})
+        await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
 
         ###minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
         controlTokenAddr = (await minimeFactory.createCloneToken(
@@ -308,9 +308,9 @@ module.exports = (deployer, network, accounts) ->
           config.PREV_VERSION,
           config.DAI_ADDR,
           config.KYBER_ADDR,
-          config.COMPOUND_FACTORY_ADDR,#CompoundOrderFactory.address,
-          '0xd85E9B5b359B087a3D99A57f23cD34A8a9ebe207',#BetokenLogic.address,
-          '0xedd00c14bBE57553768a85E38017901853741623',#BetokenLogic2.address,
+          CompoundOrderFactory.address,
+          BetokenLogic.address,
+          BetokenLogic2.address,
           config.START_CYCLE_NUM,
           config.DEXAG_ADDR,
           config.SAI_ADDR,
