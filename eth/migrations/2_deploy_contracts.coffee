@@ -286,7 +286,7 @@ module.exports = (deployer, network, accounts) ->
         )###
 
         # deploy BetokenLogic
-        #await deployer.deploy(BetokenLogic, {gas: 6.3e6})
+        #await deployer.deploy(BetokenLogic, {gas: 6.5e6})
         #await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
 
         ###minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
@@ -309,7 +309,7 @@ module.exports = (deployer, network, accounts) ->
           config.DAI_ADDR,
           config.KYBER_ADDR,
           config.COMPOUND_FACTORY_ADDR,#CompoundOrderFactory.address,
-          '0x5B435cD2Ebc7B91990F9A7FcCAB0DCbfEBDDAe35',#BetokenLogic.address,
+          '0xd85E9B5b359B087a3D99A57f23cD34A8a9ebe207',#BetokenLogic.address,
           '0xedd00c14bBE57553768a85E38017901853741623',#BetokenLogic2.address,
           config.START_CYCLE_NUM,
           config.DEXAG_ADDR,
@@ -319,7 +319,7 @@ module.exports = (deployer, network, accounts) ->
         )
         betokenFund = await BetokenFund.deployed()
 
-        ###console.log "Transferring Kairo ownership to BetokenFund..."
+       ### console.log "Transferring Kairo ownership to BetokenFund..."
         await ControlToken.transferOwnership(betokenFund.address, {gas: 4e5})
 
         console.log "Transferring BetokenShares ownership to BetokenFund..."

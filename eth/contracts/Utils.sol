@@ -4,6 +4,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./interfaces/KyberNetwork.sol";
+import "./interfaces/Dexag.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.
@@ -174,8 +175,10 @@ contract Utils {
     // Note: _actualSrcAmount is being used as msgValue here, because otherwise we'd run into the stack too deep error
     if (_srcToken != ETH_TOKEN_ADDRESS) {
       _actualSrcAmount = 0;
-      _srcToken.safeApprove(DEXAG_ADDR, 0);
-      _srcToken.safeApprove(DEXAG_ADDR, _srcAmount);
+      Dexag dex = Dexag(DEXAG_ADDR);
+      address approvalHandler = dex.approvalHandler();
+      _srcToken.safeApprove(approvalHandler, 0);
+      _srcToken.safeApprove(approvalHandler, _srcAmount);
     } else {
       _actualSrcAmount = _srcAmount;
     }
@@ -185,7 +188,7 @@ contract Utils {
     require(success);
 
     // calculate trade amounts and price
-    _actualDestAmount = beforeDestBalance.sub(getBalance(_destToken, address(this)));
+    _actualDestAmount = getBalance(_destToken, address(this)).sub(beforeDestBalance);
     _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, address(this)));
     require(_actualDestAmount > 0 && _actualSrcAmount > 0);
     _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));

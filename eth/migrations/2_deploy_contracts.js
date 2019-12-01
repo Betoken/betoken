@@ -278,7 +278,7 @@
             {gas: 8e5}
           ) */
           // deploy BetokenLogic
-          //await deployer.deploy(BetokenLogic, {gas: 6.3e6})
+          //await deployer.deploy(BetokenLogic, {gas: 6.5e6})
           //await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
           /*minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
           controlTokenAddr = (await minimeFactory.createCloneToken(
@@ -288,11 +288,11 @@
           ControlToken = await MiniMeToken.at(controlTokenAddr)
           ShareToken = await MiniMeToken.at(shareTokenAddr)*/
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, '0x5B435cD2Ebc7B91990F9A7FcCAB0DCbfEBDDAe35', '0xedd00c14bBE57553768a85E38017901853741623', config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, { //CompoundOrderFactory.address, //BetokenLogic.address, //BetokenLogic2.address,
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, config.COMPOUND_FACTORY_ADDR, '0xd85E9B5b359B087a3D99A57f23cD34A8a9ebe207', '0xedd00c14bBE57553768a85E38017901853741623', config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, { //CompoundOrderFactory.address, //BetokenLogic.address, //BetokenLogic2.address,
             gas: 6e6
           });
           betokenFund = (await BetokenFund.deployed());
-          /*console.log "Transferring Kairo ownership to BetokenFund..."
+          /* console.log "Transferring Kairo ownership to BetokenFund..."
           await ControlToken.transferOwnership(betokenFund.address, {gas: 4e5})
 
           console.log "Transferring BetokenShares ownership to BetokenFund..."
