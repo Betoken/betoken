@@ -1,9 +1,10 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.13;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./interfaces/KyberNetwork.sol";
+import "./interfaces/Dexag.sol";
 
 /**
  * @title The smart contract for useful utility functions and constants.
@@ -27,7 +28,8 @@ contract Utils {
 
   address public DAI_ADDR;
   address payable public KYBER_ADDR;
-  
+  address payable public DEXAG_ADDR;
+
   bytes public constant PERM_HINT = "PERM";
 
   ERC20Detailed internal constant ETH_TOKEN_ADDRESS = ERC20Detailed(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
@@ -41,10 +43,12 @@ contract Utils {
 
   constructor(
     address _daiAddr,
-    address payable _kyberAddr
+    address payable _kyberAddr,
+    address payable _dexagAddr
   ) public {
     DAI_ADDR = _daiAddr;
     KYBER_ADDR = _kyberAddr;
+    DEXAG_ADDR = _dexagAddr;
 
     dai = ERC20Detailed(_daiAddr);
     kyber = KyberNetwork(_kyberAddr);
@@ -120,10 +124,6 @@ contract Utils {
   {
     require(_srcToken != _destToken);
 
-    // Get current rate & ensure token is listed on Kyber
-    (, uint256 rate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
-    require(rate > 0);
-
     uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
     uint256 msgValue;
     if (_srcToken != ETH_TOKEN_ADDRESS) {
@@ -139,18 +139,64 @@ contract Utils {
       _destToken,
       toPayableAddr(address(this)),
       MAX_QTY,
-      rate,
+      1,
       0x332D87209f7c8296389C307eAe170c2440830A47,
       PERM_HINT
     );
-    require(_actualDestAmount > 0);
-    if (_srcToken != ETH_TOKEN_ADDRESS) {
-      _srcToken.safeApprove(KYBER_ADDR, 0);
-    }
-
     _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, address(this)));
+    require(_actualDestAmount > 0 && _actualSrcAmount > 0);
     _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
     _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
+  }
+
+  /**
+   * @notice Wrapper function for doing token conversion on dex.ag
+   * @param _srcToken the token to convert from
+   * @param _srcAmount the amount of tokens to be converted
+   * @param _destToken the destination token
+   * @return _destPriceInSrc the price of the dest token, in terms of source tokens
+   *         _srcPriceInDest the price of the source token, in terms of dest tokens
+   *         _actualDestAmount actual amount of dest token traded
+   *         _actualSrcAmount actual amount of src token traded
+   */
+  function __dexagTrade(ERC20Detailed _srcToken, uint256 _srcAmount, ERC20Detailed _destToken, bytes memory _calldata)
+    internal
+    returns(
+      uint256 _destPriceInSrc,
+      uint256 _srcPriceInDest,
+      uint256 _actualDestAmount,
+      uint256 _actualSrcAmount
+    )
+  {
+    require(_srcToken != _destToken);
+
+    uint256 beforeSrcBalance = getBalance(_srcToken, address(this));
+    uint256 beforeDestBalance = getBalance(_destToken, address(this));
+    // Note: _actualSrcAmount is being used as msgValue here, because otherwise we'd run into the stack too deep error
+    if (_srcToken != ETH_TOKEN_ADDRESS) {
+      _actualSrcAmount = 0;
+      Dexag dex = Dexag(DEXAG_ADDR);
+      address approvalHandler = dex.approvalHandler();
+      _srcToken.safeApprove(approvalHandler, 0);
+      _srcToken.safeApprove(approvalHandler, _srcAmount);
+    } else {
+      _actualSrcAmount = _srcAmount;
+    }
+
+    // trade through dex.ag proxy
+    (bool success,) = DEXAG_ADDR.call.value(_actualSrcAmount)(_calldata);
+    require(success);
+
+    // calculate trade amounts and price
+    _actualDestAmount = getBalance(_destToken, address(this)).sub(beforeDestBalance);
+    _actualSrcAmount = beforeSrcBalance.sub(getBalance(_srcToken, address(this)));
+    require(_actualDestAmount > 0 && _actualSrcAmount > 0);
+    _destPriceInSrc = calcRateFromQty(_actualDestAmount, _actualSrcAmount, getDecimals(_destToken), getDecimals(_srcToken));
+    _srcPriceInDest = calcRateFromQty(_actualSrcAmount, _actualDestAmount, getDecimals(_srcToken), getDecimals(_destToken));
+
+    // verify that the price is at least as good as Kyber
+    (, uint256 kyberSrcPriceInDest) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
+    require(kyberSrcPriceInDest > 0 && _srcPriceInDest >= kyberSrcPriceInDest);
   }
 
   /**
@@ -158,7 +204,7 @@ contract Utils {
    * @param _addr the account to be checked
    * @return True if the account is a smart contract, false otherwise
    */
-  function isContract(address _addr) view internal returns(bool) {
+  function isContract(address _addr) internal view returns(bool) {
     uint size;
     if (_addr == address(0)) return false;
     assembly {
@@ -167,7 +213,7 @@ contract Utils {
     return size>0;
   }
 
-  function toPayableAddr(address _addr) pure internal returns (address payable) {
+  function toPayableAddr(address _addr) internal pure returns (address payable) {
     return address(uint160(_addr));
   }
 }

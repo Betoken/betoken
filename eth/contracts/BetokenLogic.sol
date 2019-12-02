@@ -1,4 +1,4 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.13;
 
 import "./BetokenStorage.sol";
 import "./interfaces/PositionToken.sol";
@@ -8,392 +8,17 @@ import "./derivatives/CompoundOrderFactory.sol";
  * @title Part of the functions for BetokenFund
  * @author Zefram Lou (Zebang Liu)
  */
-contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
+contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0)) {
   /**
-   * Upgrading functions
+   * @notice Executes function only during the given cycle phase.
+   * @param phase the cycle phase during which the function may be called
    */
-
-  /**
-   * @notice Allows the developer to propose a candidate smart contract for the fund to upgrade to.
-   *          The developer may change the candidate during the Intermission phase.
-   * @param _candidate the address of the candidate smart contract
-   * @return True if successfully changed candidate, false otherwise.
-   */
-  function developerInitiateUpgrade(address payable _candidate) public returns (bool _success) {
-    if (_candidate == address(0) || _candidate == address(this) || !__isMature()) {
-      return false;
-    }
-    nextVersion = _candidate;
-    upgradeVotingActive = true;
-    emit DeveloperInitiatedUpgrade(cycleNumber, _candidate);
-    return true;
-  }
-
-  /**
-   * @notice Allows a manager to signal their support of initiating an upgrade. They can change their signal before the end of the Intermission phase.
-   *          Managers who oppose initiating an upgrade don't need to call this function, unless they origianlly signalled in support.
-   *          Signals are reset every cycle.
-   * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
-   * @return True if successfully changed signal, false if no changes were made.
-   */
-  function signalUpgrade(bool _inSupport) public returns (bool _success) {
-    if (!__isMature()) {
-      return false;
-    }
-
-    if (upgradeSignal[cycleNumber][msg.sender] == false) {
-      if (_inSupport == true) {
-        upgradeSignal[cycleNumber][msg.sender] = true;
-        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].add(getVotingWeight(msg.sender));
-      } else {
-        return false;
-      }
-    } else {
-      if (_inSupport == false) {
-        upgradeSignal[cycleNumber][msg.sender] = false;
-        upgradeSignalStrength[cycleNumber] = upgradeSignalStrength[cycleNumber].sub(getVotingWeight(msg.sender));
-      } else {
-        return false;
-      }
-    }
-    emit SignaledUpgrade(cycleNumber, msg.sender, _inSupport);
-    return true;
-  }
-
-  /**
-   * @notice Allows manager to propose a candidate smart contract for the fund to upgrade to. Among the managers who have proposed a candidate,
-   *          the manager with the most voting weight's candidate will be used in the vote. Ties are broken in favor of the larger address.
-   *          The proposer may change the candidate they support during the Propose subchunk in their chunk.
-   * @param _chunkNumber the chunk for which the sender is proposing the candidate
-   * @param _candidate the address of the candidate smart contract
-   * @return True if successfully proposed/changed candidate, false otherwise.
-   */
-  function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public returns (bool _success) {
-    // Input & state check
-    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Propose ||
-      upgradeVotingActive == false || _candidate == address(0) || msg.sender == address(0) || !__isMature()) {
-      return false;
-    }
-
-    // Ensure msg.sender has not been a proposer before
-    // Ensure candidate hasn't been proposed in previous vote
-    uint256 voteID = _chunkNumber.sub(1);
-    uint256 i;
-    for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposers[i] == msg.sender || candidates[i] == _candidate) {
-        return false;
-      }
-    }
-
-    // Ensure msg.sender has more voting weight than current proposer
-    uint256 senderWeight = getVotingWeight(msg.sender);
-    uint256 currProposerWeight = getVotingWeight(proposers[voteID]);
-    if (senderWeight > currProposerWeight || (senderWeight == currProposerWeight && msg.sender > proposers[voteID]) || msg.sender == proposers[voteID]) {
-      proposers[voteID] = msg.sender;
-      candidates[voteID] = _candidate;
-      proposersVotingWeight = proposersVotingWeight.add(senderWeight).sub(currProposerWeight);
-      emit ProposedCandidate(cycleNumber, voteID, msg.sender, _candidate);
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * @notice Allows a manager to vote for or against a candidate smart contract the fund will upgrade to. The manager may change their vote during
-   *          the Vote subchunk. A manager who has been a proposer may not vote.
-   * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
-   * @return True if successfully changed vote, false otherwise.
-   */
-  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public returns (bool _success) {
-    // Input & state check
-    if (!__isValidChunk(_chunkNumber) || currentChunk() != _chunkNumber || currentSubchunk() != Subchunk.Vote || upgradeVotingActive == false || !__isMature()) {
-      return false;
-    }
-
-    // Ensure msg.sender has not been a proposer before
-    uint256 voteID = _chunkNumber.sub(1);
-    uint256 i;
-    for (i = 0; i < voteID; i = i.add(1)) {
-      if (proposers[i] == msg.sender) {
-        return false;
-      }
-    }
-
-    // Register vote
-    VoteDirection currVote = managerVotes[cycleNumber][msg.sender][voteID];
-    uint256 votingWeight = getVotingWeight(msg.sender);
-    if ((currVote == VoteDirection.Empty || currVote == VoteDirection.Against) && _inSupport) {
-      managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.For;
-      forVotes[voteID] = forVotes[voteID].add(votingWeight);
-      if (currVote == VoteDirection.Against) {
-        againstVotes[voteID] = againstVotes[voteID].sub(votingWeight);
-      }
-    } else if ((currVote == VoteDirection.Empty || currVote == VoteDirection.For) && !_inSupport) {
-      managerVotes[cycleNumber][msg.sender][voteID] = VoteDirection.Against;
-      againstVotes[voteID] = againstVotes[voteID].add(votingWeight);
-      if (currVote == VoteDirection.For) {
-        forVotes[voteID] = forVotes[voteID].sub(votingWeight);
-      }
-    }
-    emit Voted(cycleNumber, voteID, msg.sender, _inSupport, votingWeight);
-    return true;
-  }
-
-  /**
-   * @notice Performs the necessary state changes after a successful vote
-   * @param _chunkNumber the chunk number of the successful vote
-   * @return True if successful, false otherwise
-   */
-  function finalizeSuccessfulVote(uint256 _chunkNumber) public returns (bool _success) {
-    // Input & state check
-    if (!__isValidChunk(_chunkNumber) || !__isMature()) {
-      return false;
-    }
-
-    // Ensure the given vote was successful
-    if (__voteSuccessful(_chunkNumber) == false) {
-      return false;
-    }
-
-    // Ensure the chunk given has ended
-    if (_chunkNumber >= currentChunk()) {
-      return false;
-    }
-
-    // Ensure no previous vote was successful
-    for (uint256 i = 1; i < _chunkNumber; i = i.add(1)) {
-      if (__voteSuccessful(i)) {
-        return false;
-      }
-    }
-
-    // End voting process
-    upgradeVotingActive = false;
-    nextVersion = candidates[_chunkNumber.sub(1)];
-    hasFinalizedNextVersion = true;
-    return true;
-  }
-
-  /**
-   * @notice Checks if the fund is mature enough for initiating an upgrade
-   * @return True if mature enough, false otherwise
-   */
-  function __isMature() internal view returns (bool) {
-    return cycleNumber > CYCLES_TILL_MATURITY;
-  }
-
-  /**
-   * @notice Checks if a chunk number is valid
-   * @param _chunkNumber the chunk number to be checked
-   * @return True if valid, false otherwise
-   */
-  function __isValidChunk(uint256 _chunkNumber) internal pure returns (bool) {
-    return _chunkNumber >= 1 && _chunkNumber <= 5;
-  }
-
-  /**
-   * @notice Checks if a vote was successful
-   * @param _chunkNumber the chunk number of the vote
-   * @return True if successful, false otherwise
-   */
-  function __voteSuccessful(uint256 _chunkNumber) internal view returns (bool _success) {
-    if (!__isValidChunk(_chunkNumber)) {
-      return false;
-    }
-    uint256 voteID = _chunkNumber.sub(1);
-    return forVotes[voteID].mul(PRECISION).div(forVotes[voteID].add(againstVotes[voteID])) > VOTE_SUCCESS_THRESHOLD
-      && forVotes[voteID].add(againstVotes[voteID]) > getTotalVotingWeight().mul(QUORUM).div(PRECISION);
-  }
-
-
-  /**
-   * Next phase transition handler
-   * @notice Moves the fund to the next phase in the investment cycle.
-   */
-  function nextPhase()
-    public
-  {
-    require(now >= startTimeOfCyclePhase.add(phaseLengths[uint(cyclePhase)]));
-
-    if (cycleNumber == 0) {
-      require(msg.sender == owner());
-    }
-
+  modifier during(CyclePhase phase) {
+    require(cyclePhase == phase);
     if (cyclePhase == CyclePhase.Intermission) {
-      require(hasFinalizedNextVersion == false); // Shouldn't progress to next phase if upgrading
-
-      // Check if there is enough signal supporting upgrade
-      if (upgradeSignalStrength[cycleNumber] > getTotalVotingWeight().div(2)) {
-        upgradeVotingActive = true;
-        emit InitiatedUpgrade(cycleNumber);
-      }
-    } else if (cyclePhase == CyclePhase.Manage) {
-      // Burn any Kairo left in BetokenFund's account
-      require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
-
-      // Pay out commissions and fees
-      uint256 profit = 0;
-      if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
-        profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
-      }
-      uint256 commissionThisCycle = COMMISSION_RATE.mul(profit).add(ASSET_FEE_RATE.mul(getBalance(dai, address(this)))).div(PRECISION);
-      totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(commissionThisCycle); // account for penalties
-      totalCommissionLeft = totalCommissionLeft.add(commissionThisCycle);
-
-      totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
-
-      // Give the developer Betoken shares inflation funding
-      uint256 devFunding = devFundingRate.mul(sToken.totalSupply()).div(PRECISION);
-      require(sToken.generateTokens(devFundingAccount, devFunding));
-
-      // Emit event
-      emit TotalCommissionPaid(cycleNumber, totalCommissionOfCycle[cycleNumber]);
-
-      managePhaseEndBlock[cycleNumber] = block.number;
-
-      // Clear/update upgrade related data
-      if (nextVersion == address(this)) {
-        // The developer proposed a candidate, but the managers decide to not upgrade at all
-        // Reset upgrade process
-        delete nextVersion;
-        delete hasFinalizedNextVersion;
-      }
-      if (nextVersion == address(0)) {
-        delete proposers;
-        delete candidates;
-        delete forVotes;
-        delete againstVotes;
-        delete upgradeVotingActive;
-        delete proposersVotingWeight;
-      } else {
-        hasFinalizedNextVersion = true;
-        emit FinalizedNextVersion(cycleNumber, nextVersion);
-      }
-
-      // Start new cycle
-      cycleNumber = cycleNumber.add(1);
+      require(isInitialized);
     }
-
-    cyclePhase = CyclePhase(addmod(uint(cyclePhase), 1, 2));
-    startTimeOfCyclePhase = now;
-
-    // Reward caller if they're a manager
-    if (cToken.balanceOf(msg.sender) > 0) {
-      require(cToken.generateTokens(msg.sender, NEXT_PHASE_REWARD));
-    }
-
-    emit ChangedPhase(cycleNumber, uint(cyclePhase), now, totalFundsInDAI);
-  }
-
-
-  /**
-   * Manager registration
-   */
-  
-  /**
-   * @notice Calculates the max amount a new manager can pay for an account. Equivalent to 1% of Kairo total supply.
-   *         If less than 100 DAI, returns 100 DAI.
-   * @return the max DAI amount for purchasing a manager account
-   */
-  function maxRegistrationPaymentInDAI() public view returns (uint256 _maxDonationInDAI) {
-    uint256 kroPrice = kairoPrice();
-    _maxDonationInDAI = MAX_BUY_KRO_PROP.mul(cToken.totalSupply()).div(PRECISION).mul(kroPrice).div(PRECISION);
-    if (_maxDonationInDAI < FALLBACK_MAX_DONATION) {
-      _maxDonationInDAI = FALLBACK_MAX_DONATION;
-    }
-  }
-
-  /**
-   * @notice Registers `msg.sender` as a manager, using DAI as payment. The more one pays, the more Kairo one gets.
-   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   * @param _donationInDAI the amount of DAI to be used for registration
-   */
-  function registerWithDAI(uint256 _donationInDAI) public {
-    dai.safeTransferFrom(msg.sender, address(this), _donationInDAI);
-
-    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
-    if (_donationInDAI > maxDonationInDAI) {
-      dai.safeTransfer(msg.sender, _donationInDAI.sub(maxDonationInDAI));
-      _donationInDAI = maxDonationInDAI;
-    }
-
-    __register(_donationInDAI);
-  }
-
-  /**
-   * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
-   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   */
-  function registerWithETH() public payable {
-    uint256 receivedDAI;
-
-    // trade ETH for DAI
-    (,,receivedDAI,) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
-    
-    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
-    if (receivedDAI > maxDonationInDAI) {
-      dai.safeTransfer(msg.sender, receivedDAI.sub(maxDonationInDAI));
-      receivedDAI = maxDonationInDAI;
-    }
-
-    // register new manager
-    __register(receivedDAI);
-  }
-
-  /**
-   * @notice Registers `msg.sender` as a manager, using tokens as payment. The more one pays, the more Kairo one gets.
-   *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
-   * @param _token the token to be used for payment
-   * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
-   */
-  function registerWithToken(address _token, uint256 _donationInTokens) public {
-    require(_token != address(0) && _token != address(ETH_TOKEN_ADDRESS) && _token != DAI_ADDR);
-    ERC20Detailed token = ERC20Detailed(_token);
-    require(token.totalSupply() > 0);
-
-    token.safeTransferFrom(msg.sender, address(this), _donationInTokens);
-
-    uint256 receivedDAI;
-
-    (,,receivedDAI,) = __kyberTrade(token, _donationInTokens, dai);
-
-    // if DAI value is greater than maximum allowed, return excess DAI to msg.sender
-    uint256 maxDonationInDAI = maxRegistrationPaymentInDAI();
-    if (receivedDAI > maxDonationInDAI) {
-      dai.safeTransfer(msg.sender, receivedDAI.sub(maxDonationInDAI));
-      receivedDAI = maxDonationInDAI;
-    }
-
-    // register new manager
-    __register(receivedDAI);
-  }
-
-  /**
-   * @notice Registers `msg.sender` as a manager.
-   * @param _donationInDAI the amount of DAI to be used for registration
-   */
-  function __register(uint256 _donationInDAI) internal {
-    require(cToken.balanceOf(msg.sender) == 0 && userInvestments[msg.sender].length == 0 && userCompoundOrders[msg.sender].length == 0); // each address can only join once
-
-    // mint KRO for msg.sender
-    uint256 kroAmount = _donationInDAI.mul(PRECISION).div(kairoPrice());
-    require(cToken.generateTokens(msg.sender, kroAmount));
-
-    // Set risk fallback base stake
-    baseRiskStakeFallback[msg.sender] = kroAmount;
-
-    if (cyclePhase == CyclePhase.Intermission) {
-      // transfer DAI to devFundingAccount
-      dai.safeTransfer(devFundingAccount, _donationInDAI);
-    } else {
-      // keep DAI in the fund
-      totalFundsInDAI = totalFundsInDAI.add(_donationInDAI);
-    }
-    
-    // emit events
-    emit Register(msg.sender, _donationInDAI, kroAmount);
+    _;
   }
 
   /**
@@ -405,7 +30,21 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
   }
 
   /**
-   * @notice Creates a new investment for an ERC20 token.
+   * @notice Burns the Kairo balance of a manager who has been inactive for a certain number of cycles
+   * @param _deadman the manager whose Kairo balance will be burned
+   */
+  function burnDeadman(address _deadman)
+    public
+    nonReentrant
+    during(CyclePhase.Intermission)
+  {
+    require(_deadman != address(this));
+    require(cycleNumber.sub(lastActiveCycle(_deadman)) > INACTIVE_THRESHOLD);
+    require(cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman)));
+  }
+
+  /**
+   * @notice Creates a new investment for an ERC20 token. Backwards compatible.
    * @param _tokenAddress address of the ERC20 token contract
    * @param _stake amount of Kairos to be staked in support of the investment
    * @param _minPrice the minimum price for the trade
@@ -418,6 +57,68 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+  {
+    bytes memory nil;
+    createInvestmentV2(
+      _tokenAddress,
+      _stake,
+      _minPrice,
+      _maxPrice,
+      nil,
+      true
+    );
+  }
+
+  /**
+   * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
+   *         The user can sell only part of the investment by changing _tokenAmount. Backwards compatible.
+   * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
+   *   the original buy price and however much tokens that are not sold.
+   * @param _investmentId the ID of the investment
+   * @param _tokenAmount the amount of tokens to be sold.
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   */
+  function sellInvestmentAsset(
+    uint256 _investmentId,
+    uint256 _tokenAmount,
+    uint256 _minPrice,
+    uint256 _maxPrice
+  )
+    public
+  {
+    bytes memory nil;
+    sellInvestmentAssetV2(
+      _investmentId,
+      _tokenAmount,
+      _minPrice,
+      _maxPrice,
+      nil,
+      true
+    );
+  }
+
+  /**
+   * @notice Creates a new investment for an ERC20 token.
+   * @param _tokenAddress address of the ERC20 token contract
+   * @param _stake amount of Kairos to be staked in support of the investment
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   * @param _calldata calldata for dex.ag trading
+   * @param _useKyber true for Kyber Network, false for dex.ag
+   */
+  function createInvestmentV2(
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
+  )
+    public
+    during(CyclePhase.Manage)
+    nonReentrant
+    isValidToken(_tokenAddress)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
@@ -442,13 +143,13 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     // Invest
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true);
+    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true, _calldata, _useKyber);
 
     // Update last active cycle
-    lastActiveCycle[msg.sender] = cycleNumber;
+    _lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
-    emit CreatedInvestment(cycleNumber, msg.sender, investmentId, _tokenAddress, _stake, userInvestments[msg.sender][investmentId].buyPrice, actualSrcAmount, userInvestments[msg.sender][investmentId].tokenAmount);
+    __emitCreatedInvestmentEvent(investmentId);
   }
 
   /**
@@ -461,13 +162,17 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
    */
-  function sellInvestmentAsset(
+  function sellInvestmentAssetV2(
     uint256 _investmentId,
     uint256 _tokenAmount,
     uint256 _minPrice,
-    uint256 _maxPrice
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
   {
     Investment storage investment = userInvestments[msg.sender][_investmentId];
     require(investment.buyPrice > 0 && investment.cycleNumber == cycleNumber && !investment.isSold);
@@ -480,39 +185,21 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     if (_tokenAmount != investment.tokenAmount) {
       isPartialSell = true;
 
-      // calculate the part of original DAI cost attributed to the sold tokens
-      uint256 soldBuyCostInDAI = investment.buyCostInDAI.mul(_tokenAmount).div(investment.tokenAmount);
-
-      userInvestments[msg.sender].push(Investment({
-        tokenAddress: investment.tokenAddress,
-        cycleNumber: cycleNumber,
-        stake: investment.stake.sub(stakeOfSoldTokens),
-        tokenAmount: investment.tokenAmount.sub(_tokenAmount),
-        buyPrice: investment.buyPrice,
-        sellPrice: 0,
-        buyTime: investment.buyTime,
-        buyCostInDAI: investment.buyCostInDAI.sub(soldBuyCostInDAI),
-        isSold: false
-      }));
-
-      // update the investment object being sold
-      investment.tokenAmount = _tokenAmount;
-      investment.stake = stakeOfSoldTokens;
-      investment.buyCostInDAI = soldBuyCostInDAI;
+      __createInvestmentForLeftovers(_investmentId, _tokenAmount);
     }
     
     // Update investment info
     investment.isSold = true;
 
     // Sell asset
-    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false);
+    (uint256 actualDestAmount, uint256 actualSrcAmount) = __handleInvestment(_investmentId, _minPrice, _maxPrice, false, _calldata, _useKyber);
     if (isPartialSell) {
       // If only part of _tokenAmount was successfully sold, put the unsold tokens in the new investment
       userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)].tokenAmount.add(_tokenAmount.sub(actualSrcAmount));
     }
 
     // Return staked Kairo
-    uint256 receiveKairoAmount = stakeOfSoldTokens.mul(investment.sellPrice).div(investment.buyPrice);
+    uint256 receiveKairoAmount = getReceiveKairoAmount(stakeOfSoldTokens, investment.sellPrice, investment.buyPrice);
     __returnStake(receiveKairoAmount, stakeOfSoldTokens);
 
     // Record risk taken in investment
@@ -523,13 +210,48 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     
     // Emit event
     if (isPartialSell) {
-      Investment storage newInvestment = userInvestments[msg.sender][investmentsCount(msg.sender).sub(1)];
-      emit CreatedInvestment(
-        cycleNumber, msg.sender, investmentsCount(msg.sender).sub(1),
-        newInvestment.tokenAddress, newInvestment.stake, newInvestment.buyPrice,
-        newInvestment.buyCostInDAI, newInvestment.tokenAmount);
+      __emitCreatedInvestmentEvent(investmentsCount(msg.sender).sub(1));
     }
-    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, investment.tokenAddress, receiveKairoAmount, investment.sellPrice, actualDestAmount);
+    __emitSoldInvestmentEvent(_investmentId, receiveKairoAmount, actualDestAmount);
+  }
+
+  function __emitSoldInvestmentEvent(uint256 _investmentId, uint256 _receiveKairoAmount, uint256 _actualDestAmount) internal {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+    emit SoldInvestment(cycleNumber, msg.sender, _investmentId, investment.tokenAddress, _receiveKairoAmount, investment.sellPrice, _actualDestAmount);
+  }
+
+  function __createInvestmentForLeftovers(uint256 _investmentId, uint256 _tokenAmount) internal {
+    Investment storage investment = userInvestments[msg.sender][_investmentId];
+
+    uint256 stakeOfSoldTokens = investment.stake.mul(_tokenAmount).div(investment.tokenAmount);
+
+    // calculate the part of original DAI cost attributed to the sold tokens
+    uint256 soldBuyCostInDAI = investment.buyCostInDAI.mul(_tokenAmount).div(investment.tokenAmount);
+
+    userInvestments[msg.sender].push(Investment({
+      tokenAddress: investment.tokenAddress,
+      cycleNumber: cycleNumber,
+      stake: investment.stake.sub(stakeOfSoldTokens),
+      tokenAmount: investment.tokenAmount.sub(_tokenAmount),
+      buyPrice: investment.buyPrice,
+      sellPrice: 0,
+      buyTime: investment.buyTime,
+      buyCostInDAI: investment.buyCostInDAI.sub(soldBuyCostInDAI),
+      isSold: false
+    }));
+
+    // update the investment object being sold
+    investment.tokenAmount = _tokenAmount;
+    investment.stake = stakeOfSoldTokens;
+    investment.buyCostInDAI = soldBuyCostInDAI;
+  }
+
+  function __emitCreatedInvestmentEvent(uint256 _id) internal {
+    Investment storage investment = userInvestments[msg.sender][_id];
+    emit CreatedInvestment(
+      cycleNumber, msg.sender, _id,
+      investment.tokenAddress, investment.stake, investment.buyPrice,
+      investment.buyCostInDAI, investment.tokenAmount);
   }
 
   /**
@@ -548,6 +270,9 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
+    isValidToken(_tokenAddress)
   {
     require(_minPrice <= _maxPrice);
     require(_stake > 0);
@@ -568,7 +293,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     userCompoundOrders[msg.sender].push(address(order));
 
     // Update last active cycle
-    lastActiveCycle[msg.sender] = cycleNumber;
+    _lastActiveCycle[msg.sender] = cycleNumber;
 
     // Emit event
     emit CreatedCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _orderType, _tokenAddress, _stake, collateralAmountInDAI);
@@ -586,6 +311,8 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     uint256 _maxPrice
   )
     public
+    during(CyclePhase.Manage)
+    nonReentrant
   {
     // Load order info
     require(userCompoundOrders[msg.sender][_orderId] != address(0));
@@ -597,7 +324,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
 
     // Return staked Kairo
     uint256 stake = order.stake();
-    uint256 receiveKairoAmount = order.stake().mul(outputAmount).div(inputAmount);
+    uint256 receiveKairoAmount = getReceiveKairoAmount(stake, outputAmount, inputAmount);
     __returnStake(receiveKairoAmount, stake);
 
     // Record risk taken
@@ -615,7 +342,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @param _orderId the ID of the Compound order
    * @param _repayAmountInDAI amount of DAI to use for repaying debt
    */
-  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public {
+  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
     // Load order info
     require(userCompoundOrders[msg.sender][_orderId] != address(0));
     CompoundOrder order = CompoundOrder(userCompoundOrders[msg.sender][_orderId]);
@@ -628,14 +355,122 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
     emit RepaidCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _repayAmountInDAI);
   }
 
+  function getReceiveKairoAmount(uint256 stake, uint256 output, uint256 input) public view returns(uint256 _amount) {
+    if (output >= input) {
+      // positive ROI, simply return stake * (1 + ROI)
+      return stake.mul(output).div(input);
+    } else {
+      // negative ROI
+      uint256 absROI = input.sub(output).mul(PRECISION).div(input);
+      if (absROI <= ROI_PUNISH_THRESHOLD) {
+        // ROI better than -10%, no punishment
+        return stake.mul(output).div(input);
+      } else if (absROI > ROI_PUNISH_THRESHOLD && absROI < ROI_BURN_THRESHOLD) {
+        // ROI between -10% and -25%, punish
+        // return stake * (1 + roiWithPunishment) = stake * (1 + (-(6 * absROI - 0.5)))
+        return stake.mul(PRECISION.sub(ROI_PUNISH_SLOPE.mul(absROI).sub(ROI_PUNISH_NEG_BIAS))).div(PRECISION);
+      } else {
+        // ROI greater than 25%, burn all stake
+        return 0;
+      }
+    }
+  }
+
+  /**
+   * @notice Returns the commission balance of `_manager`
+   * @return the commission balance and the received penalty, denoted in DAI
+   */
+  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
+    if (lastCommissionRedemption(_manager) >= cycleNumber) { return (0, 0); }
+    uint256 cycle = lastCommissionRedemption(_manager) > 0 ? lastCommissionRedemption(_manager) : 1;
+    uint256 cycleCommission;
+    uint256 cyclePenalty;
+    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
+      (cycleCommission, cyclePenalty) = commissionOfAt(_manager, cycle);
+      _commission = _commission.add(cycleCommission);
+      _penalty = _penalty.add(cyclePenalty);
+    }
+  }
+
+  /**
+   * @notice Returns the commission amount received by `_manager` in the `_cycle`th cycle
+   * @return the commission amount and the received penalty, denoted in DAI
+   */
+  function commissionOfAt(address _manager, uint256 _cycle) public view returns (uint256 _commission, uint256 _penalty) {
+    if (hasRedeemedCommissionForCycle(_manager, _cycle)) { return (0, 0); }
+    // take risk into account
+    uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock(_cycle.sub(1)));
+    uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback(_manager) : baseKairoBalance;
+    if (baseKairoBalance == 0 && baseRiskStakeFallback(_manager) == 0) { return (0, 0); }
+    uint256 riskTakenProportion = riskTakenInCycle(_manager, _cycle).mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
+    riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
+
+    uint256 fullCommission = totalCommissionOfCycle(_cycle).mul(cToken.balanceOfAt(_manager, managePhaseEndBlock(_cycle)))
+      .div(cToken.totalSupplyAt(managePhaseEndBlock(_cycle)));
+
+    _commission = fullCommission.mul(riskTakenProportion).div(PRECISION);
+    _penalty = fullCommission.sub(_commission);
+  }
+
+  /**
+   * @notice Redeems commission.
+   */
+  function redeemCommission(bool _inShares)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    uint256 commission = __redeemCommission();
+
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.safeTransfer(msg.sender, commission);
+    }
+  }
+
+  /**
+   * @notice Redeems commission for a particular cycle.
+   * @param _inShares true to redeem in Betoken Shares, false to redeem in DAI
+   * @param _cycle the cycle for which the commission will be redeemed.
+   *        Commissions for a cycle will be redeemed during the Intermission phase of the next cycle, so _cycle must < cycleNumber.
+   */
+  function redeemCommissionForCycle(bool _inShares, uint256 _cycle)
+    public
+    during(CyclePhase.Intermission)
+    nonReentrant
+  {
+    require(_cycle < cycleNumber);
+
+    uint256 commission = __redeemCommissionForCycle(_cycle);
+
+    if (_inShares) {
+      // Deposit commission into fund
+      __deposit(commission);
+
+      // Emit deposit event
+      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
+    } else {
+      // Transfer the commission in DAI
+      dai.safeTransfer(msg.sender, commission);
+    }
+  }
+
   /**
    * @notice Handles and investment by doing the necessary trades using __kyberTrade() or Fulcrum trading
    * @param _investmentId the ID of the investment to be handled
    * @param _minPrice the minimum price for the trade
    * @param _maxPrice the maximum price for the trade
    * @param _buy whether to buy or sell the given investment
+   * @param _calldata calldata for dex.ag trading
+   * @param _useKyber true for Kyber Network, false for dex.ag
    */
-  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy)
+  function __handleInvestment(uint256 _investmentId, uint256 _minPrice, uint256 _maxPrice, bool _buy, bytes memory _calldata, bool _useKyber)
     public
     returns (uint256 _actualDestAmount, uint256 _actualSrcAmount)
   {
@@ -666,21 +501,31 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
         pToken.burnToToken(address(this), DAI_ADDR, _actualSrcAmount, 0);
         _actualDestAmount = dai.balanceOf(address(this)).sub(beforeBalance);
 
-        investment.sellPrice = calcRateFromQty(_actualSrcAmount, _actualDestAmount, dai.decimals(), pToken.decimals()); // price of pToken in DAI
+        investment.sellPrice = calcRateFromQty(_actualSrcAmount, _actualDestAmount, pToken.decimals(), dai.decimals()); // price of pToken in DAI
         require(_minPrice <= investment.sellPrice && investment.sellPrice <= _maxPrice);
       }
     } else {
-      // Kyber trading
+      // Basic trading
       uint256 dInS; // price of dest token denominated in src token
       uint256 sInD; // price of src token denominated in dest token
       if (_buy) {
-        (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token));
+        if (_useKyber) {
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token));
+        } else {
+          // dex.ag trading
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __dexagTrade(dai, totalFundsInDAI.mul(investment.stake).div(cToken.totalSupply()), ERC20Detailed(token), _calldata);
+        }
         require(_minPrice <= dInS && dInS <= _maxPrice);
         investment.buyPrice = dInS;
         investment.tokenAmount = _actualDestAmount;
         investment.buyCostInDAI = _actualSrcAmount;
       } else {
-        (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(ERC20Detailed(token), investment.tokenAmount, dai);
+        if (_useKyber) {
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __kyberTrade(ERC20Detailed(token), investment.tokenAmount, dai);
+        } else {
+          (dInS, sInD, _actualDestAmount, _actualSrcAmount) = __dexagTrade(ERC20Detailed(token), investment.tokenAmount, dai, _calldata);
+        }
+        
         require(_minPrice <= sInD && sInD <= _maxPrice);
         investment.sellPrice = sInD;
       }
@@ -721,6 +566,71 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0)) {
    * @notice Records risk taken in a trade based on stake and time of investment
    */
   function __recordRisk(uint256 _stake, uint256 _buyTime) internal {
-    riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle[msg.sender][cycleNumber].add(_stake.mul(now.sub(_buyTime)));
+    _riskTakenInCycle[msg.sender][cycleNumber] = riskTakenInCycle(msg.sender, cycleNumber).add(_stake.mul(now.sub(_buyTime)));
+  }
+
+  /**
+   * @notice Redeems the commission for all previous cycles. Updates the related variables.
+   * @return the amount of commission to be redeemed
+   */
+  function __redeemCommission() internal returns (uint256 _commission) {
+    require(lastCommissionRedemption(msg.sender) < cycleNumber);
+
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionBalanceOf(msg.sender);
+
+    // record the redemption to prevent double-redemption
+    for (uint256 i = lastCommissionRedemption(msg.sender); i < cycleNumber; i = i.add(1)) {
+      _hasRedeemedCommissionForCycle[msg.sender][i] = true;
+    }
+    _lastCommissionRedemption[msg.sender] = cycleNumber;
+
+    // record the decrease in commission pool
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(penalty);
+    // clear investment arrays to save space
+    delete userInvestments[msg.sender];
+    delete userCompoundOrders[msg.sender];
+
+    emit CommissionPaid(cycleNumber, msg.sender, _commission);
+  }
+
+  /**
+   * @notice Redeems commission for a particular cycle. Updates the related variables.
+   * @param _cycle the cycle for which the commission will be redeemed
+   * @return the amount of commission to be redeemed
+   */
+  function __redeemCommissionForCycle(uint256 _cycle) internal returns (uint256 _commission) {
+    require(!hasRedeemedCommissionForCycle(msg.sender, _cycle));
+
+    uint256 penalty; // penalty received for not taking enough risk
+    (_commission, penalty) = commissionOfAt(msg.sender, _cycle);
+
+    _hasRedeemedCommissionForCycle[msg.sender][_cycle] = true;
+
+    // record the decrease in commission pool
+    totalCommissionLeft = totalCommissionLeft.sub(_commission);
+    // include commission penalty to this cycle's total commission pool
+    _totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle(cycleNumber).add(penalty);
+    // clear investment arrays to save space
+    delete userInvestments[msg.sender];
+    delete userCompoundOrders[msg.sender];
+
+    emit CommissionPaid(_cycle, msg.sender, _commission);
+  }
+
+  /**
+   * @notice Handles deposits by minting Betoken Shares & updating total funds.
+   * @param _depositDAIAmount The amount of the deposit in DAI
+   */
+  function __deposit(uint256 _depositDAIAmount) internal {
+    // Register investment and give shares
+    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount));
+    } else {
+      require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
+    }
+    totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
   }
 }

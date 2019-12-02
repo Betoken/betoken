@@ -2,12 +2,13 @@ BetokenFund = artifacts.require "BetokenFund"
 BetokenProxy = artifacts.require "BetokenProxy"
 MiniMeToken = artifacts.require "MiniMeToken"
 MiniMeTokenFactory = artifacts.require "MiniMeTokenFactory"
-LongCERC20OrderLogic = artifacts.require "LongCERC20OrderLogic"
-ShortCERC20OrderLogic = artifacts.require "ShortCERC20OrderLogic"
-LongCEtherOrderLogic = artifacts.require "LongCEtherOrderLogic"
-ShortCEtherOrderLogic = artifacts.require "ShortCEtherOrderLogic"
+LongCERC20Order = artifacts.require "LongCERC20Order"
+ShortCERC20Order = artifacts.require "ShortCERC20Order"
+LongCEtherOrder = artifacts.require "LongCEtherOrder"
+ShortCEtherOrder = artifacts.require "ShortCEtherOrder"
 CompoundOrderFactory = artifacts.require "CompoundOrderFactory"
 BetokenLogic = artifacts.require "BetokenLogic"
+BetokenLogic2 = artifacts.require "BetokenLogic2"
 
 BigNumber = require "bignumber.js"
 
@@ -20,7 +21,7 @@ bnToString = (bn) -> BigNumber(bn).toFixed(0)
 module.exports = (deployer, network, accounts) ->
   deployer.then () ->
     switch network
-      when "development"
+      when "development", "develop"
         # Local testnet migration
         config = require "../deployment_configs/testnet.json"
 
@@ -51,7 +52,7 @@ module.exports = (deployer, network, accounts) ->
           tokenAddrs.push((await testTokenFactory.newToken(token.name, token.symbol, token.decimals)).logs[0].args.addr)
         tokenAddrs.push(TestDAI.address)
         tokenAddrs.push(ETH_ADDR)
-        tokenPrices = (bnToString(1000 * PRECISION) for i in [1..tokensInfo.length]).concat([bnToString(PRECISION), bnToString(10000 * PRECISION)])
+        tokenPrices = (bnToString(10 * PRECISION) for i in [1..tokensInfo.length]).concat([bnToString(PRECISION), bnToString(20 * PRECISION)])
   
         # deploy TestKyberNetwork
         await deployer.deploy(TestKyberNetwork, tokenAddrs, tokenPrices)
@@ -60,9 +61,6 @@ module.exports = (deployer, network, accounts) ->
         await web3.eth.sendTransaction({from: accounts[0], to: TestKyberNetwork.address, value: 1 * PRECISION})
 
         # deploy Test Compound suite of contracts
-
-        # deploy TestPriceOracle
-        await deployer.deploy(TestPriceOracle, tokenAddrs, tokenPrices)
 
         # deploy TestComptroller
         await deployer.deploy(TestComptroller)
@@ -81,6 +79,9 @@ module.exports = (deployer, network, accounts) ->
         compoundTokens = {}
         for token in tokenAddrs[0..tokenAddrs.length - 2]
           compoundTokens[token] = (await testCERC20Factory.newToken(token, TestComptroller.address)).logs[0].args.cToken
+
+        # deploy TestPriceOracle
+        await deployer.deploy(TestPriceOracle, tokenAddrs, tokenPrices, TestCEther.address)
 
 
         # mint tokens for KN
@@ -103,25 +104,29 @@ module.exports = (deployer, network, accounts) ->
         ControlToken = await MiniMeToken.at(controlTokenAddr)
         ShareToken = await MiniMeToken.at(shareTokenAddr)
         
-        # deploy ShortCERC20OrderLogic
-        await deployer.deploy(ShortCERC20OrderLogic)
+        # deploy ShortCERC20Order
+        await deployer.deploy(ShortCERC20Order)
+        await (await ShortCERC20Order.deployed()).renounceOwnership()
 
-        # deploy ShortCEtherOrderLogic
-        await deployer.deploy(ShortCEtherOrderLogic)
+        # deploy ShortCEtherOrder
+        await deployer.deploy(ShortCEtherOrder)
+        await (await ShortCEtherOrder.deployed()).renounceOwnership()
 
-        # deploy LongCERC20OrderLogic
-        await deployer.deploy(LongCERC20OrderLogic)
+        # deploy LongCERC20Order
+        await deployer.deploy(LongCERC20Order)
+        await (await LongCERC20Order.deployed()).renounceOwnership()
 
-        # deploy LongCEtherOrderLogic
-        await deployer.deploy(LongCEtherOrderLogic)
+        # deploy LongCEtherOrder
+        await deployer.deploy(LongCEtherOrder)
+        await (await LongCEtherOrder.deployed()).renounceOwnership()
 
         # deploy CompoundOrderFactory
         await deployer.deploy(
           CompoundOrderFactory,
-          ShortCERC20OrderLogic.address,
-          ShortCEtherOrderLogic.address,
-          LongCERC20OrderLogic.address,
-          LongCEtherOrderLogic.address,
+          ShortCERC20Order.address,
+          ShortCEtherOrder.address,
+          LongCERC20Order.address,
+          LongCEtherOrder.address,
           TestDAI.address,
           TestKyberNetwork.address,
           TestComptroller.address,
@@ -132,6 +137,7 @@ module.exports = (deployer, network, accounts) ->
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic)
+        await deployer.deploy(BetokenLogic2)
 
         # deploy BetokenFund contract
         compoundTokensArray = (compoundTokens[token] for token in tokenAddrs[0..tokenAddrs.length - 3])
@@ -147,7 +153,12 @@ module.exports = (deployer, network, accounts) ->
           TestDAI.address,
           TestKyberNetwork.address,
           CompoundOrderFactory.address,
-          BetokenLogic.address
+          BetokenLogic.address,
+          BetokenLogic2.address,
+          1,
+          ZERO_ADDR,
+          ZERO_ADDR,
+          ZERO_ADDR
         )
         betokenFund = await BetokenFund.deployed()
         await betokenFund.initTokenListings(
@@ -168,6 +179,8 @@ module.exports = (deployer, network, accounts) ->
         await ControlToken.transferOwnership(betokenFund.address)
         await ShareToken.transferOwnership(betokenFund.address)
 
+        await betokenFund.nextPhase()
+
       when "mainnet"
         # Mainnet Migration
         config = require "../deployment_configs/mainnet.json"
@@ -176,46 +189,154 @@ module.exports = (deployer, network, accounts) ->
 
         KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
+        # deploy ShortCERC20Order
+        await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
+        ShortCERC20OrderContract = await ShortCERC20Order.deployed()
+        await ShortCERC20OrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          true,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR,
+          {gas: 5e5}
+        )
+        await ShortCERC20OrderContract.renounceOwnership({gas: 4e5})
+
+        # deploy ShortCEtherOrder
+        await deployer.deploy(ShortCEtherOrder, {gas: 3.5e6})
+        ShortCEtherOrderContract = await ShortCEtherOrder.deployed()
+        await ShortCEtherOrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          true,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR,
+          {gas: 5e5}
+        )
+        await ShortCEtherOrderContract.renounceOwnership({gas: 4e5})
+
+        # deploy LongCERC20Order
+        await deployer.deploy(LongCERC20Order, {gas: 3.5e6})
+        LongCERC20OrderContract = await LongCERC20Order.deployed()
+        await LongCERC20OrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          false,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR,
+          {gas: 5e5}
+        )
+        await LongCERC20OrderContract.renounceOwnership({gas: 4e5})
+
+        # deploy LongCEtherOrder
+        await deployer.deploy(LongCEtherOrder, {gas: 3.3e6})
+        LongCEtherOrderContract = await LongCEtherOrder.deployed()
+        await LongCEtherOrderContract.init(
+          config.COMPOUND_CETH_ADDR,
+          1,
+          1,
+          1,
+          1,
+          false,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR,
+          {gas: 5e5}
+        )
+        await LongCEtherOrderContract.renounceOwnership({gas: 4e5})
+
+        # deploy CompoundOrderFactory
+        await deployer.deploy(
+          CompoundOrderFactory,
+          ShortCERC20OrderContract.address,
+          ShortCEtherOrderContract.address,
+          LongCERC20OrderContract.address,
+          LongCEtherOrderContract.address,
+          config.DAI_ADDR,
+          config.KYBER_ADDR,
+          config.COMPOUND_COMPTROLLER_ADDR,
+          config.COMPOUND_ORACLE_ADDR,
+          config.COMPOUND_CDAI_ADDR,
+          config.COMPOUND_CETH_ADDR
+          {gas: 8e5}
+        )
+
         # deploy BetokenLogic
-        await deployer.deploy(BetokenLogic, {gas: 6.2e6, gasPrice: 2e10})
+        await deployer.deploy(BetokenLogic, {gas: 6.5e6})
+        await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
+
+        ###minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
+        controlTokenAddr = (await minimeFactory.createCloneToken(
+            config.KAIRO_ADDR, 8995570, "Test Kairo", 18, "Test-KRO", false, {gas: 3e6})).logs[0].args.addr
+        shareTokenAddr = (await minimeFactory.createCloneToken(
+            config.SHARES_ADDR, 8995570, "Test Betoken Shares", 18, "Test-BTKS", true, {gas: 3e6})).logs[0].args.addr
+        ControlToken = await MiniMeToken.at(controlTokenAddr)
+        ShareToken = await MiniMeToken.at(shareTokenAddr)###
 
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,
           config.KAIRO_ADDR,
           config.SHARES_ADDR,
-          config.DEVELOPER_ACCOUNT
+          config.DEVELOPER_ACCOUNT,
           config.phaseLengths,
           bnToString(config.devFundingRate),
-          ZERO_ADDR,
+          config.PREV_VERSION,
           config.DAI_ADDR,
           config.KYBER_ADDR,
-          config.COMPOUND_FACTORY_ADDR,
+          CompoundOrderFactory.address,
           BetokenLogic.address,
-          {gas: 7e6, gasPrice: 2e10}
+          BetokenLogic2.address,
+          config.START_CYCLE_NUM,
+          config.DEXAG_ADDR,
+          config.SAI_ADDR,
+          config.MCDAI_MIGRATION_ADDR,
+          {gas: 6e6}
         )
         betokenFund = await BetokenFund.deployed()
+
+       ### console.log "Transferring Kairo ownership to BetokenFund..."
+        await ControlToken.transferOwnership(betokenFund.address, {gas: 4e5})
+
+        console.log "Transferring BetokenShares ownership to BetokenFund..."
+        await ShareToken.transferOwnership(betokenFund.address, {gas: 4e5})###
+
         console.log "Initializing token listings..."
         await betokenFund.initTokenListings(
           config.KYBER_TOKENS,
           config.COMPOUND_CTOKENS,
           config.FULCRUM_PTOKENS,
-          {gas: 2.72e6, gasPrice: 2e10}
-        )
-
-        # deploy BetokenProxy contract
-        await deployer.deploy(
-          BetokenProxy,
-          betokenFund.address
-          {gas: 2.4e5, gasPrice: 2e10}
+          {gas: 2.72e6}
         )
 
         # set proxy address in BetokenFund
-        console.log "Setting Betoken Proxy..."
-        await betokenFund.setProxy(BetokenProxy.address, {gas: 1e6, gasPrice: 2e10})
+        console.log "Setting proxy address..."
+        await betokenFund.setProxy(config.PROXY_ADDR, {gas: 4e5})
 
         # transfer fund ownership to developer multisig
         console.log "Transferring BetokenFund ownership..."
-        await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5, gasPrice: 2e10})
-
-        # IMPORTANT: After deployment, need to transfer ownership of Kairo contract to the BetokenFund contract
+        await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5})

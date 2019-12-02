@@ -1,11 +1,12 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.13;
 
-import "./CompoundOrderLogic.sol";
+import "./CompoundOrder.sol";
 
-contract ShortCEtherOrderLogic is CompoundOrderLogic {
+contract ShortCERC20Order is CompoundOrder {
   modifier isValidPrice(uint256 _minPrice, uint256 _maxPrice) {
     // Ensure token's price is between _minPrice and _maxPrice
-    uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
+    uint256 tokenPrice = ORACLE.getUnderlyingPrice(compoundTokenAddr); // Get the shorting token's price in ETH
+    require(tokenPrice > 0); // Ensure asset exists on Compound
     tokenPrice = __tokenToDAI(CETH_ADDR, tokenPrice); // Convert token price to be in DAI
     require(tokenPrice >= _minPrice && tokenPrice <= _maxPrice); // Ensure price is within range
     _;
@@ -17,19 +18,19 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     isValidToken(compoundTokenAddr)
     isValidPrice(_minPrice, _maxPrice)
   {
-    super.executeOrder(_minPrice, _maxPrice);
+    buyTime = now;
 
     // Get funds in DAI from BetokenFund
     dai.safeTransferFrom(owner(), address(this), collateralAmountInDAI); // Transfer DAI from BetokenFund
-    
+
     // Enter Compound markets
-    CEther market = CEther(compoundTokenAddr);
+    CERC20 market = CERC20(compoundTokenAddr);
     address[] memory markets = new address[](2);
     markets[0] = compoundTokenAddr;
     markets[1] = address(CDAI);
     uint[] memory errors = COMPTROLLER.enterMarkets(markets);
     require(errors[0] == 0 && errors[1] == 0);
-
+    
     // Get loan from Compound in tokenAddr
     uint256 loanAmountInToken = __daiToToken(compoundTokenAddr, loanAmountInDAI);
     dai.safeApprove(address(CDAI), 0); // Clear DAI allowance of Compound DAI market
@@ -45,9 +46,13 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     loanAmountInDAI = actualDAIAmount; // Change loan amount to actual DAI received
 
     // Repay leftover tokens to avoid complications
-    if (address(this).balance > 0) {
-      uint256 repayAmount = address(this).balance;
-      market.repayBorrow.value(repayAmount)();
+    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
+    if (token.balanceOf(address(this)) > 0) {
+      uint256 repayAmount = token.balanceOf(address(this));
+      token.safeApprove(compoundTokenAddr, 0);
+      token.safeApprove(compoundTokenAddr, repayAmount);
+      require(market.repayBorrow(repayAmount) == 0);
+      token.safeApprove(compoundTokenAddr, 0);
     }
   }
 
@@ -63,32 +68,42 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
 
     // Siphon remaining collateral by repaying x DAI and getting back 1.5x DAI collateral
     // Repeat to ensure debt is exhausted
-    CEther market = CEther(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
       uint256 currentDebt = getCurrentBorrowInDAI();
-      if (currentDebt <= NEGLIGIBLE_DEBT) {
-        // Current debt negligible, exit
-        break;
-      }
+      if (currentDebt > NEGLIGIBLE_DEBT) {
+        // Determine amount to be repaid this step
+        uint256 currentBalance = getCurrentCashInDAI();
+        uint256 repayAmount = 0; // amount to be repaid in DAI
+        if (currentDebt <= currentBalance) {
+          // Has enough money, repay all debt
+          repayAmount = currentDebt;
+        } else {
+          // Doesn't have enough money, repay whatever we can repay
+          repayAmount = currentBalance;
+        }
 
-      // Determine amount to be repayed this step
-      uint256 currentBalance = getCurrentCashInDAI();
-      uint256 repayAmount = 0; // amount to be repaid in DAI
-      if (currentDebt <= currentBalance) {
-        // Has enough money, repay all debt
-        repayAmount = currentDebt;
-      } else {
-        // Doesn't have enough money, repay whatever we can repay
-        repayAmount = currentBalance;
+        // Repay debt
+        repayLoan(repayAmount);
       }
-
-      // Repay debt
-      repayLoan(repayAmount);
 
       // Withdraw all available liquidity
       (bool isNeg, uint256 liquidity) = getCurrentLiquidityInDAI();
       if (!isNeg) {
-        require(CDAI.redeemUnderlying(liquidity) == 0);
+        uint256 errorCode = CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(DEFAULT_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+        if (errorCode != 0) {
+          // error
+          // try again with fallback slippage
+          errorCode = CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(FALLBACK_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+          if (errorCode != 0) {
+            // error
+            // try again with max slippage
+            CDAI.redeemUnderlying(liquidity.mul(PRECISION.sub(MAX_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+          }
+        }
+      }
+
+      if (currentDebt <= NEGLIGIBLE_DEBT) {
+        break;
       }
     }
 
@@ -107,14 +122,18 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
     (,uint256 actualTokenAmount) = __sellDAIForToken(_repayAmountInDAI);
 
     // Check if amount is greater than borrow balance
-    CEther market = CEther(compoundTokenAddr);
+    CERC20 market = CERC20(compoundTokenAddr);
     uint256 currentDebt = market.borrowBalanceCurrent(address(this));
     if (actualTokenAmount > currentDebt) {
       actualTokenAmount = currentDebt;
     }
 
     // Repay loan to Compound
-    market.repayBorrow.value(actualTokenAmount)();
+    ERC20Detailed token = __underlyingToken(compoundTokenAddr);
+    token.safeApprove(compoundTokenAddr, 0);
+    token.safeApprove(compoundTokenAddr, actualTokenAmount);
+    require(market.repayBorrow(actualTokenAmount) == 0);
+    token.safeApprove(compoundTokenAddr, 0);
   }
 
   function getMarketCollateralFactor() public view returns (uint256) {
@@ -128,7 +147,7 @@ contract ShortCEtherOrderLogic is CompoundOrderLogic {
   }
 
   function getCurrentBorrowInDAI() public returns (uint256 _amount) {
-    CEther market = CEther(compoundTokenAddr);
+    CERC20 market = CERC20(compoundTokenAddr);
     uint256 borrow = __tokenToDAI(compoundTokenAddr, market.borrowBalanceCurrent(address(this)));
     return borrow;
   }

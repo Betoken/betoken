@@ -1,8 +1,12 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.13;
 
-import "./CompoundOrder.sol";
+import "./LongCERC20Order.sol";
+import "./LongCEtherOrder.sol";
+import "./ShortCERC20Order.sol";
+import "./ShortCEtherOrder.sol";
+import "../lib/CloneFactory.sol";
 
-contract CompoundOrderFactory {
+contract CompoundOrderFactory is CloneFactory {
   address public SHORT_CERC20_LOGIC_CONTRACT;
   address public SHORT_CEther_LOGIC_CONTRACT;
   address public LONG_CERC20_LOGIC_CONTRACT;
@@ -47,25 +51,49 @@ contract CompoundOrderFactory {
     uint256 _collateralAmountInDAI,
     uint256 _loanAmountInDAI,
     bool _orderType
-  ) public returns (CompoundOrder) {
+  ) external returns (CompoundOrder) {
     require(_compoundTokenAddr != address(0));
 
     CompoundOrder order;
-    address logicContract;
 
+    address payable clone;
     if (_compoundTokenAddr != CETH_ADDR) {
-      logicContract = _orderType ? SHORT_CERC20_LOGIC_CONTRACT : LONG_CERC20_LOGIC_CONTRACT;
+      if (_orderType) {
+        // Short CERC20 Order
+        clone = toPayableAddr(createClone(SHORT_CERC20_LOGIC_CONTRACT));
+      } else {
+        // Long CERC20 Order
+        clone = toPayableAddr(createClone(LONG_CERC20_LOGIC_CONTRACT));
+      }
     } else {
-      logicContract = _orderType ? SHORT_CEther_LOGIC_CONTRACT : LONG_CEther_LOGIC_CONTRACT;
+      if (_orderType) {
+        // Short CEther Order
+        clone = toPayableAddr(createClone(SHORT_CEther_LOGIC_CONTRACT));
+      } else {
+        // Long CEther Order
+        clone = toPayableAddr(createClone(LONG_CEther_LOGIC_CONTRACT));
+      }
     }
-    order = new CompoundOrder(_compoundTokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, _orderType, logicContract, DAI_ADDR, KYBER_ADDR, COMPTROLLER_ADDR, ORACLE_ADDR, CDAI_ADDR, CETH_ADDR);
+    order = CompoundOrder(clone);
+    order.init(_compoundTokenAddr, _cycleNumber, _stake, _collateralAmountInDAI, _loanAmountInDAI, _orderType,
+      DAI_ADDR, KYBER_ADDR, COMPTROLLER_ADDR, ORACLE_ADDR, CDAI_ADDR, CETH_ADDR);
     order.transferOwnership(msg.sender);
     return order;
   }
 
-  function getMarketCollateralFactor(address _compoundTokenAddr) public view returns (uint256) {
+  function getMarketCollateralFactor(address _compoundTokenAddr) external view returns (uint256) {
     Comptroller troll = Comptroller(COMPTROLLER_ADDR);
     (, uint256 factor) = troll.markets(_compoundTokenAddr);
     return factor;
+  }
+
+  function tokenIsListed(address _compoundTokenAddr) external view returns (bool) {
+    Comptroller troll = Comptroller(COMPTROLLER_ADDR);
+    (bool isListed,) = troll.markets(_compoundTokenAddr);
+    return isListed;
+  }
+
+  function toPayableAddr(address _addr) internal pure returns (address payable) {
+    return address(uint160(_addr));
   }
 }

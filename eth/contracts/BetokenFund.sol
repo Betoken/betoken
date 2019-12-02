@@ -1,4 +1,4 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.13;
 
 import "./BetokenStorage.sol";
 import "./derivatives/CompoundOrderFactory.sol";
@@ -9,15 +9,6 @@ import "./derivatives/CompoundOrderFactory.sol";
  */
 contract BetokenFund is BetokenStorage, Utils, TokenController {
   /**
-   * @notice Executes function only during the given cycle phase.
-   * @param phase the cycle phase during which the function may be called
-   */
-  modifier during(CyclePhase phase) {
-    require(cyclePhase == phase);
-    _;
-  }
-
-  /**
    * @notice Passes if the fund is ready for migrating to the next version
    */
   modifier readyForUpgradeMigration {
@@ -26,13 +17,6 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     _;
   }
 
-  /**
-   * @notice Passes if the fund has not finalized the next smart contract to upgrade to
-   */
-  modifier notReadyForUpgrade {
-    require(hasFinalizedNextVersion == false);
-    _;
-  }
 
   /**
    * Meta functions
@@ -48,23 +32,32 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     address _daiAddr,
     address payable _kyberAddr,
     address _compoundFactoryAddr,
-    address _betokenLogic
+    address _betokenLogic,
+    address _betokenLogic2,
+    uint256 _startCycleNumber,
+    address payable _dexagAddr,
+    address _saiAddr,
+    address _mcdaiMigrationAddr
   )
     public
-    Utils(_daiAddr, _kyberAddr)
+    Utils(_daiAddr, _kyberAddr, _dexagAddr)
   {
     controlTokenAddr = _kroAddr;
     shareTokenAddr = _sTokenAddr;
     devFundingAccount = _devFundingAccount;
     phaseLengths = _phaseLengths;
     devFundingRate = _devFundingRate;
-    cyclePhase = CyclePhase.Manage;
+    cyclePhase = CyclePhase.Intermission;
     compoundFactoryAddr = _compoundFactoryAddr;
     betokenLogic = _betokenLogic;
+    betokenLogic2 = _betokenLogic2;
     previousVersion = _previousVersion;
+    cycleNumber = _startCycleNumber;
+    saiAddr = _saiAddr;
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
+    mcdaiMigration = ScdMcdMigration(_mcdaiMigrationAddr);
   }
 
   function initTokenListings(
@@ -114,8 +107,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _candidate the address of the candidate smart contract
    * @return True if successfully changed candidate, false otherwise.
    */
-  function developerInitiateUpgrade(address payable _candidate) public during(CyclePhase.Intermission) onlyOwner notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.developerInitiateUpgrade.selector, _candidate));
+  function developerInitiateUpgrade(address payable _candidate) public returns (bool _success) {
+    (bool success, bytes memory result) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.developerInitiateUpgrade.selector, _candidate));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -127,8 +120,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed signal, false if no changes were made.
    */
-  function signalUpgrade(bool _inSupport) public during(CyclePhase.Intermission) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.signalUpgrade.selector, _inSupport));
+  function signalUpgrade(bool _inSupport) public returns (bool _success) {
+    (bool success, bytes memory result) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.signalUpgrade.selector, _inSupport));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -141,8 +134,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _candidate the address of the candidate smart contract
    * @return True if successfully proposed/changed candidate, false otherwise.
    */
-  function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.proposeCandidate.selector, _chunkNumber, _candidate));
+  function proposeCandidate(uint256 _chunkNumber, address payable _candidate) public returns (bool _success) {
+    (bool success, bytes memory result) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.proposeCandidate.selector, _chunkNumber, _candidate));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -153,8 +146,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _inSupport True if the manager supports initiating upgrade, false if the manager opposes it.
    * @return True if successfully changed vote, false otherwise.
    */
-  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.voteOnCandidate.selector, _chunkNumber, _inSupport));
+  function voteOnCandidate(uint256 _chunkNumber, bool _inSupport) public returns (bool _success) {
+    (bool success, bytes memory result) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.voteOnCandidate.selector, _chunkNumber, _inSupport));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -164,8 +157,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _chunkNumber the chunk number of the successful vote
    * @return True if successful, false otherwise
    */
-  function finalizeSuccessfulVote(uint256 _chunkNumber) public during(CyclePhase.Manage) notReadyForUpgrade returns (bool _success) {
-    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.finalizeSuccessfulVote.selector, _chunkNumber));
+  function finalizeSuccessfulVote(uint256 _chunkNumber) public returns (bool _success) {
+    (bool success, bytes memory result) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.finalizeSuccessfulVote.selector, _chunkNumber));
     if (!success) { return false; }
     return abi.decode(result, (bool));
   }
@@ -225,36 +218,20 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @notice Returns the commission balance of `_manager`
    * @return the commission balance and the received penalty, denoted in DAI
    */
-  function commissionBalanceOf(address _manager) public view returns (uint256 _commission, uint256 _penalty) {
-    if (lastCommissionRedemption[_manager] >= cycleNumber) { return (0, 0); }
-    uint256 cycle = lastCommissionRedemption[_manager] > 0 ? lastCommissionRedemption[_manager] : 1;
-    uint256 cycleCommission;
-    uint256 cyclePenalty;
-    for (; cycle < cycleNumber; cycle = cycle.add(1)) {
-      (cycleCommission, cyclePenalty) = commissionOfAt(_manager, cycle);
-      _commission = _commission.add(cycleCommission);
-      _penalty = _penalty.add(cyclePenalty);
-    }
+  function commissionBalanceOf(address _manager) public returns (uint256 _commission, uint256 _penalty) {
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionBalanceOf.selector, _manager));
+    if (!success) { return (0, 0); }
+    return abi.decode(result, (uint256, uint256));
   }
 
   /**
    * @notice Returns the commission amount received by `_manager` in the `_cycle`th cycle
    * @return the commission amount and the received penalty, denoted in DAI
    */
-  function commissionOfAt(address _manager, uint256 _cycle) public view returns (uint256 _commission, uint256 _penalty) {
-    if (hasRedeemedCommissionForCycle[_manager][_cycle]) { return (0, 0); }
-    // take risk into account
-    uint256 baseKairoBalance = cToken.balanceOfAt(_manager, managePhaseEndBlock[_cycle.sub(1)]);
-    uint256 baseStake = baseKairoBalance == 0 ? baseRiskStakeFallback[_manager] : baseKairoBalance;
-    if (baseKairoBalance == 0 && baseRiskStakeFallback[_manager] == 0) { return (0, 0); }
-    uint256 riskTakenProportion = riskTakenInCycle[_manager][_cycle].mul(PRECISION).div(baseStake.mul(MIN_RISK_TIME)); // risk / threshold
-    riskTakenProportion = riskTakenProportion > PRECISION ? PRECISION : riskTakenProportion; // max proportion is 1
-
-    uint256 fullCommission = totalCommissionOfCycle[_cycle].mul(cToken.balanceOfAt(_manager, managePhaseEndBlock[_cycle]))
-      .div(cToken.totalSupplyAt(managePhaseEndBlock[_cycle]));
-
-    _commission = fullCommission.mul(riskTakenProportion).div(PRECISION);
-    _penalty = fullCommission.sub(_commission);
+  function commissionOfAt(address _manager, uint256 _cycle) public returns (uint256 _commission, uint256 _penalty) {
+    (bool success, bytes memory result) = betokenLogic.delegatecall(abi.encodeWithSelector(this.commissionOfAt.selector, _manager, _cycle));
+    if (!success) { return (0, 0); }
+    return abi.decode(result, (uint256, uint256));
   }
 
   /**
@@ -289,12 +266,22 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   }
 
   /**
+   * @notice Allows managers to invest in a Compound token. Only callable by owner.
+   * @param _token address of the Compound token to be listed
+   */
+  function listCompoundToken(address _token) public onlyOwner {
+    CompoundOrderFactory factory = CompoundOrderFactory(compoundFactoryAddr);
+    require(factory.tokenIsListed(_token));
+    isCompoundToken[_token] = true;
+  }
+
+  /**
    * @notice Moves the fund to the next phase in the investment cycle.
    */
   function nextPhase()
     public
   {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.nextPhase.selector));
     if (!success) { revert(); }
   }
 
@@ -308,8 +295,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
    * @param _donationInDAI the amount of DAI to be used for registration
    */
-  function registerWithDAI(uint256 _donationInDAI) public nonReentrant {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI));
+  function registerWithDAI(uint256 _donationInDAI) public {
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.registerWithDAI.selector, _donationInDAI));
     if (!success) { revert(); }
   }
 
@@ -317,8 +304,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @notice Registers `msg.sender` as a manager, using ETH as payment. The more one pays, the more Kairo one gets.
    *         There's a max Kairo amount that can be bought, and excess payment will be sent back to sender.
    */
-  function registerWithETH() public payable nonReentrant {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector));
+  function registerWithETH() public payable {
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.registerWithETH.selector));
     if (!success) { revert(); }
   }
 
@@ -328,8 +315,8 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _token the token to be used for payment
    * @param _donationInTokens the amount of tokens to be used for registration, should use the token's native decimals
    */
-  function registerWithToken(address _token, uint256 _donationInTokens) public nonReentrant {
-    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens));
+  function registerWithToken(address _token, uint256 _donationInTokens) public {
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.registerWithToken.selector, _token, _donationInTokens));
     if (!success) { revert(); }
   }
 
@@ -338,32 +325,15 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * Intermission phase functions
    */
 
-   /**
+  /**
    * @notice Deposit Ether into the fund. Ether will be converted into DAI.
    */
   function depositEther()
     public
     payable
-    during(CyclePhase.Intermission)
-    nonReentrant
-    notReadyForUpgrade
   {
-    // Buy DAI with ETH
-    uint256 actualDAIDeposited;
-    uint256 actualETHDeposited;
-    (,, actualDAIDeposited, actualETHDeposited) = __kyberTrade(ETH_TOKEN_ADDRESS, msg.value, dai);
-
-    // Send back leftover ETH
-    uint256 leftOverETH = msg.value.sub(actualETHDeposited);
-    if (leftOverETH > 0) {
-      msg.sender.transfer(leftOverETH);
-    }
-
-    // Register investment
-    __deposit(actualDAIDeposited);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHDeposited, actualDAIDeposited, now);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.depositEther.selector));
+    if (!success) { revert(); }
   }
 
   /**
@@ -372,17 +342,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function depositDAI(uint256 _daiAmount)
     public
-    during(CyclePhase.Intermission)
-    nonReentrant
-    notReadyForUpgrade
   {
-    dai.safeTransferFrom(msg.sender, address(this), _daiAmount);
-
-    // Register investment
-    __deposit(_daiAmount);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, DAI_ADDR, _daiAmount, _daiAmount, now);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.depositDAI.selector, _daiAmount));
+    if (!success) { revert(); }
   }
 
   /**
@@ -392,35 +354,10 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
-    nonReentrant
-    during(CyclePhase.Intermission)
-    isValidToken(_tokenAddr)  
-    notReadyForUpgrade
   {
-    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
-
-    ERC20Detailed token = ERC20Detailed(_tokenAddr);
-
-    token.safeTransferFrom(msg.sender, address(this), _tokenAmount);
-
-    // Convert token into DAI
-    uint256 actualDAIDeposited;
-    uint256 actualTokenDeposited;
-    (,, actualDAIDeposited, actualTokenDeposited) = __kyberTrade(token, _tokenAmount, dai);
-
-    // Give back leftover tokens
-    uint256 leftOverTokens = _tokenAmount.sub(actualTokenDeposited);
-    if (leftOverTokens > 0) {
-      token.safeTransfer(msg.sender, leftOverTokens);
-    }
-
-    // Register investment
-    __deposit(actualDAIDeposited);
-
-    // Emit event
-    emit Deposit(cycleNumber, msg.sender, _tokenAddr, actualTokenDeposited, actualDAIDeposited, now);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.depositToken.selector, _tokenAddr, _tokenAmount));
+    if (!success) { revert(); }
   }
-
 
   /**
    * @notice Withdraws Ether by burning Shares.
@@ -428,21 +365,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function withdrawEther(uint256 _amountInDAI)
     public
-    during(CyclePhase.Intermission)
-    nonReentrant
   {
-    // Buy ETH
-    uint256 actualETHWithdrawn;
-    uint256 actualDAIWithdrawn;
-    (,, actualETHWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, ETH_TOKEN_ADDRESS);
-
-    __withdraw(actualDAIWithdrawn);
-
-    // Transfer Ether to user
-    msg.sender.transfer(actualETHWithdrawn);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, address(ETH_TOKEN_ADDRESS), actualETHWithdrawn, actualDAIWithdrawn, now);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.withdrawEther.selector, _amountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -451,16 +376,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function withdrawDAI(uint256 _amountInDAI)
     public
-    during(CyclePhase.Intermission)
-    nonReentrant
   {
-    __withdraw(_amountInDAI);
-
-    // Transfer DAI to user
-    dai.safeTransfer(msg.sender, _amountInDAI);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, DAI_ADDR, _amountInDAI, _amountInDAI, now);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.withdrawDAI.selector, _amountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -470,26 +388,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function withdrawToken(address _tokenAddr, uint256 _amountInDAI)
     public
-    nonReentrant
-    during(CyclePhase.Intermission)
-    isValidToken(_tokenAddr)
   {
-    require(_tokenAddr != DAI_ADDR && _tokenAddr != address(ETH_TOKEN_ADDRESS));
-
-    ERC20Detailed token = ERC20Detailed(_tokenAddr);
-
-    // Convert DAI into desired tokens
-    uint256 actualTokenWithdrawn;
-    uint256 actualDAIWithdrawn;
-    (,, actualTokenWithdrawn, actualDAIWithdrawn) = __kyberTrade(dai, _amountInDAI, token);
-
-    __withdraw(actualDAIWithdrawn);
-
-    // Transfer tokens to user
-    token.safeTransfer(msg.sender, actualTokenWithdrawn);
-
-    // Emit event
-    emit Withdraw(cycleNumber, msg.sender, _tokenAddr, actualTokenWithdrawn, actualDAIWithdrawn, now);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.withdrawToken.selector, _tokenAddr, _amountInDAI));
+    if (!success) { revert(); }
   }
 
   /**
@@ -497,21 +398,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function redeemCommission(bool _inShares)
     public
-    during(CyclePhase.Intermission)
-    nonReentrant
   {
-    uint256 commission = __redeemCommission();
-
-    if (_inShares) {
-      // Deposit commission into fund
-      __deposit(commission);
-
-      // Emit deposit event
-      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
-    } else {
-      // Transfer the commission in DAI
-      dai.safeTransfer(msg.sender, commission);
-    }
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.redeemCommission.selector, _inShares));
+    if (!success) { revert(); }
   }
 
   /**
@@ -522,23 +411,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function redeemCommissionForCycle(bool _inShares, uint256 _cycle)
     public
-    during(CyclePhase.Intermission)
-    nonReentrant
   {
-    require(_cycle < cycleNumber);
-
-    uint256 commission = __redeemCommissionForCycle(_cycle);
-
-    if (_inShares) {
-      // Deposit commission into fund
-      __deposit(commission);
-
-      // Emit deposit event
-      emit Deposit(cycleNumber, msg.sender, DAI_ADDR, commission, commission, now);
-    } else {
-      // Transfer the commission in DAI
-      dai.safeTransfer(msg.sender, commission);
-    }
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.redeemCommissionForCycle.selector, _inShares, _cycle));
+    if (!success) { revert(); }
   }
 
   /**
@@ -547,13 +422,16 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function sellLeftoverToken(address _tokenAddr)
     public
-    nonReentrant
-    during(CyclePhase.Intermission)
-    isValidToken(_tokenAddr)
   {
-    ERC20Detailed token = ERC20Detailed(_tokenAddr);
-    (,,uint256 actualDAIReceived,) = __kyberTrade(token, getBalance(token, address(this)), dai);
-    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.sellLeftoverToken.selector, _tokenAddr));
+    if (!success) { revert(); }
+  }
+
+  function sellLeftoverFulcrumToken(address _tokenAddr)
+    public
+  {
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.sellLeftoverFulcrumToken.selector, _tokenAddr));
+    if (!success) { revert(); }
   }
 
   /**
@@ -562,21 +440,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function sellLeftoverCompoundOrder(address payable _orderAddress)
     public
-    nonReentrant
-    during(CyclePhase.Intermission)
   {
-    // Load order info
-    require(_orderAddress != address(0));
-    CompoundOrder order = CompoundOrder(_orderAddress);
-    require(order.isSold() == false && order.cycleNumber() < cycleNumber);
-
-    // Sell short order
-    // Not using outputAmount returned by order.sellOrder() because _orderAddress could point to a malicious contract
-    uint256 beforeDAIBalance = dai.balanceOf(address(this));
-    order.sellOrder(0, MAX_QTY);
-    uint256 actualDAIReceived = dai.balanceOf(address(this)).sub(beforeDAIBalance);
-
-    totalFundsInDAI = totalFundsInDAI.add(actualDAIReceived);
+    (bool success,) = betokenLogic2.delegatecall(abi.encodeWithSelector(this.sellLeftoverCompoundOrder.selector, _orderAddress));
+    if (!success) { revert(); }
   }
 
   /**
@@ -585,12 +451,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    */
   function burnDeadman(address _deadman)
     public
-    nonReentrant
-    during(CyclePhase.Intermission)
   {
-    require(_deadman != address(this));
-    require(cycleNumber.sub(lastActiveCycle[_deadman]) >= INACTIVE_THRESHOLD);
-    require(cToken.destroyTokens(_deadman, cToken.balanceOf(_deadman)));
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.burnDeadman.selector, _deadman));
+    if (!success) { revert(); }
   }
 
   /**
@@ -611,11 +474,31 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     uint256 _maxPrice
   )
     public
-    nonReentrant
-    isValidToken(_tokenAddress)
-    during(CyclePhase.Manage)
   {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createInvestment.selector, _tokenAddress, _stake, _minPrice, _maxPrice));
+    if (!success) { revert(); }
+  }
+
+  /**
+   * @notice Creates a new investment for an ERC20 token.
+   * @param _tokenAddress address of the ERC20 token contract
+   * @param _stake amount of Kairos to be staked in support of the investment
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   * @param _calldata calldata for dex.ag trading
+   * @param _useKyber true for Kyber Network, false for dex.ag
+   */
+  function createInvestmentV2(
+    address _tokenAddress,
+    uint256 _stake,
+    uint256 _minPrice,
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
+  )
+    public
+  {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createInvestmentV2.selector, _tokenAddress, _stake, _minPrice, _maxPrice, _calldata, _useKyber));
     if (!success) { revert(); }
   }
 
@@ -636,10 +519,32 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     uint256 _maxPrice
   )
     public
-    during(CyclePhase.Manage)
-    nonReentrant
   {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellInvestmentAsset.selector, _investmentId, _tokenAmount, _minPrice, _maxPrice));
+    if (!success) { revert(); }
+  }
+
+  /**
+   * @notice Called by user to sell the assets an investment invested in. Returns the staked Kairo plus rewards/penalties to the user.
+   *         The user can sell only part of the investment by changing _tokenAmount.
+   * @dev When selling only part of an investment, the old investment would be "fully" sold and a new investment would be created with
+   *   the original buy price and however much tokens that are not sold.
+   * @param _investmentId the ID of the investment
+   * @param _tokenAmount the amount of tokens to be sold.
+   * @param _minPrice the minimum price for the trade
+   * @param _maxPrice the maximum price for the trade
+   */
+  function sellInvestmentAssetV2(
+    uint256 _investmentId,
+    uint256 _tokenAmount,
+    uint256 _minPrice,
+    uint256 _maxPrice,
+    bytes memory _calldata,
+    bool _useKyber
+  )
+    public
+  {
+    (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellInvestmentAssetV2.selector, _investmentId, _tokenAmount, _minPrice, _maxPrice, _calldata, _useKyber));
     if (!success) { revert(); }
   }
 
@@ -659,9 +564,6 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     uint256 _maxPrice
   )
     public
-    nonReentrant
-    during(CyclePhase.Manage)
-    isValidToken(_tokenAddress)
   {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.createCompoundOrder.selector, _orderType, _tokenAddress, _stake, _minPrice, _maxPrice));
     if (!success) { revert(); }
@@ -679,8 +581,6 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     uint256 _maxPrice
   )
     public
-    during(CyclePhase.Manage)
-    nonReentrant
   {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.sellCompoundOrder.selector, _orderId, _minPrice, _maxPrice));
     if (!success) { revert(); }
@@ -691,7 +591,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
    * @param _orderId the ID of the Compound order
    * @param _repayAmountInDAI amount of DAI to use for repaying debt
    */
-  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public during(CyclePhase.Manage) nonReentrant {
+  function repayCompoundOrder(uint256 _orderId, uint256 _repayAmountInDAI) public {
     (bool success,) = betokenLogic.delegatecall(abi.encodeWithSelector(this.repayCompoundOrder.selector, _orderId, _repayAmountInDAI));
     if (!success) { revert(); }
   }
@@ -733,81 +633,6 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   function onApprove(address _owner, address _spender, uint _amount) public
       returns(bool) {
     return true;
-  }
-
-  /**
-   * @notice Handles deposits by minting Betoken Shares & updating total funds.
-   * @param _depositDAIAmount The amount of the deposit in DAI
-   */
-  function __deposit(uint256 _depositDAIAmount) internal {
-    // Register investment and give shares
-    if (sToken.totalSupply() == 0 || totalFundsInDAI == 0) {
-      require(sToken.generateTokens(msg.sender, _depositDAIAmount));
-    } else {
-      require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
-    }
-    totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
-  }
-
-  /**
-   * @notice Handles deposits by burning Betoken Shares & updating total funds.
-   * @param _withdrawDAIAmount The amount of the withdrawal in DAI
-   */
-  function __withdraw(uint256 _withdrawDAIAmount) internal {
-    // Burn Shares
-    require(sToken.destroyTokens(msg.sender, _withdrawDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
-    totalFundsInDAI = totalFundsInDAI.sub(_withdrawDAIAmount);
-  }
-
-  /**
-   * @notice Redeems the commission for all previous cycles. Updates the related variables.
-   * @return the amount of commission to be redeemed
-   */
-  function __redeemCommission() internal returns (uint256 _commission) {
-    require(lastCommissionRedemption[msg.sender] < cycleNumber);
-
-    uint256 penalty; // penalty received for not taking enough risk
-    (_commission, penalty) = commissionBalanceOf(msg.sender);
-
-    // record the redemption to prevent double-redemption
-    for (uint256 i = lastCommissionRedemption[msg.sender]; i < cycleNumber; i = i.add(1)) {
-      hasRedeemedCommissionForCycle[msg.sender][i] = true;
-    }
-    lastCommissionRedemption[msg.sender] = cycleNumber;
-
-    // record the decrease in commission pool
-    totalCommissionLeft = totalCommissionLeft.sub(_commission);
-    // include commission penalty to this cycle's total commission pool
-    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(penalty);
-    // clear investment arrays to save space
-    delete userInvestments[msg.sender];
-    delete userCompoundOrders[msg.sender];
-
-    emit CommissionPaid(cycleNumber, msg.sender, _commission);
-  }
-
-  /**
-   * @notice Redeems commission for a particular cycle. Updates the related variables.
-   * @param _cycle the cycle for which the commission will be redeemed
-   * @return the amount of commission to be redeemed
-   */
-  function __redeemCommissionForCycle(uint256 _cycle) internal returns (uint256 _commission) {
-    require(!hasRedeemedCommissionForCycle[msg.sender][_cycle]);
-
-    uint256 penalty; // penalty received for not taking enough risk
-    (_commission, penalty) = commissionOfAt(msg.sender, _cycle);
-
-    hasRedeemedCommissionForCycle[msg.sender][_cycle] = true;
-
-    // record the decrease in commission pool
-    totalCommissionLeft = totalCommissionLeft.sub(_commission);
-    // include commission penalty to this cycle's total commission pool
-    totalCommissionOfCycle[cycleNumber] = totalCommissionOfCycle[cycleNumber].add(penalty);
-    // clear investment arrays to save space
-    delete userInvestments[msg.sender];
-    delete userCompoundOrders[msg.sender];
-
-    emit CommissionPaid(_cycle, msg.sender, _commission);
   }
 
   function() external payable {}

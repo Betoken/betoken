@@ -6,10 +6,8 @@ sudo: enabled
 install:
   - cd eth
   - npm install
-  - npm install -g truffle@5.0.18
-  - npm install -g ganache-cli@6.4.3
+  - npm install --only=dev
+  - npm install -g truffle
 
 script:
-  - ganache-cli -l 8000000 &> /dev/null &
-  - truffle compile &> /dev/null &
-  - truffle test
+  - npx buidler test

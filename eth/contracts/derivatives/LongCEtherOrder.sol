@@ -1,8 +1,8 @@
-pragma solidity 0.5.8;
+pragma solidity 0.5.13;
 
-import "./CompoundOrderLogic.sol";
+import "./CompoundOrder.sol";
 
-contract LongCEtherOrderLogic is CompoundOrderLogic {
+contract LongCEtherOrder is CompoundOrder {
   modifier isValidPrice(uint256 _minPrice, uint256 _maxPrice) {
     // Ensure token's price is between _minPrice and _maxPrice
     uint256 tokenPrice = PRECISION; // The price of ETH in ETH is just 1
@@ -17,7 +17,7 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     isValidToken(compoundTokenAddr)
     isValidPrice(_minPrice, _maxPrice)
   {
-    super.executeOrder(_minPrice, _maxPrice);
+    buyTime = now;
     
     // Get funds in DAI from BetokenFund
     dai.safeTransferFrom(owner(), address(this), collateralAmountInDAI); // Transfer DAI from BetokenFund
@@ -67,30 +67,41 @@ contract LongCEtherOrderLogic is CompoundOrderLogic {
     CEther market = CEther(compoundTokenAddr);
     for (uint256 i = 0; i < MAX_REPAY_STEPS; i = i.add(1)) {
       uint256 currentDebt = getCurrentBorrowInDAI();
-      if (currentDebt <= NEGLIGIBLE_DEBT) {
-        // Current debt negligible, exit
-        break;
-      }
+      if (currentDebt > NEGLIGIBLE_DEBT) {
+        // Determine amount to be repaid this step
+        uint256 currentBalance = getCurrentCashInDAI();
+        uint256 repayAmount = 0; // amount to be repaid in DAI
+        if (currentDebt <= currentBalance) {
+          // Has enough money, repay all debt
+          repayAmount = currentDebt;
+        } else {
+          // Doesn't have enough money, repay whatever we can repay
+          repayAmount = currentBalance;
+        }
 
-      // Determine amount to be repayed this step
-      uint256 currentBalance = getCurrentCashInDAI();
-      uint256 repayAmount = 0; // amount to be repaid in DAI
-      if (currentDebt <= currentBalance) {
-        // Has enough money, repay all debt
-        repayAmount = currentDebt;
-      } else {
-        // Doesn't have enough money, repay whatever we can repay
-        repayAmount = currentBalance;
+        // Repay debt
+        repayLoan(repayAmount);
       }
-
-      // Repay debt
-      repayLoan(repayAmount);
 
       // Withdraw all available liquidity
       (bool isNeg, uint256 liquidity) = getCurrentLiquidityInDAI();
       if (!isNeg) {
         liquidity = __daiToToken(compoundTokenAddr, liquidity);
-        require(market.redeemUnderlying(liquidity) == 0);
+        uint256 errorCode = market.redeemUnderlying(liquidity.mul(PRECISION.sub(DEFAULT_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+        if (errorCode != 0) {
+          // error
+          // try again with fallback slippage
+          errorCode = market.redeemUnderlying(liquidity.mul(PRECISION.sub(FALLBACK_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+          if (errorCode != 0) {
+            // error
+            // try again with max slippage
+            market.redeemUnderlying(liquidity.mul(PRECISION.sub(MAX_LIQUIDITY_SLIPPAGE)).div(PRECISION));
+          }
+        }
+      }
+
+      if (currentDebt <= NEGLIGIBLE_DEBT) {
+        break;
       }
     }
 
