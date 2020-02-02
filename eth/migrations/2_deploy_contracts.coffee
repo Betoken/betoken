@@ -183,14 +183,14 @@ module.exports = (deployer, network, accounts) ->
 
       when "mainnet"
         # Mainnet Migration
-        config = require "../deployment_configs/mainnet.json"
+        config = require "../deployment_configs/mainnet_test.json"
 
         PRECISION = 1e18
 
         KYBER_TOKENS = config.KYBER_TOKENS.map((x) -> web3.utils.toChecksumAddress(x))
 
         # deploy ShortCERC20Order
-        await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
+        ###await deployer.deploy(ShortCERC20Order, {gas: 3.4e6})
         ShortCERC20OrderContract = await ShortCERC20Order.deployed()
         await ShortCERC20OrderContract.init(
           config.COMPOUND_CETH_ADDR,
@@ -287,30 +287,32 @@ module.exports = (deployer, network, accounts) ->
 
         # deploy BetokenLogic
         await deployer.deploy(BetokenLogic, {gas: 6.5e6})
-        await deployer.deploy(BetokenLogic2, {gas: 6.7e6})
+        await deployer.deploy(BetokenLogic2, {gas: 6.7e6})###
 
         ###minimeFactory = await MiniMeTokenFactory.at('0xa72f38629585cEa5Fe9d17E5ebBdbffb5A2fEC8a')
         controlTokenAddr = (await minimeFactory.createCloneToken(
-            config.KAIRO_ADDR, 8995570, "Test Kairo", 18, "Test-KRO", false, {gas: 3e6})).logs[0].args.addr
+            ZERO_ADDR, 0, "Test Kairo", 18, "Test-KRO", false, {gas: 3e6})).logs[0].args.addr
         shareTokenAddr = (await minimeFactory.createCloneToken(
-            config.SHARES_ADDR, 8995570, "Test Betoken Shares", 18, "Test-BTKS", true, {gas: 3e6})).logs[0].args.addr
+            ZERO_ADDR, 0, "Test Betoken Shares", 18, "Test-BTKS", true, {gas: 3e6})).logs[0].args.addr
         ControlToken = await MiniMeToken.at(controlTokenAddr)
-        ShareToken = await MiniMeToken.at(shareTokenAddr)###
+        ShareToken = await MiniMeToken.at(shareTokenAddr)
+        console.log "Kairo address: #{controlTokenAddr}"
+        console.log "Shares address: #{shareTokenAddr}"###
 
         # deploy BetokenFund contract
         await deployer.deploy(
           BetokenFund,
-          config.KAIRO_ADDR,
-          config.SHARES_ADDR,
+          '0x38B91753D5346490c149990Bf5b4C32D0390C2b0', #controlTokenAddr, #config.KAIRO_ADDR,
+          '0x5F1Aba3b4f0361Ef623Bc0D7C063546107604C1e', #shareTokenAddr, #config.SHARES_ADDR,
           config.DEVELOPER_ACCOUNT,
           config.phaseLengths,
           bnToString(config.devFundingRate),
-          config.PREV_VERSION,
+          ZERO_ADDR, #config.PREV_VERSION,
           config.DAI_ADDR,
           config.KYBER_ADDR,
-          CompoundOrderFactory.address,
-          BetokenLogic.address,
-          BetokenLogic2.address,
+          '0xe06b4275aa40b6ce585c05b4a69c619410810e7b', #CompoundOrderFactory.address,
+          '0x65d665272f9286fa087f7c861c0cb74f948facc9', #BetokenLogic.address,
+          '0xcb1e23fb16f73bcdfce8580e1e9ec1455e3f7db0', #BetokenLogic2.address,
           config.START_CYCLE_NUM,
           config.DEXAG_ADDR,
           config.SAI_ADDR,
@@ -319,11 +321,13 @@ module.exports = (deployer, network, accounts) ->
         )
         betokenFund = await BetokenFund.deployed()
 
-       ### console.log "Transferring Kairo ownership to BetokenFund..."
+        ControlToken = await MiniMeToken.at('0x38B91753D5346490c149990Bf5b4C32D0390C2b0')
+        ShareToken = await MiniMeToken.at('0x5F1Aba3b4f0361Ef623Bc0D7C063546107604C1e')
+        console.log "Transferring Kairo ownership to BetokenFund..."
         await ControlToken.transferOwnership(betokenFund.address, {gas: 4e5})
 
         console.log "Transferring BetokenShares ownership to BetokenFund..."
-        await ShareToken.transferOwnership(betokenFund.address, {gas: 4e5})###
+        await ShareToken.transferOwnership(betokenFund.address, {gas: 4e5})
 
         console.log "Initializing token listings..."
         await betokenFund.initTokenListings(
@@ -333,10 +337,16 @@ module.exports = (deployer, network, accounts) ->
           {gas: 2.72e6}
         )
 
+         # deploy BetokenProxy contract
+        await deployer.deploy(
+          BetokenProxy,
+          betokenFund.address
+        )
+
         # set proxy address in BetokenFund
         console.log "Setting proxy address..."
-        await betokenFund.setProxy(config.PROXY_ADDR, {gas: 4e5})
+        await betokenFund.setProxy(BetokenProxy.address ###config.PROXY_ADDR###, {gas: 4e5})
 
         # transfer fund ownership to developer multisig
-        console.log "Transferring BetokenFund ownership..."
-        await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5})
+        ###console.log "Transferring BetokenFund ownership..."
+        await betokenFund.transferOwnership(config.DEVELOPER_ACCOUNT, {gas: 4e5})###
