@@ -15,8 +15,8 @@ module.exports = {
         const mnemonic = require("./secret.json");
         return new HDWalletProvider(mnemonic, "https://mainnet.infura.io/v3/2f4ac5ce683c4da09f88b2b564d44199", 1)
       },
-      gas: 1000000,
-      gasPrice: 3e9,
+      gas: 2e5,
+      gasPrice: 2.5e9,
       network_id: 1
     },
     rinkeby: {

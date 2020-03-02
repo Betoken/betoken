@@ -13,7 +13,7 @@ module.exports = async (callback) => {
         i += 1;
         let kairoBalance = +(await kairo.balanceOf(deadman)) / 1e18;
         console.log(`Kairo balance: ${kairoBalance}`);
-        if (kairoBalance >= 1) {
+        if (kairoBalance > 0) {
             await fund.burnDeadman(deadman);
         } else {
             console.log(`Skipping ${deadman}`);
