@@ -156,8 +156,6 @@ module.exports = (deployer, network, accounts) ->
           BetokenLogic.address,
           BetokenLogic2.address,
           1,
-          ZERO_ADDR,
-          ZERO_ADDR,
           ZERO_ADDR
         )
         betokenFund = await BetokenFund.deployed()
@@ -313,8 +311,6 @@ module.exports = (deployer, network, accounts) ->
           BetokenLogic2.address,
           config.START_CYCLE_NUM,
           config.DEXAG_ADDR,
-          config.SAI_ADDR,
-          config.MCDAI_MIGRATION_ADDR,
           {gas: 6e6}
         )
         betokenFund = await BetokenFund.deployed()

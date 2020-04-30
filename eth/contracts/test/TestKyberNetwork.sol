@@ -23,7 +23,7 @@ contract TestKyberNetwork is KyberNetwork, Utils(address(0), address(0), address
     }
   }
 
-  function getExpectedRate(ERC20Detailed src, ERC20Detailed dest, uint srcQty) external view returns (uint expectedRate, uint slippageRate) 
+  function getExpectedRate(ERC20Detailed src, ERC20Detailed dest, uint /*srcQty*/) external view returns (uint expectedRate, uint slippageRate) 
   {
     uint256 result = priceInDAI[address(src)].mul(10**getDecimals(dest)).mul(PRECISION).div(priceInDAI[address(dest)].mul(10**getDecimals(src)));
     return (result, result);
@@ -35,9 +35,9 @@ contract TestKyberNetwork is KyberNetwork, Utils(address(0), address(0), address
     ERC20Detailed dest,
     address payable destAddress,
     uint maxDestAmount,
-    uint minConversionRate,
-    address walletId,
-    bytes calldata hint
+    uint /*minConversionRate*/,
+    address /*walletId*/,
+    bytes calldata /*hint*/
   )
     external
     payable

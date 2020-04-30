@@ -60,14 +60,18 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
           upgradeVotingActive = true;
           emit InitiatedUpgrade(cycleNumber);
         }
+
+        // Update total funds at management phase's beginning
+        totalFundsAtManagePhaseStart = totalFundsInDAI;
       } else if (cyclePhase == CyclePhase.Manage) {
         // Burn any Kairo left in BetokenFund's account
         require(cToken.destroyTokens(address(this), cToken.balanceOf(address(this))));
 
         // Pay out commissions and fees
         uint256 profit = 0;
-        if (getBalance(dai, address(this)) > totalFundsInDAI.add(totalCommissionLeft)) {
-          profit = getBalance(dai, address(this)).sub(totalFundsInDAI).sub(totalCommissionLeft);
+        uint256 daiBalanceAtManagePhaseStart = totalFundsAtManagePhaseStart.add(totalCommissionLeft);
+        if (getBalance(dai, address(this)) > daiBalanceAtManagePhaseStart) {
+          profit = getBalance(dai, address(this)).sub(daiBalanceAtManagePhaseStart);
         }
 
         totalFundsInDAI = getBalance(dai, address(this)).sub(totalCommissionLeft);
@@ -127,24 +131,6 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
    */
   function init() internal {
     _managePhaseEndBlock[cycleNumber.sub(1)] = block.number;
-
-    // convert SAI to DAI
-    if (saiAddr != address(0)) {
-      ERC20Detailed sai = ERC20Detailed(saiAddr);
-      uint256 saiBalance = getBalance(sai, address(this));
-      require(sai.approve(address(mcdaiMigration), 0));
-      require(sai.approve(address(mcdaiMigration), saiBalance));
-      mcdaiMigration.swapSaiToDai(saiBalance);
-
-      // reimbursements
-      address cryptoChick = 0x8e9818E75ea25d0162F4998E033eae28cDDc231e;
-      address newCryptoChick = 0x617096ec92315d6A23a5ebDCf4f1Fc3A8C59E5d5;
-      uint256 balance = cToken.balanceOf(cryptoChick);
-      require(cToken.destroyTokens(cryptoChick, balance) && cToken.generateTokens(newCryptoChick, balance));
-
-      address garima = 0xd16Aa39e2812Fa1C9Dae6Ca4Eee0A11DEE262a9a;
-      cToken.generateTokens(garima, PRECISION.mul(628));
-    }
 
     // load values from previous version
     totalCommissionLeft = previousVersion == address(0) ? 0 : BetokenStorage(previousVersion).totalCommissionLeft();
@@ -357,7 +343,6 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
   function depositEther()
     public
     payable
-    during(CyclePhase.Intermission)
     notReadyForUpgrade
     nonReentrant
   {
@@ -385,7 +370,6 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
    */
   function depositDAI(uint256 _daiAmount)
     public
-    during(CyclePhase.Intermission)
     notReadyForUpgrade
     nonReentrant
   {
@@ -405,7 +389,6 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
    */
   function depositToken(address _tokenAddr, uint256 _tokenAmount)
     public
-    during(CyclePhase.Intermission)
     notReadyForUpgrade
     nonReentrant
     isValidToken(_tokenAddr)
@@ -677,6 +660,7 @@ contract BetokenLogic2 is BetokenStorage, Utils(address(0), address(0), address(
       require(sToken.generateTokens(msg.sender, _depositDAIAmount.mul(sToken.totalSupply()).div(totalFundsInDAI)));
     }
     totalFundsInDAI = totalFundsInDAI.add(_depositDAIAmount);
+    totalFundsAtManagePhaseStart = totalFundsAtManagePhaseStart.add(_depositDAIAmount);
   }
 
   /**

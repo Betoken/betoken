@@ -35,9 +35,7 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     address _betokenLogic,
     address _betokenLogic2,
     uint256 _startCycleNumber,
-    address payable _dexagAddr,
-    address _saiAddr,
-    address _mcdaiMigrationAddr
+    address payable _dexagAddr
   )
     public
     Utils(_daiAddr, _kyberAddr, _dexagAddr)
@@ -53,11 +51,9 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
     betokenLogic2 = _betokenLogic2;
     previousVersion = _previousVersion;
     cycleNumber = _startCycleNumber;
-    saiAddr = _saiAddr;
 
     cToken = IMiniMeToken(_kroAddr);
     sToken = IMiniMeToken(_sTokenAddr);
-    mcdaiMigration = ScdMcdMigration(_mcdaiMigrationAddr);
   }
 
   function initTokenListings(
@@ -603,34 +599,27 @@ contract BetokenFund is BetokenStorage, Utils, TokenController {
   // MiniMe TokenController functions, not used right now
   /**
    * @notice Called when `_owner` sends ether to the MiniMe Token contract
-   * @param _owner The address that sent the ether to create tokens
    * @return True if the ether is accepted, false if it throws
    */
-  function proxyPayment(address _owner) public payable returns(bool) {
+  function proxyPayment(address /*_owner*/) public payable returns(bool) {
     return false;
   }
 
   /**
    * @notice Notifies the controller about a token transfer allowing the
    *  controller to react if desired
-   * @param _from The origin of the transfer
-   * @param _to The destination of the transfer
-   * @param _amount The amount of the transfer
    * @return False if the controller does not authorize the transfer
    */
-  function onTransfer(address _from, address _to, uint _amount) public returns(bool) {
+  function onTransfer(address /*_from*/, address /*_to*/, uint /*_amount*/) public returns(bool) {
     return true;
   }
 
   /**
    * @notice Notifies the controller about an approval allowing the
    *  controller to react if desired
-   * @param _owner The address that calls `approve()`
-   * @param _spender The spender in the `approve()` call
-   * @param _amount The amount in the `approve()` call
    * @return False if the controller does not authorize the approval
    */
-  function onApprove(address _owner, address _spender, uint _amount) public
+  function onApprove(address /*_owner*/, address /*_spender*/, uint /*_amount*/) public
       returns(bool) {
     return true;
   }

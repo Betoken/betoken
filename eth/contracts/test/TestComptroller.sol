@@ -24,7 +24,7 @@ contract TestComptroller is Comptroller {
     return errors;
   }
 
-  function markets(address cToken) external view returns (bool isListed, uint256 collateralFactorMantissa) {
+  function markets(address /*cToken*/) external view returns (bool isListed, uint256 collateralFactorMantissa) {
     return (true, collateralFactor);
   }
 }

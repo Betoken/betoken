@@ -143,7 +143,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
 
     // Invest
     uint256 investmentId = investmentsCount(msg.sender).sub(1);
-    (, uint256 actualSrcAmount) = __handleInvestment(investmentId, _minPrice, _maxPrice, true, _calldata, _useKyber);
+    __handleInvestment(investmentId, _minPrice, _maxPrice, true, _calldata, _useKyber);
 
     // Update last active cycle
     _lastActiveCycle[msg.sender] = cycleNumber;
@@ -355,7 +355,7 @@ contract BetokenLogic is BetokenStorage, Utils(address(0), address(0), address(0
     emit RepaidCompoundOrder(cycleNumber, msg.sender, userCompoundOrders[msg.sender].length - 1, address(order), _repayAmountInDAI);
   }
 
-  function getReceiveKairoAmount(uint256 stake, uint256 output, uint256 input) public view returns(uint256 _amount) {
+  function getReceiveKairoAmount(uint256 stake, uint256 output, uint256 input) public pure returns(uint256 _amount) {
     if (output >= input) {
       // positive ROI, simply return stake * (1 + ROI)
       return stake.mul(output).div(input);

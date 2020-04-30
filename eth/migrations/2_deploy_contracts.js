@@ -165,7 +165,7 @@
             return results;
           })();
           compoundTokensArray.push(TestCEther.address);
-          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, 1, ZERO_ADDR, ZERO_ADDR, ZERO_ADDR);
+          await deployer.deploy(BetokenFund, ControlToken.address, ShareToken.address, accounts[0], config.phaseLengths, bnToString(config.devFundingRate), ZERO_ADDR, TestDAI.address, TestKyberNetwork.address, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, 1, ZERO_ADDR);
           betokenFund = (await BetokenFund.deployed());
           await betokenFund.initTokenListings(tokenAddrs.slice(0, +(tokenAddrs.length - 3) + 1 || 9e9).concat([ETH_ADDR]), compoundTokensArray, []);
           // deploy BetokenProxy contract
@@ -245,7 +245,7 @@
           ControlToken = await MiniMeToken.at(controlTokenAddr)
           ShareToken = await MiniMeToken.at(shareTokenAddr)*/
           // deploy BetokenFund contract
-          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, config.DEXAG_ADDR, config.SAI_ADDR, config.MCDAI_MIGRATION_ADDR, {
+          await deployer.deploy(BetokenFund, config.KAIRO_ADDR, config.SHARES_ADDR, config.DEVELOPER_ACCOUNT, config.phaseLengths, bnToString(config.devFundingRate), config.PREV_VERSION, config.DAI_ADDR, config.KYBER_ADDR, CompoundOrderFactory.address, BetokenLogic.address, BetokenLogic2.address, config.START_CYCLE_NUM, config.DEXAG_ADDR, {
             gas: 6e6
           });
           betokenFund = (await BetokenFund.deployed());

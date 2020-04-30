@@ -7,7 +7,6 @@ import "./interfaces/IMiniMeToken.sol";
 import "./tokens/minime/TokenController.sol";
 import "./Utils.sol";
 import "./BetokenProxyInterface.sol";
-import "./interfaces/ScdMcdMigration.sol";
 
 /**
  * @title The storage layout of BetokenFund
@@ -92,6 +91,9 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   // The amount of funds held by the fund.
   uint256 public totalFundsInDAI;
 
+  // The total funds at the beginning of the current management phase
+  uint256 public totalFundsAtManagePhaseStart;
+
   // The start time for the current investment cycle phase, in seconds since Unix epoch.
   uint256 public startTimeOfCyclePhase;
 
@@ -160,7 +162,6 @@ contract BetokenStorage is Ownable, ReentrancyGuard {
   IMiniMeToken internal cToken;
   IMiniMeToken internal sToken;
   BetokenProxyInterface internal proxy;
-  ScdMcdMigration internal mcdaiMigration;
 
   // Events
 
